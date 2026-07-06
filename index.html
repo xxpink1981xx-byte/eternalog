@@ -1397,8 +1397,6 @@
                     
                     scrollContainer.scrollTop = scrollContainer.scrollHeight;
                     updateSliderFromScroll();
-            loadEssays();
-            loadEarthSignal();
                     
                     typingTimeout = setTimeout(write, speed);
                 } else {
@@ -2793,6 +2791,15 @@
     if (currentLang === 'en') applyLang('en');
   });
 })();
+</script>
+
+<script>
+  // EARTH SIGNAL・エッセイは window.onload（全アセット読込完了）を待たず、
+  // できるだけ早く取得を開始する（動画等の読込で待たされるのを防ぐ）
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof loadEssays === 'function') loadEssays();
+    if (typeof loadEarthSignal === 'function') loadEarthSignal();
+  });
 </script>
 </body>
 </html>
