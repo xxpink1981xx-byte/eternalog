@@ -659,7 +659,7 @@
                 <!-- ナビゲーター：燈の部屋（端末ごしに覗く窓）。背面=部屋 / 前面=透過の燈（瞬き・口パク） -->
                 <div id="navigator-zone" class="relative w-full flex items-center justify-center select-none my-1">
                     <div class="monitor-bezel">
-                    <div id="room-screen" class="relative w-full h-[240px] sm:h-[280px] rounded-[14px] overflow-hidden screen-edge">
+                    <div id="room-screen" class="relative w-full h-[210px] sm:h-[250px] rounded-[14px] overflow-hidden screen-edge">
                         <!-- 部屋（背景レイヤー） -->
                         
                         <!-- サイバー被せ：上下ヴィネット＋淡ティント＋走査線 -->
@@ -672,8 +672,8 @@
                         <!-- 部屋のホロUI：ランダムcmdウィンドウ（燈の背面に浮遊） -->
                         <div id="room-holo" class="absolute inset-0 z-[1] overflow-hidden pointer-events-none"></div>
                         <!-- 燈動画（クロスフェードループ：A/B2本交互） -->
-                        <video id="tomori-a" src="tomori_wave.mp4" class="absolute inset-0 w-full h-full object-cover" muted playsinline preload="auto" style="z-index:0; opacity:1; transition:opacity 0.6s ease;"></video>
-                        <video id="tomori-b" src="tomori_wave.mp4" class="absolute inset-0 w-full h-full object-cover" muted playsinline preload="auto" style="z-index:0; opacity:0; transition:opacity 0.6s ease;"></video>
+                        <video id="tomori-a" src="tomori_wave.mp4" class="absolute inset-0 w-full h-full object-cover object-top" muted playsinline preload="auto" style="z-index:0; opacity:1; transition:opacity 0.6s ease;"></video>
+                        <video id="tomori-b" src="tomori_wave.mp4" class="absolute inset-0 w-full h-full object-cover object-top" muted playsinline preload="auto" style="z-index:0; opacity:0; transition:opacity 0.6s ease;"></video>
                         <!-- 燈のつぶやき字幕（縦書き・画面右端フローティング・グリッチイン演出） -->
                         <div id="screen-murmur" class="absolute top-3 right-1.5 bottom-3 z-[3] pointer-events-none flex items-start justify-end">
                             <span id="screen-murmur-text" class="font-['Noto_Sans_JP'] text-[11px] text-cyan-200 tracking-wider px-1 py-2"></span>
@@ -1397,7 +1397,7 @@
             requestAnimationFrame(tick);
         }
 
-        function typeWriter(targetElement, text, speed = 25) {
+        function typeWriter(targetElement, text, speed = 25, onComplete) {
             if (typingTimeout) clearTimeout(typingTimeout);
             
             isTyping = true;
@@ -1418,9 +1418,27 @@
                     updateSliderFromScroll();
                     isTyping = false;
                     if (window.tomoriState) window.tomoriState.close();
+                    if (typeof onComplete === 'function') onComplete();
                 }
             }
             write();
+        }
+
+        // ===== 応援導線（エッセイ・LOGS読了時にさりげなく表示） =====
+        function appendSupportPrompt(afterElement) {
+            if (!afterElement || document.getElementById('support-prompt-inline')) return;
+            const el = document.createElement('div');
+            el.id = 'support-prompt-inline';
+            el.className = 'mt-4 pt-3 border-t border-cyan-500/15 text-center opacity-0 transition-opacity duration-700';
+            el.innerHTML = `
+                <div class="text-[9px] text-cyan-500/50 mb-2">気に入ったら、燈たちを応援してもらえると嬉しいです</div>
+                <a href="https://ko-fi.com/eternalog" target="_blank" rel="noopener"
+                   class="inline-block border border-yellow-400/40 text-yellow-300/80 text-[10px] font-mono px-4 py-1.5 hover:bg-yellow-400/10 active:scale-95 transition-all tracking-wider">
+                    ☕ &nbsp;SUPPORT ON KO-FI
+                </a>
+            `;
+            afterElement.parentNode.appendChild(el);
+            requestAnimationFrame(() => { el.style.opacity = '1'; });
         }
 
         // 【新設】ブログリスト（LOGS）の直接表示関数
@@ -1967,7 +1985,10 @@
                     };
                     let idx = 0;
                     function showNextBubble() {
-                        if (idx >= log.conversation.length) return;
+                        if (idx >= log.conversation.length) {
+                            appendSupportPrompt(host);
+                            return;
+                        }
                         const line = log.conversation[idx];
                         const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
                         const row = document.createElement('div');
@@ -1990,7 +2011,8 @@
                 // ===== 通常のテキストログ =====
                 const contentText = log ? log.body : '[ERROR] LOG_NOT_FOUND // 該当する記録が見つかりません。';
                 text.innerHTML = '<div id="typed-text" class="whitespace-pre-line leading-relaxed text-white"></div>';
-                typeWriter(document.getElementById('typed-text'), contentText, 25);
+                const typedEl = document.getElementById('typed-text');
+                typeWriter(typedEl, contentText, 25, () => appendSupportPrompt(typedEl));
             }, 150);
         }
 
