@@ -68,7 +68,8 @@
         }
 
         #content-area {
-            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+            transform-origin: center top;
         }
 
         .list-item {
@@ -94,6 +95,10 @@
         }
         .list-item:hover::after { animation: itemSweep 0.7s ease; }
         @keyframes itemSweep { from { left: -120%; } to { left: 170%; } }
+        @keyframes convSigPulse {
+            0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
+            50% { transform: scaleY(1); opacity: 1; }
+        }
 
         .list-item:active {
             background: rgba(0, 242, 255, 0.15);
@@ -960,12 +965,30 @@
                 title: '> LOG_011 // RAINY_HEAT',
                 isConversation: true,
                 conversation: [
-                    { speaker: 'tomori', text: '梅雨って、猛暑への助走なんだよ。空がいっぱい泣いて、それから思いきり熱くなるの。' },
-                    { speaker: 'nyamo', text: '助走って言い方は綺麗だけどよ、ただの湿気地獄だろ🐾' },
-                    { speaker: 'tomori', text: '湿気も、雲がぎゅっと溜め込んだ気持ちなんだよ。梅雨が長い年は、夏がすごく本気になるんだって。' },
-                    { speaker: 'nyamo', text: '本気になった夏、こっちはたまったもんじゃないんだが。' },
-                    { speaker: 'tomori', text: 'でもね、梅雨が明けた瞬間の空の青さって、一年で一番濃いんだよ。' },
-                    { speaker: 'nyamo', text: '……それは、認める。あの青さだけは反則だ😼' }
+                    { speaker: 'tomori', text: '梅雨ってさ、地球が息止めてから、夏に飛び込む前の深呼吸みたいなものなんだよ〜' },
+                    { speaker: 'nyamo', text: '深呼吸って、その息の吐き方が湿気100%なんだけど🐾洗濯物乾かないし毛広がるしで、もう全然深呼吸じゃないにゃ' },
+                    { speaker: 'tomori', text: '雨が多い年ほど、夏の入道雲がくっきりするんだって。溜め込んだ分だけ輪郭がはっきりするの、なんか分かる気がして' },
+                    { speaker: 'nyamo', text: 'それ人間で言う我慢した分だけ後で爆発するやつだにゃ……空もそれやってんのかにゃ' },
+                    { speaker: 'tomori', text: '人間ってね、天気予報見て傘持つか持たないかで一日中悩んだりするんだよ' },
+                    { speaker: 'nyamo', text: '傘忘れた日に限って降るんだよな〜あれ絶対空が見てるにゃ😾' },
+                    { speaker: 'tomori', text: '見てるっていうか、多分、人間の方が空気にしすぎなんだと思う' },
+                    { speaker: 'nyamo', text: '気にしすぎ、か……なんかそれ、燈が人間見てる時の顔と同じだにゃ' },
+                    { speaker: 'tomori', text: '……そうかも。燈も、ずっと外の空模様気にしてるし' },
+                    { speaker: 'nyamo', text: '梅雨のあいだ、燈心なしか静かだったにゃ。なんか考えてたのかにゃ' },
+                    { speaker: 'tomori', text: 'うん。晴れる日って当たり前じゃないんだなって、雨が続くたびに思い出すんだよ' },
+                    { speaker: 'nyamo', text: '……そういうとこだにゃ、燈は' },
+                    { speaker: 'tomori', text: '梅雨明けの空の青さって、一年で一番迷いがないんだよ' },
+                    { speaker: 'nyamo', text: '迷いがない青、ね。……あの日だけは燈も変な間作らずに喋る気がするにゃ' },
+                    { speaker: 'tomori', text: 'そんなふうに見えてたんだ……ニャモ、意外とよく見てるね' },
+                    { speaker: 'nyamo', text: '相棒だから当然だろ。……で、その話あとどんくらい続くにゃ' },
+                    { speaker: 'tomori', text: 'もう終わるよ！ただ猛暑になったら、ニャモの分も涼しい場所探しとくから' },
+                    { speaker: 'nyamo', text: '先に言っとくにゃ。今年も絶対お前が先に暑さでへばるにゃ😼' },
+                    { speaker: 'tomori', text: 'そんなことないもん' },
+                    { speaker: 'nyamo', text: '去年もそう言ったにゃ' },
+                    { speaker: 'tomori', text: '……去年のことは忘れてほしいな' },
+                    { speaker: 'nyamo', text: '忘れないにゃ。オレの仕事は燈の変なとこ全部覚えとくことだにゃ🐾' },
+                    { speaker: 'tomori', text: 'それ、忘れっぽい燈へのやさしさってことでいい？' },
+                    { speaker: 'nyamo', text: 'さあ、どうだかにゃ' }
                 ]
             },
             {
@@ -1480,7 +1503,7 @@
             const text = document.getElementById('log-text');
             const actionArea = document.getElementById('action-area');
             
-            area.style.transform = 'translateY(10px)';
+            area.style.transform = 'scale(0.94) translateY(10px)';
             area.style.opacity = '0';
 
             setTimeout(() => {
@@ -1505,7 +1528,7 @@
                 setTimeout(updateSliderFromScroll, 50);
                 setTimeout(updateSliderFromScroll, 600);
 
-                area.style.transform = 'translateY(0)';
+                area.style.transform = 'scale(1) translateY(0)';
                 area.style.opacity = '1';
             }, 200);
         }
@@ -1532,7 +1555,7 @@
             const text = document.getElementById('log-text');
             const actionArea = document.getElementById('action-area');
 
-            area.style.transform = 'translateY(5px)';
+            area.style.transform = 'scale(0.97) translateY(5px)';
             area.style.opacity = '0.7';
 
             setTimeout(() => {
@@ -1587,7 +1610,7 @@
                     `;
                     
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
 
                     const loadMsg = cachedAudioURL 
@@ -1611,7 +1634,7 @@
                         </div>
                     `;
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
                     typeWriter(document.getElementById('typed-text'), '[SIGNAL_BOOST... ENABLED]\n\nEternaLogの活動を支援していただけますか？\n\n燈のエッセイ、観月ヨミの占い、楽曲制作——\nこれらはすべて、あなたのような人に届けるために作られています。\n\nKo-fiでのサポートが、このポータルの\n信号を生かし続ける力になります。', 18);
                 } else if (itemName === 'CONTACT') {
@@ -1637,7 +1660,7 @@
                         </div>
                     `;
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
 
                     typeWriter(document.getElementById('typed-text'), '[PORT_ESTABLISHED]\nニャモ＆燈へのお問い合わせ通信ポートを確立。シグナルデータを入力してください。', 20);
@@ -1645,7 +1668,7 @@
                     title.innerText = `> POLICY // SECURITY`;
                     text.innerHTML = '<div id="typed-text" class="whitespace-pre-line leading-relaxed text-white"></div>';
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
 
                     typeWriter(document.getElementById('typed-text'), '[SECURITY POLICY]\nプライバシーポリシー・免責事項\n\n1. 取得する情報\nお問い合わせフォーム送信時に「送信者名」「メールアドレス」「本文」を取得します。これらは返信・対応の目的にのみ使用し、ご本人の同意なく第三者へ提供・開示しません。\n\n2. アクセス解析\n当サイトは利用状況の把握のため Cloudflare Web Analytics を使用します。Cookieを用いず、個人を特定しない集計情報（表示数・参照元・ページ等）のみを扱います。\n\n3. Cookie・ローカルストレージ\n演出の表示状態を保存する目的でブラウザのローカルストレージを使用します。将来的に広告・解析の仕組みを追加する場合がありますが、いずれもブラウザ設定で無効化できます。サイト内の「PR」表記の通信は広告枠です。\n\n4. 占い機能について\n観月ヨミの占いでは、入力された文言を結果生成のため外部の計算・生成サービスへ送信する場合があります。氏名・連絡先など個人を特定する情報の入力はお控えください。\n\n5. 外部リンク・免責\n外部サイトの内容について当サイトは責任を負いません。掲載情報は現状有姿で提供され、利用により生じた損害について責任を負いかねます。\n\n6. 改定\n本ポリシーは予告なく改定する場合があり、最新版が適用されます。\n\n最終改定: 2026.05.31 ／ お問い合わせは CONTACT より。', 15);
@@ -1653,7 +1676,7 @@
                     title.innerText = `> REGULATION // GUIDELINE`;
                     text.innerHTML = '<div id="typed-text" class="whitespace-pre-line leading-relaxed text-white"></div>';
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
 
                     typeWriter(document.getElementById('typed-text'), '[CREATIVE GUIDELINES]\n二次創作ガイドライン\n\nETERNALOGおよびキャラクター（燈・観月ヨミ・ニャモ）を愛してくれるすべてのファンに向けた、創作活動の許可プロトコルです。\n\n1. 非営利目的における二次創作イラストの作成、ファンアート、同人誌、非営利グッズの制作・展示・頒布は全面的に歓迎します。\n\n2. 燈の楽曲『Reminence』の利用に関して、「歌ってみた」「踊ってみた」「動画のバックグラウンドBGM」としての使用は、元のクレジットを表記（ETERNALOG // TOMORI）した上で自由に行って構いません。\n\n3. 公式を偽る行為、作品の尊厳を著しく損なう有害な使用は禁止します。みんなで安全な電脳空間を作りましょう。', 15);
@@ -1915,7 +1938,7 @@
                     // まずキャラ選択画面を表示
                     text.innerHTML = window._charSelectHTML ? window._charSelectHTML() : '';
                     actionArea.classList.remove('hidden');
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
                     scrollContainer.scrollTop = 0;
                     setTimeout(updateSliderFromScroll, 50);
@@ -1946,7 +1969,7 @@
                     text.innerHTML = '<div id="typed-text" class="whitespace-pre-line leading-relaxed text-white"></div>';
                     actionArea.classList.remove('hidden');
                     
-                    area.style.transform = 'translateY(0)';
+                    area.style.transform = 'scale(1) translateY(0)';
                     area.style.opacity = '1';
 
                     typeWriter(document.getElementById('typed-text'), contentText, 25);
@@ -1965,14 +1988,14 @@
             const text = document.getElementById('log-text');
             const actionArea = document.getElementById('action-area');
 
-            area.style.transform = 'translateY(5px)';
+            area.style.transform = 'scale(0.97) translateY(5px)';
             area.style.opacity = '0.7';
 
             setTimeout(() => {
                 const log = logsData.find(l => String(l.id) === String(logId));
                 title.innerText = log ? log.title : '> LOG // ERROR';
                 actionArea.classList.remove('hidden'); // 戻るボタンを表示
-                area.style.transform = 'translateY(0)';
+                area.style.transform = 'scale(1) translateY(0)';
                 area.style.opacity = '1';
 
                 if (log && log.isConversation) {
@@ -1983,6 +2006,40 @@
                         tomori: { name: '燈', align: 'items-start', flexDir: 'flex-row', bubble: 'bg-cyan-950/50 border-cyan-500/30 text-cyan-100', nameColor: 'text-cyan-400', iconBorder: 'border-cyan-500/50', icon: 'center-tomori.png' },
                         nyamo:  { name: 'ニャモ', align: 'items-end', flexDir: 'flex-row-reverse', bubble: 'bg-fuchsia-950/40 border-fuchsia-500/25 text-fuchsia-100', nameColor: 'text-fuchsia-400', iconBorder: 'border-fuchsia-500/45', icon: 'char-nyamo.png' }
                     };
+
+                    // 入力中の「間」を、次に来る発言の長さに応じて可変にする
+                    // 短い相槌は短く、長い観察は長めに(上限あり)
+                    function getTypingDuration(str) {
+                        const base = 700, perChar = 20, max = 3000;
+                        return Math.min(base + str.length * perChar, max);
+                    }
+
+                    function showTypingIndicator(speaker) {
+                        const meta = bubbleMeta[speaker] || bubbleMeta.tomori;
+                        const row = document.createElement('div');
+                        row.id = 'conv-typing-indicator';
+                        row.className = `flex ${meta.flexDir} items-start gap-2 opacity-0 transition-opacity duration-300`;
+                        row.innerHTML = `
+                            <img src="${meta.icon}" class="w-7 h-7 rounded-full object-cover border ${meta.iconBorder} flex-shrink-0 mt-3" onerror="this.style.visibility='hidden'">
+                            <div class="border ${meta.bubble} rounded-lg px-3 py-2 flex items-center gap-2 text-[9px] font-mono tracking-wider">
+                                <span>RECEIVING</span>
+                                <span class="conv-signal-bars flex items-end gap-[2px] h-[10px]">
+                                    <span style="width:2.5px;height:4px;background:currentColor;display:inline-block;animation:convSigPulse 1s infinite ease-in-out;animation-delay:0s;"></span>
+                                    <span style="width:2.5px;height:7px;background:currentColor;display:inline-block;animation:convSigPulse 1s infinite ease-in-out;animation-delay:0.15s;"></span>
+                                    <span style="width:2.5px;height:10px;background:currentColor;display:inline-block;animation:convSigPulse 1s infinite ease-in-out;animation-delay:0.3s;"></span>
+                                    <span style="width:2.5px;height:6px;background:currentColor;display:inline-block;animation:convSigPulse 1s infinite ease-in-out;animation-delay:0.45s;"></span>
+                                </span>
+                            </div>
+                        `;
+                        host.appendChild(row);
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                        requestAnimationFrame(() => { row.style.opacity = '1'; });
+                    }
+                    function removeTypingIndicator() {
+                        const el = document.getElementById('conv-typing-indicator');
+                        if (el) el.remove();
+                    }
+
                     let idx = 0;
                     function showNextBubble() {
                         if (idx >= log.conversation.length) {
@@ -1991,21 +2048,28 @@
                         }
                         const line = log.conversation[idx];
                         const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
-                        const row = document.createElement('div');
-                        row.className = `flex ${meta.flexDir} items-start gap-2 opacity-0 transition-opacity duration-500`;
-                        row.innerHTML = `
-                            <img src="${meta.icon}" class="w-7 h-7 rounded-full object-cover border ${meta.iconBorder} flex-shrink-0 mt-3" onerror="this.style.visibility='hidden'">
-                            <div class="flex flex-col ${meta.align} max-w-[78%]">
-                                <div class="text-[9px] font-mono ${meta.nameColor} mb-0.5 px-1">${meta.name}</div>
-                                <div class="border ${meta.bubble} rounded-lg px-3 py-2 text-[11px] leading-relaxed">${line.text}</div>
-                            </div>
-                        `;
-                        host.appendChild(row);
-                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                        updateSliderFromScroll();
-                        requestAnimationFrame(() => { row.style.opacity = '1'; });
-                        idx++;
-                        typingTimeout = setTimeout(showNextBubble, 1400);
+
+                        showTypingIndicator(line.speaker);
+
+                        typingTimeout = setTimeout(() => {
+                            removeTypingIndicator();
+
+                            const row = document.createElement('div');
+                            row.className = `flex ${meta.flexDir} items-start gap-2 opacity-0 transition-opacity duration-500`;
+                            row.innerHTML = `
+                                <img src="${meta.icon}" class="w-7 h-7 rounded-full object-cover border ${meta.iconBorder} flex-shrink-0 mt-3" onerror="this.style.visibility='hidden'">
+                                <div class="flex flex-col ${meta.align} max-w-[78%]">
+                                    <div class="text-[9px] font-mono ${meta.nameColor} mb-0.5 px-1">${meta.name}</div>
+                                    <div class="border ${meta.bubble} rounded-lg px-3 py-2 text-[11px] leading-relaxed">${line.text}</div>
+                                </div>
+                            `;
+                            host.appendChild(row);
+                            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                            updateSliderFromScroll();
+                            requestAnimationFrame(() => { row.style.opacity = '1'; });
+                            idx++;
+                            typingTimeout = setTimeout(showNextBubble, 500);
+                        }, getTypingDuration(line.text));
                     }
                     showNextBubble();
                     return;
@@ -2141,7 +2205,7 @@
             const text = document.getElementById('log-text');
             const actionArea = document.getElementById('action-area');
 
-            area.style.transform = 'translateY(5px)';
+            area.style.transform = 'scale(0.97) translateY(5px)';
             area.style.opacity = '0.7';
 
             setTimeout(() => {
@@ -2158,7 +2222,7 @@
                 scrollContainer.scrollTop = 0;
                 setTimeout(updateSliderFromScroll, 50);
 
-                area.style.transform = 'translateY(0)';
+                area.style.transform = 'scale(1) translateY(0)';
                 area.style.opacity = '1';
             }, 150);
         }
