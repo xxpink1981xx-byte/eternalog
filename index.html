@@ -1977,11 +1977,11 @@
 
                 if (log && log.isConversation) {
                     // ===== 会話形式ログ（燈×ニャモ等の掛け合い） =====
-                    text.innerHTML = '<div id="conv-log" class="space-y-2.5"></div>';
+                    text.innerHTML = '<div id="conv-log" class="space-y-3"></div>';
                     const host = document.getElementById('conv-log');
                     const bubbleMeta = {
-                        tomori: { name: '燈', align: 'items-start', bubble: 'bg-cyan-950/50 border-cyan-500/30 text-cyan-100', nameColor: 'text-cyan-400' },
-                        nyamo:  { name: 'ニャモ', align: 'items-end', bubble: 'bg-fuchsia-950/40 border-fuchsia-500/25 text-fuchsia-100', nameColor: 'text-fuchsia-400' }
+                        tomori: { name: '燈', align: 'items-start', flexDir: 'flex-row', bubble: 'bg-cyan-950/50 border-cyan-500/30 text-cyan-100', nameColor: 'text-cyan-400', iconBorder: 'border-cyan-500/50', icon: 'center-tomori.png' },
+                        nyamo:  { name: 'ニャモ', align: 'items-end', flexDir: 'flex-row-reverse', bubble: 'bg-fuchsia-950/40 border-fuchsia-500/25 text-fuchsia-100', nameColor: 'text-fuchsia-400', iconBorder: 'border-fuchsia-500/45', icon: 'char-nyamo.png' }
                     };
                     let idx = 0;
                     function showNextBubble() {
@@ -1992,10 +1992,13 @@
                         const line = log.conversation[idx];
                         const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
                         const row = document.createElement('div');
-                        row.className = `flex flex-col ${meta.align} opacity-0 transition-opacity duration-500`;
+                        row.className = `flex ${meta.flexDir} items-start gap-2 opacity-0 transition-opacity duration-500`;
                         row.innerHTML = `
-                            <div class="text-[9px] font-mono ${meta.nameColor} mb-0.5 px-1">${meta.name}</div>
-                            <div class="max-w-[85%] border ${meta.bubble} rounded-lg px-3 py-2 text-[11px] leading-relaxed">${line.text}</div>
+                            <img src="${meta.icon}" class="w-7 h-7 rounded-full object-cover border ${meta.iconBorder} flex-shrink-0 mt-3" onerror="this.style.visibility='hidden'">
+                            <div class="flex flex-col ${meta.align} max-w-[78%]">
+                                <div class="text-[9px] font-mono ${meta.nameColor} mb-0.5 px-1">${meta.name}</div>
+                                <div class="border ${meta.bubble} rounded-lg px-3 py-2 text-[11px] leading-relaxed">${line.text}</div>
+                            </div>
                         `;
                         host.appendChild(row);
                         scrollContainer.scrollTop = scrollContainer.scrollHeight;
