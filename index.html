@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#f4f6f9;
+    --bg:#ffffff;
     --panel:#ffffff;
     --ink:#0a1420;
     --ink-soft:#5a6472;
@@ -20,6 +20,7 @@
     --line:#dbe2ec;
     --ok:#00b070;
     --rec:#e0324b;
+    --bezel:#eef3fb;           /* モニター上下ベゼルの薄い青みトーン */
     /* character colors */
     --c-tomori:#00b8d4;
     --c-nyamo:#c026d3;
@@ -96,87 +97,33 @@
   .live-dot::after{ content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--ok);opacity:.5;animation:ping 1.8s ease-out infinite; }
   @keyframes ping{ 0%{transform:scale(.6);opacity:.7} 100%{transform:scale(1.6);opacity:0} }
 
-  /* ===== HERO (燈 monitor, full-bleed) ===== */
-  .hero{
+  /* ===== HERO（モニター：上下ベゼル方式、吹き出し・HUDかっこなし） ===== */
+  .hero{ width:100%; background:#fff; }
+  .hero-bezel{
+    background:var(--bezel);
+    padding:9px 16px;
     position:relative;
-    width:100%;
-    height:44vw;
-    max-height:210px;
-    min-height:170px;
-    background:linear-gradient(170deg,#e2ebf7 0%,#eef3fb 100%);
-    overflow:hidden;
   }
-  .hero-video-wrap{
-    position:absolute; inset:0;
-    background:
-      radial-gradient(120% 80% at 50% 0%, #eaf1fb 0%, #e2ebf7 55%, #d7e3f3 100%);
-  }
-  .hero-video-wrap video{
-    width:100%;height:100%;
-    object-fit:cover;
-    object-position:top center;
-    display:block;
-  }
-  /* soft brand tint + bottom fade into page */
-  .hero-grade{
-    position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(to bottom, rgba(0,40,90,.06) 0%, transparent 18%, transparent 72%, var(--bg) 100%);
-  }
-  .hero-gridlines{
-    position:absolute;inset:0;pointer-events:none;opacity:.5;
-    background-image:linear-gradient(rgba(0,90,200,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,90,200,.05) 1px,transparent 1px);
-    background-size:26px 26px;
-    -webkit-mask-image:linear-gradient(to bottom,black,transparent 70%);
-    mask-image:linear-gradient(to bottom,black,transparent 70%);
-  }
+  .hero-bezel.top{ border-bottom:2px solid var(--accent); }
+  .hero-bezel.bottom{ border-top:2px solid var(--accent); }
+  .hero-hud-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .hero-hud-row .l, .hero-hud-row .r{ font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:.5px;line-height:1.7; }
+  .hero-hud-row .l{ color:var(--accent); text-align:left; }
+  .hero-hud-row .r{ color:var(--accent); text-align:right; }
+  .hero-hud-row .ok{ color:var(--ok); font-size:8px; }
+  .hero-hud-row .rec{ color:var(--rec); font-size:8px; }
 
-  /* HUD frame brackets */
-  .hud-c{ position:absolute;width:20px;height:20px;border:2px solid var(--accent);z-index:5;opacity:.85; }
-  .hud-c.tl{ top:12px;left:12px;border-right:0;border-bottom:0; }
-  .hud-c.tr{ top:12px;right:12px;border-left:0;border-bottom:0; }
-  .hud-c.bl{ bottom:12px;left:12px;border-right:0;border-top:0; }
-  .hud-c.br{ bottom:12px;right:12px;border-left:0;border-top:0; }
-
-  .hud-readout{
-    position:absolute;z-index:6;
-    font-family:'Orbitron',sans-serif;
-    font-size:8px;letter-spacing:1px;line-height:1.7;color:var(--accent);
+  .hero-wave-label{
+    text-align:center;font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;
   }
-  .hud-readout.l{ top:16px;left:40px; }
-  .hud-readout.r{ top:16px;right:40px;text-align:right; }
-  .hud-readout .ok{ color:var(--ok); }
-  .hud-readout .rec{ color:var(--rec); }
-
-  /* speech bubble greeting */
-  .greet{
-    position:absolute;z-index:7;
-    left:16px;right:16px;top:44px;
-    background:#fff;
-    border:1.5px solid var(--accent);
-    border-radius:16px;
-    padding:11px 15px;
-    font-size:12.5px;line-height:1.6;font-weight:500;
-    box-shadow:0 6px 18px rgba(0,60,140,.14);
-  }
-  .greet::after{
-    content:'';position:absolute;left:34px;bottom:-9px;
-    width:16px;height:16px;background:#fff;
-    border-right:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent);
-    transform:rotate(45deg);
-  }
-  .greet b{ color:var(--accent); font-weight:700; }
-
-  /* bottom waveform strip on hero */
-  .hero-wave{
-    position:absolute;left:14px;right:14px;bottom:12px;z-index:6;
-    display:flex;align-items:center;gap:7px;
-  }
-  .hero-wave .lbl{ font-family:'Orbitron',sans-serif;font-size:7px;letter-spacing:1px;color:var(--accent);white-space:nowrap; }
-  .hero-wave .bars{ flex:1;display:flex;align-items:center;gap:2px;height:14px; }
-  .hero-wave .bars i{ flex:1;background:var(--accent);border-radius:1px;height:30%;animation:wv 1.2s ease-in-out infinite; opacity:.75;}
-  .hero-wave .bars i:nth-child(odd){ animation-duration:.9s; }
-  .hero-wave .bars i:nth-child(3n){ animation-delay:.2s; }
+  .hero-wave-bars{ display:flex;align-items:center;justify-content:center;gap:2px;height:13px;max-width:280px;margin:0 auto; }
+  .hero-wave-bars i{ flex:1;background:var(--accent);border-radius:1px;height:30%;animation:wv 1.2s ease-in-out infinite; opacity:.75;}
+  .hero-wave-bars i:nth-child(odd){ animation-duration:.9s; }
+  .hero-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.4; }
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
+
+  .hero-video-frame{ width:100%; aspect-ratio:16/9; overflow:hidden; background:#000; }
+  .hero-video-frame video{ width:100%;height:100%;object-fit:cover;display:block; }
 
   /* ===== PILL NAV (2x2) ===== */
   .pillwrap{ padding:16px 16px 4px; display:grid;grid-template-columns:1fr 1fr;gap:11px; }
@@ -345,31 +292,20 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-video-wrap">
+    <div class="hero-bezel top">
+      <div class="hero-hud-row mono">
+        <span class="l">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
+        <span class="r"><span class="rec">REC ●</span><br>CH-01 · LIVE</span>
+      </div>
+    </div>
+
+    <div class="hero-video-frame">
       <video id="heroVideo" src="tomori_wave.mp4" autoplay muted loop playsinline></video>
     </div>
-    <div class="hero-gridlines"></div>
-    <div class="hero-grade"></div>
 
-    <span class="hud-c tl"></span><span class="hud-c tr"></span>
-    <span class="hud-c bl"></span><span class="hud-c br"></span>
-
-    <div class="hud-readout l mono">
-      SUBJECT // 燈-TOMORI-<br>
-      <span class="ok">● STATUS: ACTIVE</span>
-    </div>
-    <div class="hud-readout r mono">
-      <span class="rec">REC ●</span><br>
-      CH-01 · LIVE
-    </div>
-
-    <div class="greet">
-      こんにちは、<b>燈</b>だよ。<br>エテルナログへ、ようこそ。
-    </div>
-
-    <div class="hero-wave">
-      <span class="lbl mono">SOUL WAVEFORM // DECODING</span>
-      <span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    <div class="hero-bezel bottom">
+      <div class="hero-wave-label mono">SOUL WAVEFORM // DECODING</div>
+      <div class="hero-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
   </section>
 
