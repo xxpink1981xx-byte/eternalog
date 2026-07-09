@@ -232,21 +232,16 @@
   .content-box{
     margin:14px 16px 18px;
     background:#fff;
+    border:2px solid var(--accent);
     border-radius:20px;
     position:relative;
     min-height:260px;
     box-shadow:0 6px 22px rgba(20,40,80,.08);
   }
-  .content-frame-svg{ position:absolute;inset:0;width:100%;height:100%;pointer-events:none; }
-  .content-frame-svg rect{
-    fill:#fff; stroke:var(--accent); stroke-width:2;
-    stroke-dasharray:1600; stroke-dashoffset:0;
-  }
-  .content-frame-svg rect.redraw{ animation:contentDraw .5s ease-out forwards; }
-  @keyframes contentDraw{
-    0%{ stroke-dashoffset:1600; fill-opacity:0; }
-    72%{ stroke-dashoffset:0; fill-opacity:0; }
-    100%{ stroke-dashoffset:0; fill-opacity:1; }
+  .content-box.redraw{ animation:contentFlash .5s ease-out; }
+  @keyframes contentFlash{
+    0%{ box-shadow:0 0 0 4px rgba(0,90,200,.35), 0 6px 22px rgba(20,40,80,.08); }
+    100%{ box-shadow:0 6px 22px rgba(20,40,80,.08); }
   }
 
   .content-inner{ position:relative;z-index:2; }
@@ -335,7 +330,6 @@
 
   <!-- 固定コンテンツエリア（ピルボタン等で中身が切り替わる） -->
   <div class="content-box" id="contentBox">
-    <svg class="content-frame-svg"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="20" ry="20" pathLength="1600"></rect></svg>
     <div class="content-inner">
       <div class="content-head">
         <div class="content-tag mono" id="contentTag">// TOP</div>
@@ -439,17 +433,19 @@
 
   let contentTypeTimer = null;
 
+  const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
+
   function stub(name){
     const data = panelContents[name] || { tag: '// '+name, sub: '', text: '準備中です。' };
 
     document.getElementById('contentTag').textContent = data.tag;
     document.getElementById('contentSub').textContent = data.sub;
 
-    // 枠線を再描画させる(クラスを一旦外して再付与)
-    const rect = document.querySelector('#contentBox .content-frame-svg rect');
-    rect.classList.remove('redraw');
-    void rect.getBoundingClientRect(); // reflow強制
-    rect.classList.add('redraw');
+    // 枠を軽くフラッシュさせて切り替わりを知らせる(クラスを一旦外して再付与)
+    const box = document.getElementById('contentBox');
+    box.classList.remove('redraw');
+    void box.getBoundingClientRect(); // reflow強制
+    box.classList.add('redraw');
 
     const bodyEl = document.getElementById('contentBody');
     bodyEl.innerHTML = '';
@@ -458,7 +454,47 @@
     // コンテンツボックスへスクロールして見えるようにする
     document.getElementById('contentBox').scrollIntoView({ behavior:'smooth', block:'start' });
 
+    if (name === 'SIGNAL') {
+      loadEarthSignal(bodyEl);
+      return;
+    }
+
     setTimeout(() => { typeContentText(bodyEl, data.text); }, 380);
+  }
+
+  // ===== EARTH SIGNAL: Cloudflare Workerから実データを取得 =====
+  async function loadEarthSignal(bodyEl){
+    bodyEl.innerHTML = '<div class="content-placeholder mono">// RECEIVING SIGNAL...</div>';
+
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error('fetch failed: ' + res.status);
+      const data = await res.json();
+
+      if (!data.items || !data.items.length) {
+        bodyEl.innerHTML = '<div class="content-placeholder mono">// NO SIGNAL DATA YET</div>';
+        return;
+      }
+
+      document.getElementById('contentSub').textContent =
+        'EARTH SIGNAL // ' + (data.updatedAt ? new Date(data.updatedAt).toLocaleString('ja-JP') : '受信中');
+
+      bodyEl.innerHTML = '';
+      data.items.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.style.marginBottom = '16px';
+        row.style.opacity = '0';
+        row.style.transition = 'opacity .4s ease';
+        row.innerHTML =
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:8px;letter-spacing:1px;color:var(--ink-soft);margin-bottom:4px;">' +
+          (item.title || '') + '</div>' +
+          '<div>' + (item.comment || '') + '</div>';
+        bodyEl.appendChild(row);
+        setTimeout(() => { row.style.opacity = '1'; }, idx * 120);
+      });
+    } catch (err) {
+      bodyEl.innerHTML = '<div class="content-placeholder mono">// SIGNAL LINK ERROR<br>' + String(err.message || err) + '</div>';
+    }
   }
 
   function typeContentText(el, text){
