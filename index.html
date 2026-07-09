@@ -253,14 +253,27 @@
   }
 
   .reader-head{
-    padding:20px 20px 16px;
+    padding:16px 20px 16px;
     border-bottom:1px solid var(--line);
     position:relative;
     flex-shrink:0;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
   }
-  .reader-close{
-    position:absolute;top:20px;right:20px;
-    font-family:'Orbitron',sans-serif;font-size:11px;color:var(--ink-soft);
+  .reader-head-text{ flex:1;min-width:0; }
+  .reader-mini-monitor{
+    width:64px;height:36px;flex-shrink:0;
+    border-radius:8px;overflow:hidden;
+    border:1.5px solid var(--accent);
+    position:relative;
+    background:#000;
+  }
+  .reader-mini-monitor video{ width:100%;height:100%;object-fit:cover;object-position:top center;display:block; }
+  .reader-mini-monitor .dot{
+    position:absolute;top:3px;right:4px;width:5px;height:5px;border-radius:50%;
+    background:var(--ok);box-shadow:0 0 4px rgba(0,200,140,.8);
   }
   .reader-tag{ font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:2px;color:var(--accent);font-weight:700; }
   .reader-sub{ font-family:'Orbitron',sans-serif;font-size:9px;color:var(--ink-soft);margin-top:5px;letter-spacing:1px; }
@@ -276,6 +289,18 @@
     padding:20px;font-size:11px;color:#b0b8c4;text-align:center;
     font-family:'Orbitron',sans-serif;letter-spacing:1px;
   }
+  .reader-close-bottom{
+    display:block;
+    margin:28px auto 4px;
+    padding:11px 28px;
+    border:1.5px solid var(--accent);
+    border-radius:24px;
+    background:none;
+    font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:1.5px;color:var(--accent);font-weight:700;
+    text-align:center;
+    cursor:pointer;
+  }
+  .reader-close-bottom:active{ background:var(--accent-glow); }
   .type-cursor{
     display:inline-block;width:2px;height:1em;background:var(--accent);
     vertical-align:middle;margin-left:2px;animation:blink .8s step-end infinite;
@@ -385,9 +410,14 @@
 <div class="reader-back" id="readerBack" onclick="closeReader()"></div>
 <div class="reader" id="reader">
   <div class="reader-head">
-    <span class="reader-close" onclick="closeReader()">✕ CLOSE</span>
-    <div class="reader-tag mono" id="readerTag">// SIGNAL</div>
-    <div class="reader-sub mono" id="readerSub">EARTH SIGNAL // 09:53:00</div>
+    <div class="reader-head-text">
+      <div class="reader-tag mono" id="readerTag">// SIGNAL</div>
+      <div class="reader-sub mono" id="readerSub">EARTH SIGNAL // 09:53:00</div>
+    </div>
+    <div class="reader-mini-monitor">
+      <video id="readerMiniVideo" src="tomori_wave.mp4" autoplay muted loop playsinline></video>
+      <span class="dot"></span>
+    </div>
   </div>
   <div class="reader-body" id="readerBody"></div>
 </div>
@@ -507,9 +537,22 @@
         bodyEl.appendChild(row);
         setTimeout(() => { row.style.opacity = '1'; }, idx * 120);
       });
+
+      setTimeout(() => { appendCloseButton(bodyEl); }, data.items.length * 120 + 300);
     } catch (err) {
       bodyEl.innerHTML = '<div class="reader-placeholder mono">// SIGNAL LINK ERROR<br>' + String(err.message || err) + '</div>';
+      appendCloseButton(bodyEl);
     }
+  }
+
+  // 本文を読み終えたタイミングで、末尾に閉じるボタンを表示する
+  function appendCloseButton(bodyEl){
+    if (bodyEl.querySelector('.reader-close-bottom')) return;
+    const btn = document.createElement('button');
+    btn.className = 'reader-close-bottom mono';
+    btn.textContent = '✕ CLOSE';
+    btn.onclick = closeReader;
+    bodyEl.appendChild(btn);
   }
 
   function typeContentText(el, text){
@@ -521,6 +564,7 @@
         contentTypeTimer = setTimeout(step, 20);
       } else {
         el.innerHTML = text.replace(/\n/g,'<br>');
+        appendCloseButton(el);
       }
     }
     step();
