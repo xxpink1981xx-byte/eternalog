@@ -229,40 +229,51 @@
   }
 
   /* ===== 固定コンテンツエリア（ピルボタン下、常時この位置） ===== */
-  .content-box{
-    margin:14px 16px 18px;
+  /* ===== コンテンツリーダー(ハンバーガーと同様の横スライドイン、全画面表示) ===== */
+  .reader-back{
+    position:fixed;inset:0;background:rgba(10,20,35,.4);
+    opacity:0;pointer-events:none;transition:opacity .3s ease;z-index:190;
+  }
+  .reader-back.show{ opacity:1;pointer-events:auto; }
+
+  .reader{
+    position:fixed;top:0;right:0;height:100%;width:100%;max-width:430px;
     background:#fff;
-    border:2px solid var(--accent);
-    border-radius:20px;
-    position:relative;
-    min-height:260px;
-    box-shadow:0 6px 22px rgba(20,40,80,.08);
+    box-shadow:-14px 0 50px rgba(0,0,0,.2);
+    transform:translateX(100%);
+    transition:transform .4s cubic-bezier(.19,1,.22,1);
+    z-index:195;
+    display:flex;flex-direction:column;
   }
-  .content-box.redraw{ animation:contentFlash .5s ease-out; }
-  @keyframes contentFlash{
-    0%{ box-shadow:0 0 0 4px rgba(0,90,200,.35), 0 6px 22px rgba(20,40,80,.08); }
-    100%{ box-shadow:0 6px 22px rgba(20,40,80,.08); }
+  .reader.show{ transform:translateX(0); }
+  .reader.flash{ animation:readerFlash .5s ease-out; }
+  @keyframes readerFlash{
+    0%{ box-shadow:inset 0 0 0 3px rgba(0,90,200,.35), -14px 0 50px rgba(0,0,0,.2); }
+    100%{ box-shadow:-14px 0 50px rgba(0,0,0,.2); }
   }
 
-  .content-inner{ position:relative;z-index:2; }
-  .content-head{
-    padding:18px 20px 14px;
+  .reader-head{
+    padding:20px 20px 16px;
     border-bottom:1px solid var(--line);
+    position:relative;
+    flex-shrink:0;
   }
-  .content-tag{ font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;color:var(--accent);font-weight:700; }
-  .content-sub{ font-family:'Orbitron',sans-serif;font-size:8px;color:var(--ink-soft);margin-top:4px;letter-spacing:1px; }
+  .reader-close{
+    position:absolute;top:20px;right:20px;
+    font-family:'Orbitron',sans-serif;font-size:11px;color:var(--ink-soft);
+  }
+  .reader-tag{ font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:2px;color:var(--accent);font-weight:700; }
+  .reader-sub{ font-family:'Orbitron',sans-serif;font-size:9px;color:var(--ink-soft);margin-top:5px;letter-spacing:1px; }
 
-  .content-body{
-    padding:16px 20px 24px;
-    max-height:48vh;
+  .reader-body{
+    flex:1;min-height:0;
+    padding:20px 22px 40px;
     overflow-y:auto;
-    font-size:12.5px;line-height:1.85;color:var(--ink);
-    background:linear-gradient(180deg, var(--accent-glow) 0%, rgba(0,90,200,.02) 40%, transparent 70%), #fff;
-    border-radius:0 0 20px 20px;
+    font-size:13px;line-height:1.9;color:var(--ink);
+    background:linear-gradient(180deg, var(--accent-glow) 0%, rgba(0,90,200,.02) 35%, transparent 65%), #fff;
   }
-  .content-placeholder{
-    padding:16px 20px 24px;
-    font-size:11px;color:#b0b8c4;text-align:center;
+  .reader-placeholder{
+    padding:20px;font-size:11px;color:#b0b8c4;text-align:center;
     font-family:'Orbitron',sans-serif;letter-spacing:1px;
   }
   .type-cursor{
@@ -328,19 +339,6 @@
     </div>
   </nav>
 
-  <!-- 固定コンテンツエリア（ピルボタン等で中身が切り替わる） -->
-  <div class="content-box" id="contentBox">
-    <div class="content-inner">
-      <div class="content-head">
-        <div class="content-tag mono" id="contentTag">// TOP</div>
-        <div class="content-sub mono" id="contentSub">エテルナログへ、ようこそ</div>
-      </div>
-      <div class="content-body" id="contentBody">
-        <div class="content-placeholder">上のボタンを選んで、内容を表示</div>
-      </div>
-    </div>
-  </div>
-
   <!-- LATEST SIGNAL -->
   <div class="sec-label mono">// LATEST TRANSMISSION</div>
   <div class="latest">
@@ -381,6 +379,17 @@
     <div class="foot-note mono">ETERNALOG // SYSTEM V.0.2 · BETA</div>
   </footer>
 
+</div>
+
+<!-- READER（横スライドインのコンテンツ表示パネル） -->
+<div class="reader-back" id="readerBack" onclick="closeReader()"></div>
+<div class="reader" id="reader">
+  <div class="reader-head">
+    <span class="reader-close" onclick="closeReader()">✕ CLOSE</span>
+    <div class="reader-tag mono" id="readerTag">// SIGNAL</div>
+    <div class="reader-sub mono" id="readerSub">EARTH SIGNAL // 09:53:00</div>
+  </div>
+  <div class="reader-body" id="readerBody"></div>
 </div>
 
 <!-- DRAWER -->
@@ -438,21 +447,21 @@
   function stub(name){
     const data = panelContents[name] || { tag: '// '+name, sub: '', text: '準備中です。' };
 
-    document.getElementById('contentTag').textContent = data.tag;
-    document.getElementById('contentSub').textContent = data.sub;
+    document.getElementById('readerTag').textContent = data.tag;
+    document.getElementById('readerSub').textContent = data.sub;
 
-    // 枠を軽くフラッシュさせて切り替わりを知らせる(クラスを一旦外して再付与)
-    const box = document.getElementById('contentBox');
-    box.classList.remove('redraw');
-    void box.getBoundingClientRect(); // reflow強制
-    box.classList.add('redraw');
+    document.getElementById('readerBack').classList.add('show');
+    const reader = document.getElementById('reader');
+    reader.classList.add('show');
 
-    const bodyEl = document.getElementById('contentBody');
+    // 開いた瞬間、枠を軽くフラッシュさせる
+    reader.classList.remove('flash');
+    void reader.getBoundingClientRect();
+    reader.classList.add('flash');
+
+    const bodyEl = document.getElementById('readerBody');
     bodyEl.innerHTML = '';
     clearTimeout(contentTypeTimer);
-
-    // コンテンツボックスへスクロールして見えるようにする
-    document.getElementById('contentBox').scrollIntoView({ behavior:'smooth', block:'start' });
 
     if (name === 'SIGNAL') {
       loadEarthSignal(bodyEl);
@@ -462,9 +471,15 @@
     setTimeout(() => { typeContentText(bodyEl, data.text); }, 380);
   }
 
+  function closeReader(){
+    document.getElementById('readerBack').classList.remove('show');
+    document.getElementById('reader').classList.remove('show');
+    clearTimeout(contentTypeTimer);
+  }
+
   // ===== EARTH SIGNAL: Cloudflare Workerから実データを取得 =====
   async function loadEarthSignal(bodyEl){
-    bodyEl.innerHTML = '<div class="content-placeholder mono">// RECEIVING SIGNAL...</div>';
+    bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING SIGNAL...</div>';
 
     try {
       const res = await fetch(EARTH_SIGNAL_URL, { cache: 'no-store' });
@@ -472,28 +487,28 @@
       const data = await res.json();
 
       if (!data.items || !data.items.length) {
-        bodyEl.innerHTML = '<div class="content-placeholder mono">// NO SIGNAL DATA YET</div>';
+        bodyEl.innerHTML = '<div class="reader-placeholder mono">// NO SIGNAL DATA YET</div>';
         return;
       }
 
-      document.getElementById('contentSub').textContent =
+      document.getElementById('readerSub').textContent =
         'EARTH SIGNAL // ' + (data.updatedAt ? new Date(data.updatedAt).toLocaleString('ja-JP') : '受信中');
 
       bodyEl.innerHTML = '';
       data.items.forEach((item, idx) => {
         const row = document.createElement('div');
-        row.style.marginBottom = '16px';
+        row.style.marginBottom = '18px';
         row.style.opacity = '0';
         row.style.transition = 'opacity .4s ease';
         row.innerHTML =
-          '<div style="font-family:\'Orbitron\',sans-serif;font-size:8px;letter-spacing:1px;color:var(--ink-soft);margin-bottom:4px;">' +
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:8px;letter-spacing:1px;color:var(--ink-soft);margin-bottom:5px;">' +
           (item.title || '') + '</div>' +
           '<div>' + (item.comment || '') + '</div>';
         bodyEl.appendChild(row);
         setTimeout(() => { row.style.opacity = '1'; }, idx * 120);
       });
     } catch (err) {
-      bodyEl.innerHTML = '<div class="content-placeholder mono">// SIGNAL LINK ERROR<br>' + String(err.message || err) + '</div>';
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// SIGNAL LINK ERROR<br>' + String(err.message || err) + '</div>';
     }
   }
 
