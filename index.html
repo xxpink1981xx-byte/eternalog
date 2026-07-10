@@ -543,7 +543,13 @@
           '<div style="font-family:\'Orbitron\',sans-serif;font-size:10px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:6px;line-height:1.5;">' +
           (item.title || '') + '</div>' +
           (item.summary ? '<div style="font-size:12px;color:var(--ink-soft);line-height:1.7;margin-bottom:8px;padding-left:8px;border-left:2px solid var(--line);">' + item.summary + '</div>' : '') +
-          '<div style="font-size:14px;line-height:1.85;">' + (item.comment || '') + '</div>';
+          '<div style="display:flex;align-items:flex-start;gap:8px;">' +
+            '<img src="center-tomori.png" alt="燈" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid var(--accent);flex-shrink:0;margin-top:1px;" onerror="this.style.display=\'none\'">' +
+            '<div style="flex:1;">' +
+              '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:3px;">燈</div>' +
+              '<div style="font-size:14px;line-height:1.85;">' + (item.comment || '') + '</div>' +
+            '</div>' +
+          '</div>';
         bodyEl.appendChild(row);
         setTimeout(() => { row.style.opacity = '1'; }, idx * 120);
       });
