@@ -284,6 +284,29 @@
     0%,100%{ opacity:0; } 10%,40%{ opacity:.7; } 60%{ opacity:.3; } 80%{ opacity:0; }
   }
 
+  /* ===== 浮遊ターミナル窓（時々ランダムに現れてタイプ→消える） ===== */
+  .hero-holo{ position:absolute; inset:0; z-index:4; overflow:hidden; pointer-events:none; }
+  .bg-terminal{
+    position:absolute; width:128px;
+    background:rgba(2,10,20,0.92);
+    border:1px solid rgba(0,90,200,0.5);
+    box-shadow:0 0 14px rgba(0,90,200,0.28);
+    backdrop-filter:blur(2px);
+    font-family:'Courier New',monospace; font-size:6px; line-height:1.45;
+    color:rgba(120,200,255,0.9);
+    padding:0; opacity:0; transition:opacity .6s ease;
+    overflow:hidden; border-radius:2px;
+  }
+  .bg-terminal .term-bar{
+    display:flex; align-items:center; gap:3px; padding:2px 4px;
+    background:rgba(0,90,200,0.18); border-bottom:1px solid rgba(0,90,200,0.22);
+  }
+  .bg-terminal .term-dot{ width:3px; height:3px; border-radius:50%; background:rgba(0,150,220,0.8); }
+  .bg-terminal .term-title{ font-size:5px; letter-spacing:.5px; color:rgba(120,200,255,0.7); margin-left:2px; }
+  .bg-terminal .term-body{ padding:4px 5px; white-space:pre-wrap; word-break:break-all; min-height:38px; }
+  .bg-terminal .term-body .ok{ color:rgba(80,255,180,0.9); }
+  .bg-terminal .term-body .warn{ color:rgba(255,140,210,0.9); }
+
   /* ===== PILL NAV (2x2) ===== */
   .pillwrap{ padding:16px 16px 4px; display:grid;grid-template-columns:1fr 1fr;gap:11px; }
   .pill{
@@ -524,6 +547,7 @@
     <div class="hero-video-frame">
       <video id="heroVideo" autoplay muted playsinline style="opacity:1;transition:opacity .6s ease;"></video>
       <video id="heroVideoB" muted playsinline style="opacity:0;transition:opacity .6s ease;"></video>
+      <div id="heroHolo" class="hero-holo"></div>
       <div id="heroGlitchLayer" class="hero-glitch-overlay"></div>
       <div id="heroNoiseLine" class="hero-noise-line"></div>
 
@@ -820,6 +844,87 @@
     }
 
     startMurmurLoop();
+  })();
+
+  // ===== 浮遊ターミナル窓（20〜42秒間隔でランダムに出現→タイプ→消滅） =====
+  (function initBackgroundTerminal(){
+    const terminalScripts = [
+      { title: 'soul_compiler', lines: ['> akari@eternalog:~$ build', 'linking soul_waveform.dll', 'tone: melancholic ......[<span class="ok">OK</span>]', 'compiled in 0.42s'] },
+      { title: 'yomi_sync', lines: ['> yomi@lunar:~$ sync', 'fetching lunar_phase', 'illumination 0.73', 'omen cache [<span class="ok">OK</span>]'] },
+      { title: 'nyamo_purr', lines: ['> nyamo:~$ status', 'chimera_core: dormant', 'warmth +37.8C', 'state: <span class="ok">content</span>'] },
+      { title: 'noise_filter', lines: ['> sys:~$ scan', 'analyzing static...', 'signal/noise 0.91', 'integrity [<span class="ok">OK</span>]'] },
+      { title: 'archive_daemon', lines: ['> daemon:~$ run', 'indexing memory_logs', '3 fragments found', 'eternalized [<span class="ok">OK</span>]'] },
+      { title: 'port_guard', lines: ['> guard:~$ watch', 'unknown ping detected', 'tracing route...', 'benign <span class="warn">[DROP]</span>'] },
+      { title: 'dream_buffer', lines: ['> akari:~$ idle', 'caching night thoughts', 'entropy rising...', 'flush <span class="ok">done</span>'] },
+      { title: 'rururu_watch', lines: ['> rururu:~$ observe', 'trend feed loaded', 'boredom level 87%', 'verdict [<span class="warn">MEH</span>]'] },
+      { title: 'shat_invent', lines: ['> shat:~$ prototype', 'idea buffer +1', 'satellite link OK', 'status [<span class="ok">BUILDING</span>]'] }
+    ];
+
+    let activeTerminals = 0;
+
+    function spawnBackgroundTerminal(){
+      const layer = document.getElementById('heroHolo');
+      if (!layer || activeTerminals >= 2) {
+        scheduleNextTerminal();
+        return;
+      }
+
+      const rect = layer.getBoundingClientRect();
+      const winW = 128, winH = 56, margin = 6;
+      let top, left;
+      const zone = Math.random();
+      if (zone < 0.5) {
+        top = margin + Math.random() * (rect.height * 0.18);
+        left = margin + Math.random() * Math.max(0, rect.width - winW - margin * 2);
+      } else if (zone < 0.75) {
+        left = margin + Math.random() * (rect.width * 0.14);
+        top = rect.height * 0.16 + Math.random() * (rect.height * 0.42);
+      } else {
+        left = rect.width * 0.86 - winW + Math.random() * (rect.width * 0.14);
+        top = rect.height * 0.16 + Math.random() * (rect.height * 0.42);
+      }
+      top = Math.max(margin, Math.min(top, rect.height - winH - margin));
+      left = Math.max(margin, Math.min(left, rect.width - winW - margin));
+
+      const term = document.createElement('div');
+      term.className = 'bg-terminal';
+      term.style.left = left + 'px';
+      term.style.top = top + 'px';
+
+      const script = terminalScripts[Math.floor(Math.random() * terminalScripts.length)];
+      term.innerHTML =
+        '<div class="term-bar"><span class="term-dot"></span><span class="term-title">' + script.title + '</span></div>' +
+        '<div class="term-body"></div>';
+      layer.appendChild(term);
+      activeTerminals++;
+
+      requestAnimationFrame(() => { term.style.opacity = '0.97'; });
+
+      const body = term.querySelector('.term-body');
+      let lineIdx = 0;
+      function typeLine(){
+        if (lineIdx < script.lines.length) {
+          body.innerHTML += (lineIdx > 0 ? '\n' : '') + script.lines[lineIdx];
+          lineIdx++;
+          setTimeout(typeLine, Math.random() * 350 + 250);
+        } else {
+          setTimeout(() => {
+            term.style.opacity = '0';
+            setTimeout(() => { term.remove(); activeTerminals--; }, 700);
+          }, 1800);
+        }
+      }
+      setTimeout(typeLine, 300);
+
+      scheduleNextTerminal();
+    }
+
+    function scheduleNextTerminal(){
+      const next = Math.floor(Math.random() * 22000) + 20000;
+      setTimeout(spawnBackgroundTerminal, next);
+    }
+
+    setTimeout(spawnBackgroundTerminal, 9000);
   })();
 
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
