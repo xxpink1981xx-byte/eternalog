@@ -580,11 +580,17 @@
   function closeDrawer(){ document.getElementById('drawer').classList.remove('show'); document.getElementById('drawerBack').classList.remove('show'); }
 
   // ===== 待機動画のランダム選択（燈トークとは別の待機ループ） =====
-  // idle_loop_1.mp4 〜 idle_loop_3.mp4 からページ読み込み時に1本をランダム選択。
-  // ヒーロー・リーダー内ミニモニター両方に同じ動画を適用し、印象を統一する。
+  // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた動画から
+  // ページ読み込み時に1本をランダム選択。ヒーロー・リーダー内ミニモニター
+  // 両方に同じ動画を適用し、印象を統一する。
   (function initIdleVideo(){
-    const n = Math.floor(Math.random() * 3) + 1;
-    const src = 'idle_loop_' + n + '.mp4';
+    const idleVideos = [
+      'tomori_close.mp4',
+      'tomori_hud.mp4',
+      'tomori_trance.mp4',
+      'tomori_turn_arund.mp4'
+    ];
+    const src = idleVideos[Math.floor(Math.random() * idleVideos.length)];
 
     const heroVideo = document.getElementById('heroVideo');
     if (heroVideo) {
@@ -594,8 +600,6 @@
     const miniVideo = document.getElementById('readerMiniVideo');
     if (miniVideo) {
       miniVideo.src = src;
-      // ミニモニターは読み込み時点でDOMに存在するが、実際の再生開始は
-      // reader表示時（stub内）に他の処理と合わせて呼び出される想定。
       miniVideo.play().catch(() => {});
     }
   })();
