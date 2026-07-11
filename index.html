@@ -154,6 +154,10 @@
   .live-dot{ position:relative;width:9px;height:9px;border-radius:50%;background:var(--ok); }
   .live-dot::after{ content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--ok);opacity:.5;animation:ping 1.8s ease-out infinite; }
   @keyframes ping{ 0%{transform:scale(.6);opacity:.7} 100%{transform:scale(1.6);opacity:0} }
+  .header-right{ display:flex; align-items:center; gap:10px; }
+  .sys-ticker{ display:flex; align-items:center; gap:7px; font-size:8px; letter-spacing:.5px; color:var(--ink-soft); white-space:nowrap; }
+  .sys-ticker #sysSignal{ color:var(--accent); }
+  .sys-ticker #sysClock{ color:var(--accent-bright); }
 
   /* ===== HERO（モニター：上下ベゼル方式、吹き出し・HUDかっこなし） ===== */
   .hero{ width:100%; background:#fff; }
@@ -211,6 +215,73 @@
   @keyframes heroNoiseSweep{
     0%{ top:-10%; opacity:.95; }
     100%{ top:110%; opacity:0; }
+  }
+
+  /* ===== モニターHUD装飾（コーナー・スイープ・目盛り・ガラス） ===== */
+  .mon-hud{ position:absolute; inset:0; z-index:4; pointer-events:none; }
+  .mon-corner{ position:absolute; width:16px; height:16px; border:1.5px solid rgba(0,90,200,.6); animation:monPulse 3s ease-in-out infinite; }
+  .mon-corner.tl{ top:6px; left:6px; border-right:none; border-bottom:none; }
+  .mon-corner.tr{ top:6px; right:6px; border-left:none; border-bottom:none; }
+  .mon-corner.bl{ bottom:6px; left:6px; border-right:none; border-top:none; }
+  .mon-corner.br{ bottom:6px; right:6px; border-left:none; border-top:none; }
+  @keyframes monPulse{ 0%,100%{ opacity:.5; } 50%{ opacity:1; } }
+  .mon-sweep{
+    position:absolute; left:0; right:0; height:56px; top:-56px;
+    background:linear-gradient(to bottom, rgba(0,90,200,0), rgba(0,90,200,.10) 60%, rgba(0,90,200,.20));
+    animation:monSweep 6.5s linear infinite;
+  }
+  @keyframes monSweep{ 0%{ top:-56px; } 100%{ top:100%; } }
+  .mon-ticks{
+    position:absolute; left:2px; top:24%; bottom:26%; width:4px;
+    background:repeating-linear-gradient(to bottom, rgba(0,90,200,.45) 0 1px, transparent 1px 9px);
+  }
+  .screen-glass{
+    position:absolute; inset:0; z-index:2; pointer-events:none;
+    background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.05) 100%);
+  }
+
+  /* ===== 独白フローティング字幕（縦書き・グリッチイン/アウト） ===== */
+  .screen-murmur{
+    position:absolute; top:10px; right:6px; bottom:10px; z-index:5;
+    pointer-events:none; display:flex; align-items:flex-start; justify-content:flex-end;
+  }
+  #screenMurmurText{
+    opacity:0; position:relative;
+    writing-mode:vertical-rl; text-orientation:upright;
+    font-family:'Noto Sans JP',sans-serif; font-size:11px; letter-spacing:2px;
+    color:#eaf4ff; text-shadow:0 0 4px rgba(0,0,0,.6), 0 0 2px rgba(0,90,200,.5);
+    background:linear-gradient(180deg, rgba(0,10,20,0) 0%, rgba(0,10,20,.35) 15%, rgba(0,10,20,.35) 85%, rgba(0,10,20,0) 100%);
+    max-height:100%; line-height:1.6; padding:6px 3px;
+  }
+  #screenMurmurText.murmur-in{ animation:murmurGlitchIn .5s steps(2,end) forwards; }
+  #screenMurmurText.murmur-out{ animation:murmurGlitchOut .45s ease forwards; }
+  @keyframes murmurGlitchIn{
+    0%{ opacity:0; clip-path:inset(0 45% 0 45%); transform:translateY(-3px) skewY(-8deg); filter:blur(1px); }
+    20%{ opacity:1; clip-path:inset(0 60% 0 0); transform:translateY(4px) skewY(6deg); }
+    40%{ opacity:.7; clip-path:inset(0 0 0 50%); transform:translateY(-2px); }
+    60%{ opacity:1; clip-path:inset(0 10% 0 10%); transform:translateY(1px); filter:blur(0); }
+    80%{ opacity:.85; clip-path:inset(0 0 0 0); transform:translateY(-1px); }
+    100%{ opacity:1; clip-path:inset(0 0 0 0); transform:translateY(0); }
+  }
+  @keyframes murmurGlitchOut{
+    0%{ opacity:1; clip-path:inset(0 0 0 0); }
+    30%{ opacity:.6; clip-path:inset(0 40% 0 0); transform:translateY(2px); }
+    60%{ opacity:.3; clip-path:inset(0 0 0 40%); transform:translateY(-3px); }
+    100%{ opacity:0; transform:translateY(0); }
+  }
+  #screenMurmurText.murmur-glitch::before,
+  #screenMurmurText.murmur-glitch::after{
+    content:attr(data-text); position:absolute; top:6px; right:2px;
+    height:calc(100% - 12px); writing-mode:vertical-rl; text-orientation:upright; pointer-events:none;
+  }
+  #screenMurmurText.murmur-glitch::before{
+    color:rgba(230,0,90,.55); animation:murmurRGBShift .5s steps(2,end); transform:translateY(-1.5px);
+  }
+  #screenMurmurText.murmur-glitch::after{
+    color:rgba(0,150,220,.55); animation:murmurRGBShift .5s steps(2,end) reverse; transform:translateY(1.5px);
+  }
+  @keyframes murmurRGBShift{
+    0%,100%{ opacity:0; } 10%,40%{ opacity:.7; } 60%{ opacity:.3; } 80%{ opacity:0; }
   }
 
   /* ===== PILL NAV (2x2) ===== */
@@ -431,7 +502,14 @@
       <div class="brand-mark"></div>
       <div class="brand-name mono">ETERNALOG</div>
     </div>
-    <div class="icon-btn"><div class="live-dot"></div></div>
+    <div class="header-right">
+      <div class="sys-ticker mono">
+        <span id="sysSignal">▮▮▮▮▯</span>
+        <span id="sysNodes">N:128</span>
+        <span id="sysClock">--:--:--</span>
+      </div>
+      <div class="icon-btn"><div class="live-dot"></div></div>
+    </div>
   </header>
 
   <!-- HERO -->
@@ -448,6 +526,21 @@
       <video id="heroVideoB" muted playsinline style="opacity:0;transition:opacity .6s ease;"></video>
       <div id="heroGlitchLayer" class="hero-glitch-overlay"></div>
       <div id="heroNoiseLine" class="hero-noise-line"></div>
+
+      <!-- モニターHUD装飾：コーナーブラケット・レーダースイープ・目盛り -->
+      <div class="mon-hud">
+        <span class="mon-corner tl"></span><span class="mon-corner tr"></span>
+        <span class="mon-corner bl"></span><span class="mon-corner br"></span>
+        <div class="mon-sweep"></div>
+        <div class="mon-ticks"></div>
+      </div>
+      <!-- ガラス反射 -->
+      <div class="screen-glass"></div>
+
+      <!-- 燈の独白（縦書き・グリッチイン/アウト） -->
+      <div id="screenMurmur" class="screen-murmur">
+        <span id="screenMurmurText"></span>
+      </div>
     </div>
 
     <div class="hero-bezel bottom">
@@ -651,6 +744,84 @@
 
   function closeDrawer(){ document.getElementById('drawer').classList.remove('show'); document.getElementById('drawerBack').classList.remove('show'); }
 
+  // ===== システムステータス・ティッカー（時刻／信号強度／接続ノード数） =====
+  (function initSystemTicker(){
+    let signalLevel = 4;
+    let nodeCount = 128;
+
+    function update(){
+      const clockEl = document.getElementById('sysClock');
+      const signalEl = document.getElementById('sysSignal');
+      const nodesEl = document.getElementById('sysNodes');
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const t = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+      if (clockEl) clockEl.textContent = t;
+
+      if (signalEl) {
+        const drift = Math.random();
+        if (drift > 0.7) signalLevel = Math.min(5, signalLevel + 1);
+        else if (drift < 0.25) signalLevel = Math.max(2, signalLevel - 1);
+        signalEl.textContent = '▮'.repeat(signalLevel) + '▯'.repeat(5 - signalLevel);
+      }
+
+      if (nodesEl) {
+        nodeCount += Math.floor(Math.random() * 7) - 3;
+        if (nodeCount < 32) nodeCount = 32;
+        if (nodeCount > 999) nodeCount = 999;
+        nodesEl.textContent = 'N:' + String(nodeCount).padStart(3, '0');
+      }
+    }
+    update();
+    setInterval(update, 1000);
+  })();
+
+  // ===== 燈の独白（アイドル中にランダムな間隔でフェードイン/アウト） =====
+  (function initMurmur(){
+    const tomoriMurmurs = [
+      'ノイズの向こうに、まだ誰かいる気がするの。',
+      'あたたかい飲み物、そろそろ冷めてきたかな。',
+      'この周波数、ちゃんと届いてるといいな。',
+      'データは消えても、波形は残るのかもしれない。',
+      '静かな夜更けって、なんだか落ち着くんだよね。',
+      'ニャモ、また丸くなって眠ってる。',
+      '記録することって、祈りに似てるのだと思う。',
+      '星の光も、届く頃には少し古いんだよね。',
+      '聞こえる？ ここにも、小さな鼓動があるの。'
+    ];
+
+    function startMurmurLoop(){
+      const el = document.getElementById('screenMurmurText');
+      if (!el) return;
+
+      function showOne(){
+        const line = tomoriMurmurs[Math.floor(Math.random() * tomoriMurmurs.length)];
+        el.textContent = line;
+        el.setAttribute('data-text', line);
+
+        el.classList.remove('murmur-out');
+        void el.offsetWidth;
+        el.classList.add('murmur-in', 'murmur-glitch');
+
+        setTimeout(() => { el.classList.remove('murmur-glitch'); }, 520);
+
+        setTimeout(() => {
+          el.classList.remove('murmur-in');
+          void el.offsetWidth;
+          el.classList.add('murmur-out');
+        }, 4800);
+
+        const next = Math.floor(Math.random() * 16000) + 12000;
+        setTimeout(showOne, next);
+      }
+
+      setTimeout(showOne, 8000);
+    }
+
+    startMurmurLoop();
+  })();
+
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
   // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた4本を、
   // 各動画が終わりに近づくたびに自動でクロスフェード切り替え。
@@ -687,6 +858,22 @@
       const remaining = (vid.duration - vid.currentTime - OVERLAP) * 1000;
       switchTimer = setTimeout(() => crossfadeTo(pickIdle()), Math.max(0, remaining));
     }
+
+    // フェイルセーフ：durationの取得に失敗した環境（file://での再生など）でも、
+    // 動画が最後まで再生し終わったら必ず次に切り替わるようにする。
+    function onEnded(){
+      if (!busy) crossfadeTo(pickIdle());
+    }
+    heroA.addEventListener('ended', onEnded);
+    heroB.addEventListener('ended', onEnded);
+
+    // 動画が読み込めない場合はコンソールに警告し、少し待って次を試す
+    function onError(e){
+      console.warn('[EternaLog] idle video failed to load:', e.target.src);
+      if (!busy) setTimeout(() => crossfadeTo(pickIdle()), 800);
+    }
+    heroA.addEventListener('error', onError);
+    heroB.addEventListener('error', onError);
 
     function crossfadeTo(src){
       if (busy) return;
