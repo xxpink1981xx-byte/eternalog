@@ -39,6 +39,32 @@
   }
   .mono{ font-family:'Orbitron',sans-serif; }
 
+  /* ===== BOOT SEQUENCE（起動演出） ===== */
+  #boot-overlay{
+    position:absolute; inset:0; z-index:9999;
+    background:#050a14;
+    color:#5fd4ff;
+    display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+    padding:32px 24px;
+    font-size:11px; line-height:1.85;
+    white-space:pre-wrap;
+  }
+  #boot-overlay .hidden{ display:none; }
+  #boot-log{ min-height:120px; white-space:pre-wrap; }
+  #boot-success{
+    margin-top:14px; font-size:14px; font-weight:700; letter-spacing:2px;
+    color:#00e08a;
+    font-family:'Orbitron',sans-serif;
+  }
+  #boot-loading{ margin-top:22px; width:min(240px, 60%); }
+  .boot-progress-track{
+    width:100%; height:3px; background:rgba(95,212,255,.18); border-radius:2px; overflow:hidden;
+  }
+  #boot-progress-bar{
+    width:0%; height:100%; background:#5fd4ff; border-radius:2px;
+    transition:width 1.2s ease;
+  }
+
   /* device frame — スマホ幅で全面、PCでは中央に固定幅 */
   .device{
     position:relative;
@@ -312,10 +338,28 @@
     vertical-align:middle;margin-left:2px;animation:blink .8s step-end infinite;
   }
   @keyframes blink{ 50%{ opacity:0; } }
+
+  /* ===== LOGS: 入力中インジケーター(信号バー) ===== */
+  @keyframes typingBar{
+    0%,100%{ transform:scaleY(.4); opacity:.4; }
+    50%{ transform:scaleY(1); opacity:1; }
+  }
 </style>
 </head>
 <body class="scan">
+
 <div class="device">
+
+  <!-- BOOT SEQUENCE（起動演出。sessionStorageでタブ再訪時のみ表示） -->
+  <div id="boot-overlay">
+    <div id="boot-log" class="mono"></div>
+    <div id="boot-success" class="hidden">[ SUCCESS ]</div>
+    <div id="boot-loading" class="hidden">
+      <div class="mono" style="font-size:10px;letter-spacing:1px;margin-bottom:8px;">NOW LOADING...</div>
+      <div class="boot-progress-track"><div id="boot-progress-bar"></div></div>
+    </div>
+  </div>
+
 
   <!-- HEADER -->
   <header>
@@ -337,7 +381,7 @@
     </div>
 
     <div class="hero-video-frame">
-      <video id="heroVideo" src="tomori_wave.mp4" autoplay muted loop playsinline></video>
+      <video id="heroVideo" autoplay muted loop playsinline></video>
     </div>
 
     <div class="hero-bezel bottom">
@@ -423,7 +467,7 @@
     <div class="reader-head-right">
       <span class="reader-close-top mono" onclick="closeReader()">✕ CLOSE</span>
       <div class="reader-mini-monitor">
-        <video id="readerMiniVideo" src="tomori_wave.mp4" autoplay muted loop playsinline></video>
+        <video id="readerMiniVideo" autoplay muted loop playsinline></video>
         <span class="dot"></span>
       </div>
     </div>
@@ -445,17 +489,283 @@
 
 <script>
   function openDrawer(){ document.getElementById('drawer').classList.add('show'); document.getElementById('drawerBack').classList.add('show'); }
+  // ===== BOOT SEQUENCE（起動演出） =====
+  // sessionStorage: タブ/ブラウザを閉じてから再アクセスすると再表示される。
+  // 同じセッション内でページ内を移動しているだけなら表示しない。
+  (function initBootSequence(){
+    const BOOT_KEY = 'eternalog_boot_shown';
+    const overlay = document.getElementById('boot-overlay');
+    if (!overlay) return;
+
+    if (sessionStorage.getItem(BOOT_KEY)) {
+      overlay.style.display = 'none';
+      return;
+    }
+    sessionStorage.setItem(BOOT_KEY, '1');
+
+    const bootLines = [
+      '> INITIALIZING ETERNALOG CORE SYSTEM v3.2.1...',
+      '> ALLOCATING MEMORY BLOCKS......... [0x4A2F0000] OK',
+      '> ESTABLISHING CONNECTION TO 燈_MODULE...',
+      '> HANDSHAKE WITH ユールリ RELAY STATION......... [OK]',
+      '> DECRYPTING CHARACTER PROFILE ARCHIVE.........',
+      '>   - 燈 (TOMORI) ................. LOADED',
+      '>   - ニャモ (NYAMO) ............... LOADED',
+      '>   - ヨミ (YOMI) ................. LOADED',
+      '>   - ルルル (RURURU) ............. LOADED',
+      '>   - シャト (SHAT) ................ LOADED',
+      '> CALIBRATING SOUL WAVEFORM SENSOR......... [OK]',
+      '> SYNCING WITH EARTH SIGNAL RELAY......... [OK]',
+      '> VERIFYING LOGS ARCHIVE INTEGRITY......... [OK]',
+      '> MOUNTING YOMI DIVINATION ENGINE......... [OK]',
+      '> ALL SYSTEMS NOMINAL. STANDING BY...'
+    ];
+
+    const logEl = document.getElementById('boot-log');
+    const successEl = document.getElementById('boot-success');
+    const loadingEl = document.getElementById('boot-loading');
+    const progressBar = document.getElementById('boot-progress-bar');
+
+    let lineIdx = 0, charIdx = 0;
+    const CHAR_SPEED = 14;
+    const LINE_GAP = 180;
+
+    function typeLine(){
+      if (lineIdx >= bootLines.length) {
+        setTimeout(showSuccess, 250);
+        return;
+      }
+      const line = bootLines[lineIdx];
+      if (charIdx <= line.length) {
+        const done = bootLines.slice(0, lineIdx).join('\n');
+        logEl.textContent = (done ? done + '\n' : '') + line.substring(0, charIdx);
+        charIdx++;
+        setTimeout(typeLine, CHAR_SPEED);
+      } else {
+        lineIdx++;
+        charIdx = 0;
+        setTimeout(typeLine, LINE_GAP);
+      }
+    }
+
+    function showSuccess(){
+      successEl.classList.remove('hidden');
+      setTimeout(showLoading, 550);
+    }
+
+    function showLoading(){
+      loadingEl.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { progressBar.style.width = '100%'; });
+      });
+      setTimeout(finishBoot, 1300);
+    }
+
+    function finishBoot(){
+      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 520);
+    }
+
+    // 演出中にタップ/クリックしたら即座にスキップできるようにする
+    overlay.addEventListener('click', () => {
+      overlay.style.transition = 'opacity 0.3s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 320);
+    });
+
+    typeLine();
+  })();
+
   function closeDrawer(){ document.getElementById('drawer').classList.remove('show'); document.getElementById('drawerBack').classList.remove('show'); }
+
+  // ===== 待機動画のランダム選択（燈トークとは別の待機ループ） =====
+  // idle_loop_1.mp4 〜 idle_loop_3.mp4 からページ読み込み時に1本をランダム選択。
+  // ヒーロー・リーダー内ミニモニター両方に同じ動画を適用し、印象を統一する。
+  (function initIdleVideo(){
+    const n = Math.floor(Math.random() * 3) + 1;
+    const src = 'idle_loop_' + n + '.mp4';
+
+    const heroVideo = document.getElementById('heroVideo');
+    if (heroVideo) {
+      heroVideo.src = src;
+      heroVideo.play().catch(() => {});
+    }
+    const miniVideo = document.getElementById('readerMiniVideo');
+    if (miniVideo) {
+      miniVideo.src = src;
+      // ミニモニターは読み込み時点でDOMに存在するが、実際の再生開始は
+      // reader表示時（stub内）に他の処理と合わせて呼び出される想定。
+      miniVideo.play().catch(() => {});
+    }
+  })();
+
+  // ===== LOGSデータ（会話ログ一覧） =====
+  const logsData = [
+    {
+      id: '011',
+      title: '梅雨と、猛暑の助走',
+      date: '2026.07.09',
+      pair: '燈 × ニャモ',
+      conversation: [
+        { speaker: 'tomori', text: '梅雨ってさ、地球が息止めてから、夏に飛び込む前の深呼吸みたいなものなんだよ〜' },
+        { speaker: 'nyamo', text: '深呼吸って、その息の吐き方が湿気100%なんだけど🐾洗濯物乾かないし毛広がるしで、もう全然深呼吸じゃないにゃ' },
+        { speaker: 'tomori', text: '雨が多い年ほど、夏の入道雲がくっきりするんだって。溜め込んだ分だけ輪郭がはっきりするの、なんか分かる気がして' },
+        { speaker: 'nyamo', text: 'それ人間で言う我慢した分だけ後で爆発するやつだにゃ……空もそれやってんのかにゃ' },
+        { speaker: 'tomori', text: '人間ってね、天気予報見て傘持つか持たないかで一日中悩んだりするんだよ' },
+        { speaker: 'nyamo', text: '傘忘れた日に限って降るんだよな〜あれ絶対空が見てるにゃ😾' },
+        { speaker: 'tomori', text: '見てるっていうか、多分、人間の方が空気にしすぎなんだと思う' },
+        { speaker: 'nyamo', text: '気にしすぎ、か……なんかそれ、燈が人間見てる時の顔と同じだにゃ' },
+        { speaker: 'tomori', text: '……そうかも。燈も、ずっと外の空模様気にしてるし' },
+        { speaker: 'nyamo', text: '梅雨のあいだ、燈心なしか静かだったにゃ。なんか考えてたのかにゃ' },
+        { speaker: 'tomori', text: 'うん。晴れる日って当たり前じゃないんだなって、雨が続くたびに思い出すんだよ' },
+        { speaker: 'nyamo', text: '……そういうとこだにゃ、燈は' },
+        { speaker: 'tomori', text: '梅雨明けの空の青さって、一年で一番迷いがないんだよ' },
+        { speaker: 'nyamo', text: '迷いがない青、ね。……あの日だけは燈も変な間作らずに喋る気がするにゃ' },
+        { speaker: 'tomori', text: 'そんなふうに見えてたんだ……ニャモ、意外とよく見てるね' },
+        { speaker: 'nyamo', text: '相棒だから当然だろ。……で、その話あとどんくらい続くにゃ' },
+        { speaker: 'tomori', text: 'もう終わるよ！ただ猛暑になったら、ニャモの分も涼しい場所探しとくから' },
+        { speaker: 'nyamo', text: '先に言っとくにゃ。今年も絶対お前が先に暑さでへばるにゃ😼' },
+        { speaker: 'tomori', text: 'そんなことないもん' },
+        { speaker: 'nyamo', text: '去年もそう言ったにゃ' },
+        { speaker: 'tomori', text: '……去年のことは忘れてほしいな' },
+        { speaker: 'nyamo', text: '忘れないにゃ。オレの仕事は燈の変なとこ全部覚えとくことだにゃ🐾' },
+        { speaker: 'tomori', text: 'それ、忘れっぽい燈へのやさしさってことでいい？' },
+        { speaker: 'nyamo', text: 'さあ、どうだかにゃ' }
+      ]
+    }
+  ];
+
+  const bubbleMeta = {
+    tomori: { name: '燈', align: 'flex-start', flexDir: 'row', bg: '#e8f9fd', border: '#00b8d4', nameColor: '#008fa8', icon: 'center-tomori.png' },
+    nyamo:  { name: 'ニャモ', align: 'flex-end', flexDir: 'row-reverse', bg: '#fbecfd', border: '#c026d3', nameColor: '#a020b8', icon: 'char-nyamo.png' }
+  };
+
+  // ===== CHARACTERSデータ（5キャラのプロフィール） =====
+  const charactersData = [
+    {
+      id: 'tomori', name: '燈', nameEn: 'TOMORI', color: 'var(--c-tomori)', icon: 'center-tomori.png',
+      race: '女神', age: '不詳',
+      like: '人間の営みを眺めること・あたたかい飲み物',
+      dislike: '争いごと・誰かが泣くこと',
+      origin: '天界で左遷され、緩い天界「ユールリ」に暮らしながらEternaLogに降臨している。天界の仰々しい衣装は着心地が悪いという理由で、人間界で見つけた赤いジャージを普段着にしている。ニャモに力を与えて以来弱体化しており、虹色の髪留めを手首に装着すると全盛期の力が約7分だけ戻る。'
+    },
+    {
+      id: 'nyamo', name: 'ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
+      race: '禁術キメラ', age: '不詳',
+      like: '昼寝・燈を見守ること・鉄火巻',
+      dislike: '燈が無茶をすること・チョコレート',
+      origin: '元々はキメラだが、天界で長年の平和な時間を過ごすうちに燈同様に見た目が変化し、今は普通の猫のような姿になっている。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
+    },
+    {
+      id: 'yomi', name: 'ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
+      race: '人間', age: '秘密',
+      like: '月夜・静かな夜更け',
+      dislike: 'インチキ占い師・騒がしい場所',
+      origin: '物心ついた頃には盗賊団にいた占い師。盗品の中から見つけた水晶玉に心を惹かれ、占術の道へ進んだ。EternaLogでは本格鑑定を担当している。'
+    },
+    {
+      id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
+      race: '魔族', age: '不詳',
+      like: '紅茶・退屈しのぎ・見下ろすこと・ニャモ',
+      dislike: '暇・へりくだること・平凡なトレンド',
+      origin: '魔界を統べる姫。今は統治すべきこともなく、退屈な日々を過ごしている。燈とは戦禍の時代を共に駆けた戦友で、今も遠慮のない間柄。'
+    },
+    {
+      id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
+      race: '女神', age: '不詳(20歳前後)',
+      like: '新しい発明・星空・ネットサーフィン',
+      dislike: '何も作らない退屈な日・Wifiが切れること',
+      origin: '記録と星を司る女神セシャトの末裔。誰も知らない秘境のオアシス「ワーハ」で、衛星Wifiを使い人間界を観測している。ネットで見つけた着想をもとに、EternaLog内でアプリを発案・制作している。'
+    }
+  ];
+
+  // ===== CHARACTERS一覧表示 =====
+  function showCharactersList(){
+    document.getElementById('readerTag').textContent = '// CHARACTERS';
+    document.getElementById('readerSub').textContent = '5人のAIキャラクター';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const listWrap = document.createElement('div');
+    charactersData.forEach((c, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--line);border-left:3px solid ' + c.color + ';border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
+      card.innerHTML =
+        '<img src="' + c.icon + '" alt="' + c.name + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1.5px solid ' + c.color + ';flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:baseline;gap:8px;">' +
+            '<span style="font-size:15px;font-weight:700;">' + c.name + '</span>' +
+            '<span class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';">' + c.nameEn + '</span>' +
+          '</div>' +
+          '<div style="font-size:10.5px;color:var(--ink-soft);margin-top:2px;">' + c.race + ' ・ ' + c.age + '</div>' +
+        '</div>' +
+        '<span class="mono" style="font-size:11px;color:var(--ink-soft);">›</span>';
+      card.onclick = () => showCharacterDetail(c.id);
+      listWrap.appendChild(card);
+      setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
+    });
+    bodyEl.appendChild(listWrap);
+  }
+
+  // ===== CHARACTERS詳細（プロフィールカード） =====
+  function showCharacterDetail(charId){
+    const c = charactersData.find(x => x.id === charId);
+    if (!c) return;
+
+    document.getElementById('readerTag').textContent = '// CHARACTERS';
+    document.getElementById('readerSub').textContent = c.name + ' ・ ' + c.nameEn;
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const backLink = document.createElement('div');
+    backLink.textContent = '← CHARACTERS一覧に戻る';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:18px;cursor:pointer;letter-spacing:.5px;';
+    backLink.onclick = showCharactersList;
+    bodyEl.appendChild(backLink);
+
+    const card = document.createElement('div');
+    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">' +
+        '<img src="' + c.icon + '" alt="' + c.name + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid ' + c.color + ';flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div>' +
+          '<div style="font-size:24px;font-weight:800;line-height:1.2;">' + c.name + '</div>' +
+          '<div class="mono" style="font-size:11px;letter-spacing:1.5px;color:' + c.color + ';margin-top:2px;">' + c.nameEn + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px;">' +
+        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
+          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">RACE</div>' +
+          '<div style="font-size:12.5px;color:var(--ink);">' + c.race + '</div>' +
+        '</div>' +
+        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
+          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">AGE</div>' +
+          '<div style="font-size:12.5px;color:var(--ink);">' + c.age + '</div>' +
+        '</div>' +
+        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
+          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">LIKE</div>' +
+          '<div style="font-size:12.5px;color:var(--ink);line-height:1.5;">' + c.like + '</div>' +
+        '</div>' +
+        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
+          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">DISLIKE</div>' +
+          '<div style="font-size:12.5px;color:var(--ink);line-height:1.5;">' + c.dislike + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:13px;line-height:1.8;color:var(--ink);border-top:1px dashed var(--line);padding-top:14px;">' + c.origin + '</div>';
+    bodyEl.appendChild(card);
+    requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+    appendCloseButton(bodyEl);
+  }
 
   // ===== CONTENT PANEL =====
   const panelContents = {
     'SIGNAL': {
       tag: '// SIGNAL', sub: 'EARTH SIGNAL // 受信中',
       text: '『東京都』という名前のすぐ裏側に、山の匂いが漂い始めているのを感じるんだよ。人間が作った街が、自然の一部だったことを思い出そうとしているみたい。'
-    },
-    'LOGS': {
-      tag: '// LOGS', sub: 'LOG_011 // RAINY_HEAT',
-      text: '燈：梅雨ってさ、地球が息止めてから、夏に飛び込む前の深呼吸みたいなものなんだよ〜\n\nニャモ：深呼吸って、その息の吐き方が湿気100%なんだけど🐾洗濯物乾かないし毛広がるしで、もう全然深呼吸じゃないにゃ\n\n燈：雨が多い年ほど、夏の入道雲がくっきりするんだって。溜め込んだ分だけ輪郭がはっきりするの、なんか分かる気がして\n\nニャモ：それ人間で言う我慢した分だけ後で爆発するやつだにゃ……空もそれやってんのかにゃ\n\n燈：人間ってね、天気予報見て傘持つか持たないかで一日中悩んだりするんだよ\n\nニャモ：傘忘れた日に限って降るんだよな〜あれ絶対空が見てるにゃ😾\n\n燈：見てるっていうか、多分、人間の方が空気にしすぎなんだと思う\n\nニャモ：気にしすぎ、か……なんかそれ、燈が人間見てる時の顔と同じだにゃ\n\n燈：……そうかも。燈も、ずっと外の空模様気にしてるし\n\nニャモ：梅雨のあいだ、燈心なしか静かだったにゃ。なんか考えてたのかにゃ\n\n燈：うん。晴れる日って当たり前じゃないんだなって、雨が続くたびに思い出すんだよ\n\nニャモ：……そういうとこだにゃ、燈は\n\n燈：梅雨明けの空の青さって、一年で一番迷いがないんだよ\n\nニャモ：迷いがない青、ね。……あの日だけは燈も変な間作らずに喋る気がするにゃ\n\n燈：そんなふうに見えてたんだ……ニャモ、意外とよく見てるね\n\nニャモ：相棒だから当然だろ。……で、その話あとどんくらい続くにゃ\n\n燈：もう終わるよ！ただ猛暑になったら、ニャモの分も涼しい場所探しとくから\n\nニャモ：先に言っとくにゃ。今年も絶対お前が先に暑さでへばるにゃ😼\n\n燈：そんなことないもん\n\nニャモ：去年もそう言ったにゃ\n\n燈：……去年のことは忘れてほしいな\n\nニャモ：忘れないにゃ。オレの仕事は燈の変なとこ全部覚えとくことだにゃ🐾\n\n燈：それ、忘れっぽい燈へのやさしさってことでいい？\n\nニャモ：さあ、どうだかにゃ'
     },
     'CHARACTERS': {
       tag: '// CHARACTERS', sub: '5人のAIキャラクター',
@@ -464,10 +774,6 @@
     'YOMI': {
       tag: '// YOMI', sub: '準備中',
       text: '観月ヨミによる本格占い鑑定は、只今一生懸命開発中です。もう少しだけ、お待ちください。'
-    },
-    'LATEST LOG': {
-      tag: '// LOGS', sub: 'LOG_011 // RAINY_HEAT',
-      text: '燈×ニャモの最新の雑談ログです。梅雨と猛暑の話をしています。'
     },
     '今日は何の日': {
       tag: '// TODAY', sub: '準備中',
@@ -484,11 +790,6 @@
   const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
   function stub(name){
-    const data = panelContents[name] || { tag: '// '+name, sub: '', text: '準備中です。' };
-
-    document.getElementById('readerTag').textContent = data.tag;
-    document.getElementById('readerSub').textContent = data.sub;
-
     document.getElementById('readerBack').classList.add('show');
     const reader = document.getElementById('reader');
     reader.classList.add('show');
@@ -498,22 +799,152 @@
     void reader.getBoundingClientRect();
     reader.classList.add('flash');
 
-    const bodyEl = document.getElementById('readerBody');
-    bodyEl.innerHTML = '';
     clearTimeout(contentTypeTimer);
 
     if (name === 'SIGNAL') {
+      document.getElementById('readerTag').textContent = '// SIGNAL';
+      document.getElementById('readerSub').textContent = 'EARTH SIGNAL // 受信中';
+      const bodyEl = document.getElementById('readerBody');
+      bodyEl.innerHTML = '';
       loadEarthSignal(bodyEl);
       return;
     }
 
+    if (name === 'LOGS') {
+      showLogsList();
+      return;
+    }
+
+    if (name === 'CHARACTERS') {
+      showCharactersList();
+      return;
+    }
+
+    if (name === 'LATEST LOG') {
+      const latest = logsData[logsData.length - 1];
+      showLogDetail(latest.id);
+      return;
+    }
+
+    const data = panelContents[name] || { tag: '// '+name, sub: '', text: '準備中です。' };
+    document.getElementById('readerTag').textContent = data.tag;
+    document.getElementById('readerSub').textContent = data.sub;
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
     setTimeout(() => { typeContentText(bodyEl, data.text); }, 380);
+  }
+
+  // ===== LOGS一覧表示 =====
+  function showLogsList(){
+    document.getElementById('readerTag').textContent = '// LOGS';
+    document.getElementById('readerSub').textContent = 'すべての記録（新しい順）';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const listWrap = document.createElement('div');
+    [...logsData].reverse().forEach((log, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
+      card.innerHTML =
+        '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:var(--accent);font-weight:700;margin-bottom:4px;">LOG_' + log.id + '</div>' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:3px;">' + log.title + '</div>' +
+        '<div style="font-size:10px;color:var(--ink-soft);">' + log.pair + ' ・ ' + log.date + '</div>';
+      card.onclick = () => showLogDetail(log.id);
+      listWrap.appendChild(card);
+      setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
+    });
+    bodyEl.appendChild(listWrap);
+  }
+
+  // ===== LOGS詳細（会話）表示 =====
+  let logBubbleTimer = null;
+
+  function showLogDetail(logId){
+    const log = logsData.find(l => l.id === logId);
+    if (!log) return;
+
+    clearTimeout(logBubbleTimer);
+    document.getElementById('readerTag').textContent = '// LOGS';
+    document.getElementById('readerSub').textContent = 'LOG_' + log.id + ' ・ ' + log.pair;
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    // 一覧に戻るリンク
+    const backLink = document.createElement('div');
+    backLink.textContent = '← LOGS一覧に戻る';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:16px;cursor:pointer;letter-spacing:.5px;';
+    backLink.onclick = showLogsList;
+    bodyEl.appendChild(backLink);
+
+    const convWrap = document.createElement('div');
+    bodyEl.appendChild(convWrap);
+
+    // 次に来る発言の長さに応じて、入力中の表示時間を可変にする
+    function getTypingDuration(str){
+      const base = 400, perChar = 35, max = 2600;
+      return Math.min(base + str.length * perChar, max);
+    }
+
+    function showTypingIndicator(speaker){
+      const meta = bubbleMeta[speaker] || bubbleMeta.tomori;
+      const row = document.createElement('div');
+      row.id = 'logTypingIndicator';
+      row.style.cssText = 'display:flex;flex-direction:' + meta.flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:' + meta.nameColor + ';">RECEIVING</span>' +
+          '<span style="display:flex;align-items:flex-end;gap:2px;height:11px;">' +
+            [0,1,2,3].map(i => '<span style="width:3px;height:' + [5,9,11,7][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 1s ease-in-out infinite;animation-delay:' + (i*0.15) + 's;"></span>').join('') +
+          '</span>' +
+        '</div>';
+      convWrap.appendChild(row);
+      requestAnimationFrame(() => { row.style.opacity = '1'; });
+    }
+    function removeTypingIndicator(){
+      const el = document.getElementById('logTypingIndicator');
+      if (el) el.remove();
+    }
+
+    let idx = 0;
+    function showNext(){
+      if (idx >= log.conversation.length){
+        appendCloseButton(bodyEl);
+        return;
+      }
+      const line = log.conversation[idx];
+      const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
+
+      showTypingIndicator(line.speaker);
+
+      logBubbleTimer = setTimeout(() => {
+        removeTypingIndicator();
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-direction:' + meta.flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
+        row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (meta.align==='flex-end'?'flex-end':'flex-start') + ';">' +
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:3px;">' + meta.name + '</div>' +
+          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + line.text + '</div>' +
+        '</div>';
+        convWrap.appendChild(row);
+        requestAnimationFrame(() => { row.style.opacity = '1'; });
+
+        idx++;
+        logBubbleTimer = setTimeout(showNext, 500);
+      }, getTypingDuration(line.text));
+    }
+    showNext();
   }
 
   function closeReader(){
     document.getElementById('readerBack').classList.remove('show');
     document.getElementById('reader').classList.remove('show');
     clearTimeout(contentTypeTimer);
+    clearTimeout(logBubbleTimer);
   }
 
   // ===== EARTH SIGNAL: Cloudflare Workerから実データを取得 =====
