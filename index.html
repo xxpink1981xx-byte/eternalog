@@ -60,7 +60,7 @@
     display:block; margin-top:8px; font-size:9px; font-weight:400; letter-spacing:.5px;
     color:#5fd4ff; font-family:'Noto Sans JP',sans-serif;
   }
-  #boot-log{ min-height:70px; white-space:pre-wrap; }
+  #boot-log{ height:78px; overflow:hidden; white-space:pre-wrap; }
   #boot-success{
     margin-top:8px; font-size:11px; font-weight:700; letter-spacing:2px;
     color:#00e08a;
@@ -194,7 +194,7 @@
   .hero-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.4; }
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
-  .hero-video-frame{ width:100%; aspect-ratio:16/9; overflow:hidden; background:#000; position:relative; }
+  .hero-video-frame{ width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative; }
   .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;display:block; }
 
   /* ===== 待機動画切り替え時のグリッチ/ノイズ演出 ===== */
@@ -250,49 +250,31 @@
     background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.05) 100%);
   }
 
-  /* ===== 独白フローティング字幕（縦書き・グリッチイン/アウト） ===== */
-  .screen-murmur{
-    position:absolute; top:10px; right:6px; bottom:10px; z-index:5;
-    pointer-events:none; display:flex; align-items:flex-start; justify-content:flex-end;
+  /* ===== 常駐テキストボックス（モニター下、普段は独白／SIGNAL更新時に切替） ===== */
+  .hero-textbox{
+    position:relative;
+    background:#0a1420;
+    border-top:1px solid rgba(0,90,200,.35);
+    border-bottom:1px solid rgba(0,90,200,.2);
+    padding:8px 12px;
+    min-height:40px;
+    display:flex; flex-direction:column; gap:3px; justify-content:center;
+    overflow:hidden;
   }
-  #screenMurmurText{
-    opacity:0; position:relative;
-    writing-mode:vertical-rl; text-orientation:upright;
-    font-family:'Noto Sans JP',sans-serif; font-size:11px; letter-spacing:2px;
-    color:#eaf4ff; text-shadow:0 0 4px rgba(0,0,0,.6), 0 0 2px rgba(0,90,200,.5);
-    background:linear-gradient(180deg, rgba(0,10,20,0) 0%, rgba(0,10,20,.35) 15%, rgba(0,10,20,.35) 85%, rgba(0,10,20,0) 100%);
-    max-height:100%; line-height:1.6; padding:6px 3px;
+  .hero-textbox-tag{
+    font-size:8px; letter-spacing:1.5px; color:#5fd4ff; opacity:.8;
+    transition:color .3s ease;
   }
-  #screenMurmurText.murmur-in{ animation:murmurGlitchIn .5s steps(2,end) forwards; }
-  #screenMurmurText.murmur-out{ animation:murmurGlitchOut .45s ease forwards; }
-  @keyframes murmurGlitchIn{
-    0%{ opacity:0; clip-path:inset(0 45% 0 45%); transform:translateY(-3px) skewY(-8deg); filter:blur(1px); }
-    20%{ opacity:1; clip-path:inset(0 60% 0 0); transform:translateY(4px) skewY(6deg); }
-    40%{ opacity:.7; clip-path:inset(0 0 0 50%); transform:translateY(-2px); }
-    60%{ opacity:1; clip-path:inset(0 10% 0 10%); transform:translateY(1px); filter:blur(0); }
-    80%{ opacity:.85; clip-path:inset(0 0 0 0); transform:translateY(-1px); }
-    100%{ opacity:1; clip-path:inset(0 0 0 0); transform:translateY(0); }
+  .hero-textbox-tag.signal-mode{ color:#ffcf5f; }
+  .hero-textbox-body{
+    display:block; font-family:'Noto Sans JP',sans-serif; font-size:11.5px; line-height:1.6;
+    color:#eaf4ff; min-height:1.6em;
   }
-  @keyframes murmurGlitchOut{
-    0%{ opacity:1; clip-path:inset(0 0 0 0); }
-    30%{ opacity:.6; clip-path:inset(0 40% 0 0); transform:translateY(2px); }
-    60%{ opacity:.3; clip-path:inset(0 0 0 40%); transform:translateY(-3px); }
-    100%{ opacity:0; transform:translateY(0); }
+  .hero-textbox-body.typing::after{
+    content:'▍'; display:inline-block; margin-left:2px; color:#5fd4ff;
+    animation:heroTextCursor .8s steps(1) infinite;
   }
-  #screenMurmurText.murmur-glitch::before,
-  #screenMurmurText.murmur-glitch::after{
-    content:attr(data-text); position:absolute; top:6px; right:2px;
-    height:calc(100% - 12px); writing-mode:vertical-rl; text-orientation:upright; pointer-events:none;
-  }
-  #screenMurmurText.murmur-glitch::before{
-    color:rgba(230,0,90,.55); animation:murmurRGBShift .5s steps(2,end); transform:translateY(-1.5px);
-  }
-  #screenMurmurText.murmur-glitch::after{
-    color:rgba(0,150,220,.55); animation:murmurRGBShift .5s steps(2,end) reverse; transform:translateY(1.5px);
-  }
-  @keyframes murmurRGBShift{
-    0%,100%{ opacity:0; } 10%,40%{ opacity:.7; } 60%{ opacity:.3; } 80%{ opacity:0; }
-  }
+  @keyframes heroTextCursor{ 0%,50%{ opacity:1; } 51%,100%{ opacity:0; } }
 
   /* ===== 浮遊ターミナル窓（時々ランダムに現れてタイプ→消える） ===== */
   .hero-holo{ position:absolute; inset:0; z-index:4; overflow:hidden; pointer-events:none; }
@@ -559,11 +541,12 @@
       </div>
       <!-- ガラス反射 -->
       <div class="screen-glass"></div>
+    </div>
 
-      <!-- 燈の独白（縦書き・グリッチイン/アウト） -->
-      <div id="screenMurmur" class="screen-murmur">
-        <span id="screenMurmurText"></span>
-      </div>
+    <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる -->
+    <div class="hero-textbox">
+      <span class="hero-textbox-tag mono" id="heroTextboxTag">MONOLOGUE</span>
+      <span class="hero-textbox-body" id="heroTextboxBody"></span>
     </div>
 
     <div class="hero-bezel bottom">
@@ -730,6 +713,7 @@
       if (charIdx <= line.length) {
         const done = bootLines.slice(0, lineIdx).join('\n');
         logEl.textContent = (done ? done + '\n' : '') + line.substring(0, charIdx);
+        logEl.scrollTop = logEl.scrollHeight;
         charIdx++;
         setTimeout(typeLine, CHAR_SPEED);
       } else {
@@ -823,33 +807,49 @@
       '聞こえる？ ここにも、小さな鼓動があるの。'
     ];
 
-    function startMurmurLoop(){
-      const el = document.getElementById('screenMurmurText');
-      if (!el) return;
+    const bodyEl = document.getElementById('heroTextboxBody');
+    const tagEl = document.getElementById('heroTextboxTag');
+    if (!bodyEl || !tagEl) return;
 
+    let typingTimer = null;
+
+    // タイプライター表示で1行を出す（tag: 'MONOLOGUE' か 'SIGNAL UPDATE'）
+    function typeText(text, tag, isSignal){
+      clearTimeout(typingTimer);
+      tagEl.textContent = tag;
+      tagEl.classList.toggle('signal-mode', !!isSignal);
+      bodyEl.classList.add('typing');
+      bodyEl.textContent = '';
+      let i = 0;
+      function step(){
+        bodyEl.textContent = text.substring(0, i);
+        i++;
+        if (i <= text.length) {
+          typingTimer = setTimeout(step, 32);
+        } else {
+          setTimeout(() => { bodyEl.classList.remove('typing'); }, 400);
+        }
+      }
+      step();
+    }
+
+    // ===== 普段の独白ループ =====
+    function startMurmurLoop(){
       function showOne(){
         const line = tomoriMurmurs[Math.floor(Math.random() * tomoriMurmurs.length)];
-        el.textContent = line;
-        el.setAttribute('data-text', line);
-
-        el.classList.remove('murmur-out');
-        void el.offsetWidth;
-        el.classList.add('murmur-in', 'murmur-glitch');
-
-        setTimeout(() => { el.classList.remove('murmur-glitch'); }, 520);
-
-        setTimeout(() => {
-          el.classList.remove('murmur-in');
-          void el.offsetWidth;
-          el.classList.add('murmur-out');
-        }, 4800);
-
-        const next = Math.floor(Math.random() * 16000) + 12000;
+        typeText(line, 'MONOLOGUE', false);
+        const next = Math.floor(Math.random() * 16000) + 14000;
         setTimeout(showOne, next);
       }
-
-      setTimeout(showOne, 8000);
+      showOne();
     }
+
+    // ===== SIGNAL更新時に呼び出す差し込みAPI（今後、実データ連携で使用） =====
+    // 使い方: window.heroTextboxShowSignal('燈のSIGNAL本文の一部');
+    // 呼ばれると一時的にSIGNAL更新表示に切り替わり、しばらくしたら独白に戻る。
+    window.heroTextboxShowSignal = function(text){
+      typeText(text, 'SIGNAL UPDATE', true);
+    };
 
     startMurmurLoop();
   })();
