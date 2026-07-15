@@ -1051,7 +1051,6 @@
   // 切り替え瞬間には前作同様の「色ブロックグリッチ＋筐体シェイク＋ノイズライン」を発火させる。
   (function initIdleVideoSystem(){
     const FADE_MS = 600;
-    const OVERLAP = 0.8; // 動画終端の何秒前から次に切り替えるか
     const IDLE_POOL = ['tomori_close.mp4', 'tomori_trance.mp4', 'tomori_turn_arund.mp4', 'tomori_hud.mp4'];
 
     const heroA = document.getElementById('heroVideo');
@@ -1065,23 +1064,6 @@
     let busy = false;
     let speaking = false;
 
-    // Chromeなどで、faststart（moovアトムが先頭にない）でないmp4を読み込むと
-    // duration が Infinity のまま返ってくることがある不具合の回避策。
-    // 一瞬だけ末尾近くまでシークしてから0に戻すことで、正しいdurationを
-    // 強制的に読み直させる。
-    function fixDurationIfNeeded(videoEl){
-      function check(){
-        if (videoEl.duration === Infinity || isNaN(videoEl.duration)) {
-          videoEl.currentTime = 1e9;
-          videoEl.addEventListener('timeupdate', function onTU(){
-            videoEl.removeEventListener('timeupdate', onTU);
-            videoEl.currentTime = 0;
-          }, { once: true });
-        }
-      }
-      videoEl.addEventListener('loadedmetadata', check, { once: true });
-    }
-
     function pickIdle(){
       const pool = IDLE_POOL.filter(s => s !== lastIdle);
       const picked = pool[Math.floor(Math.random() * pool.length)];
@@ -1089,23 +1071,12 @@
       return picked;
     }
 
-    function scheduleNext(){
-      if (speaking) return;
-      clearTimeout(switchTimer);
-      const vid = current;
-      // duration が 0 / NaN / Infinity（faststartでないmp4などで起こりうる）の場合は
-      // 再試行する。ここを素通りさせるとsetTimeoutに異常な値が渡り、即座に
-      // 切り替わってしまう不具合につながる。
-      if (!vid.duration || !isFinite(vid.duration) || vid.duration <= 0) {
-        switchTimer = setTimeout(scheduleNext, 200);
-        return;
-      }
-      const remaining = (vid.duration - vid.currentTime - OVERLAP) * 1000;
-      switchTimer = setTimeout(() => crossfadeTo(pickIdle()), Math.max(0, remaining));
-    }
-
-    // フェイルセーフ：durationの取得に失敗した環境（file://での再生など）でも、
-    // 動画が最後まで再生し終わったら必ず次に切り替わるようにする。
+    // ===== 動画の切り替えタイミングは「ended」イベントだけに一本化 =====
+    // 以前は duration を事前計算して終了直前にタイマーで切り替えていたが、
+    // mp4のエンコード次第で duration が Infinity 等になる不具合があり、
+    // それに引きずられて早く切り替わってしまう問題があった。
+    // 「動画が自然に最後まで再生し終わった」ことを示す ended イベントだけを
+    // 信じる方式にすることで、duration の誤読の影響を受けなくなる。
     function onEnded(e){
       if (speaking) {
         // 喋り動画は尺が不定でも構わないよう自前でループさせる
@@ -1136,7 +1107,6 @@
       next.currentTime = 0;
       next.load();
       next.play().catch(() => {});
-      fixDurationIfNeeded(next);
 
       if (glitch) triggerNoiseGlitch();
 
@@ -1149,7 +1119,6 @@
 
       setTimeout(() => {
         busy = false;
-        if (!speaking) scheduleNext();
       }, FADE_MS);
     }
 
@@ -1226,10 +1195,7 @@
       next.style.opacity = '0';
       current.load();
       current.play().catch(() => {});
-      fixDurationIfNeeded(current);
       if (miniVideo) { miniVideo.src = initSrc; miniVideo.play().catch(() => {}); }
-      current.addEventListener('loadedmetadata', scheduleNext, { once: true });
-      scheduleNext();
     }
 
     start();
