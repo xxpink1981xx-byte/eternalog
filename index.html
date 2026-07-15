@@ -1136,7 +1136,8 @@
     window.tomoriStartSpeak = function(){
       speaking = true;
       clearTimeout(switchTimer);
-      crossfadeTo('tomori_speak.mp4', false);
+      // キャッシュバスティング：素材を差し替えたら下のバージョン文字列を更新する
+      crossfadeTo('tomori_speak.mp4?v=20260716', false);
     };
     window.tomoriStopSpeak = function(){
       speaking = false;
@@ -1404,7 +1405,7 @@
   function stub(name){
     if (window.heroTextboxReact) window.heroTextboxReact(name);
     if (window.tomoriStartSpeak) window.tomoriStartSpeak();
-    setTimeout(() => openReaderPanel(name), 950);
+    setTimeout(() => openReaderPanel(name), 1550);
   }
 
   function openReaderPanel(name){
