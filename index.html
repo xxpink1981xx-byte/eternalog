@@ -1065,6 +1065,23 @@
     let busy = false;
     let speaking = false;
 
+    // Chromeなどで、faststart（moovアトムが先頭にない）でないmp4を読み込むと
+    // duration が Infinity のまま返ってくることがある不具合の回避策。
+    // 一瞬だけ末尾近くまでシークしてから0に戻すことで、正しいdurationを
+    // 強制的に読み直させる。
+    function fixDurationIfNeeded(videoEl){
+      function check(){
+        if (videoEl.duration === Infinity || isNaN(videoEl.duration)) {
+          videoEl.currentTime = 1e9;
+          videoEl.addEventListener('timeupdate', function onTU(){
+            videoEl.removeEventListener('timeupdate', onTU);
+            videoEl.currentTime = 0;
+          }, { once: true });
+        }
+      }
+      videoEl.addEventListener('loadedmetadata', check, { once: true });
+    }
+
     function pickIdle(){
       const pool = IDLE_POOL.filter(s => s !== lastIdle);
       const picked = pool[Math.floor(Math.random() * pool.length)];
@@ -1076,7 +1093,10 @@
       if (speaking) return;
       clearTimeout(switchTimer);
       const vid = current;
-      if (!vid.duration || isNaN(vid.duration)) {
+      // duration が 0 / NaN / Infinity（faststartでないmp4などで起こりうる）の場合は
+      // 再試行する。ここを素通りさせるとsetTimeoutに異常な値が渡り、即座に
+      // 切り替わってしまう不具合につながる。
+      if (!vid.duration || !isFinite(vid.duration) || vid.duration <= 0) {
         switchTimer = setTimeout(scheduleNext, 200);
         return;
       }
@@ -1116,6 +1136,7 @@
       next.currentTime = 0;
       next.load();
       next.play().catch(() => {});
+      fixDurationIfNeeded(next);
 
       if (glitch) triggerNoiseGlitch();
 
@@ -1205,6 +1226,7 @@
       next.style.opacity = '0';
       current.load();
       current.play().catch(() => {});
+      fixDurationIfNeeded(current);
       if (miniVideo) { miniVideo.src = initSrc; miniVideo.play().catch(() => {}); }
       current.addEventListener('loadedmetadata', scheduleNext, { once: true });
       scheduleNext();
