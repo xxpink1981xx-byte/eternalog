@@ -195,7 +195,7 @@
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
   .hero-video-frame{ width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative; }
-  .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:62% center;display:block; }
+  .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:75% center;display:block; }
 
   /* ===== 待機動画切り替え時のグリッチ/ノイズ演出 ===== */
   .hero-glitch-overlay{
@@ -287,7 +287,7 @@
   .nt-line:active{ background:rgba(0,225,255,0.32); }
   .nt-prompt{ color:#00eaff; opacity:1; text-shadow:0 0 5px rgba(0,225,255,.7); }
   .nt-num{ color:rgba(200,246,255,0.75); }
-  .nt-name{ color:#ffffff; letter-spacing:.2px; }
+  .nt-name{ font-family:'Noto Sans JP',sans-serif; color:#ffffff; letter-spacing:.2px; }
   .nt-cursor-row{
     display:flex; align-items:center; gap:4px; padding:3px 4px;
     font-family:'Courier New',monospace; font-size:8.5px;
@@ -606,16 +606,16 @@
         </div>
         <div class="nt-body">
           <button class="nt-line" onclick="stub('SIGNAL')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">01</span><span class="nt-name">signal.sig</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-num">01</span><span class="nt-name">受信記録</span>
           </button>
           <button class="nt-line" onclick="stub('LOGS')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">02</span><span class="nt-name">logs.arc</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-num">02</span><span class="nt-name">記録集</span>
           </button>
           <button class="nt-line" onclick="stub('CHARACTERS')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">03</span><span class="nt-name">characters.dat</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-num">03</span><span class="nt-name">人物名鑑</span>
           </button>
           <button class="nt-line" onclick="stub('YOMI')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">04</span><span class="nt-name">yomi.div</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-num">04</span><span class="nt-name">占い</span>
           </button>
           <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
         </div>
