@@ -250,6 +250,52 @@
     background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.05) 100%);
   }
 
+  /* ===== 試験実装：モニター内メニュー（cmdウィンドウ風） ===== */
+  /* 浮遊ターミナル(.bg-terminal)と文法は揃えつつ、常駐＆操作可能なナビとして区別する */
+  .nav-terminal{
+    position:absolute; top:10px; right:10px; z-index:8;
+    width:132px;
+    background:rgba(2,10,20,0.94);
+    border:1px solid rgba(0,90,200,0.55);
+    box-shadow:0 0 14px rgba(0,90,200,0.3);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .nt-titlebar{
+    display:flex; align-items:center; gap:4px;
+    padding:3px 6px;
+    background:rgba(0,90,200,0.22);
+    border-bottom:1px solid rgba(0,90,200,0.28);
+  }
+  .nt-dot{
+    width:5px; height:5px; border-radius:50%; background:#4ade80;
+    box-shadow:0 0 4px #4ade80;
+    animation:ntDotPulse 2s ease-in-out infinite;
+  }
+  @keyframes ntDotPulse{ 0%,100%{ opacity:.5; } 50%{ opacity:1; } }
+  .nt-title{ font-size:7px; letter-spacing:1px; color:rgba(120,200,255,0.85); }
+  .nt-body{ padding:5px 4px; }
+  .nt-line{
+    display:flex; align-items:center; gap:4px; width:100%;
+    background:none; border:none; cursor:pointer;
+    padding:3px 4px; border-radius:2px;
+    font-family:'Courier New',monospace; font-size:8.5px;
+    transition:background .12s ease;
+  }
+  .nt-line:active{ background:rgba(0,90,200,0.35); }
+  .nt-prompt{ color:#5fd4ff; opacity:.8; }
+  .nt-num{ color:rgba(120,200,255,0.6); }
+  .nt-name{ color:#eaf4ff; letter-spacing:.2px; }
+  .nt-cursor-row{
+    display:flex; align-items:center; gap:4px; padding:3px 4px;
+    font-family:'Courier New',monospace; font-size:8.5px;
+  }
+  .nt-cursor{
+    display:inline-block; width:5px; height:10px; background:#5fd4ff;
+    animation:ntCursorBlink 1s steps(1) infinite;
+  }
+  @keyframes ntCursorBlink{ 0%,50%{ opacity:1; } 51%,100%{ opacity:0; } }
+
   /* ===== 常駐テキストボックス（モニター下、普段は独白／SIGNAL更新時に切替） ===== */
   .hero-textbox{
     position:relative;
@@ -268,9 +314,16 @@
   .hero-textbox-tag.signal-mode{ color:#ffcf5f; }
   .hero-textbox-body{
     display:block; font-family:'Noto Sans JP',sans-serif; font-size:11.5px; line-height:1.6;
-    color:#eaf4ff; min-height:1.6em;
+    color:#eaf4ff; min-height:2.9em;
   }
-  .hero-textbox-body.typing::after{
+  .hero-textbox-body .cmd-line{
+    display:block; font-family:'Courier New',monospace; font-size:9.5px; letter-spacing:.3px;
+    color:#5fd4ff; opacity:.85;
+  }
+  .hero-textbox-body .say-line{
+    display:block; margin-top:2px;
+  }
+  .hero-textbox-body.typing .say-line::after{
     content:'▍'; display:inline-block; margin-left:2px; color:#5fd4ff;
     animation:heroTextCursor .8s steps(1) infinite;
   }
@@ -541,11 +594,34 @@
       </div>
       <!-- ガラス反射 -->
       <div class="screen-glass"></div>
+
+      <!-- 試験実装：モニター内メニュー（cmdウィンドウ風。浮遊ターミナルとは別枠の常駐ナビ） -->
+      <nav class="nav-terminal">
+        <div class="nt-titlebar">
+          <span class="nt-dot"></span>
+          <span class="nt-title mono">NAV_TERMINAL</span>
+        </div>
+        <div class="nt-body">
+          <button class="nt-line" onclick="stub('SIGNAL')">
+            <span class="nt-prompt">&gt;</span><span class="nt-num">01</span><span class="nt-name">signal.sig</span>
+          </button>
+          <button class="nt-line" onclick="stub('LOGS')">
+            <span class="nt-prompt">&gt;</span><span class="nt-num">02</span><span class="nt-name">logs.arc</span>
+          </button>
+          <button class="nt-line" onclick="stub('CHARACTERS')">
+            <span class="nt-prompt">&gt;</span><span class="nt-num">03</span><span class="nt-name">characters.dat</span>
+          </button>
+          <button class="nt-line" onclick="stub('YOMI')">
+            <span class="nt-prompt">&gt;</span><span class="nt-num">04</span><span class="nt-name">yomi.div</span>
+          </button>
+          <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
+        </div>
+      </nav>
     </div>
 
     <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる -->
     <div class="hero-textbox">
-      <span class="hero-textbox-tag mono" id="heroTextboxTag">MONOLOGUE</span>
+      <span class="hero-textbox-tag mono" id="heroTextboxTag">GUIDE</span>
       <span class="hero-textbox-body" id="heroTextboxBody"></span>
     </div>
 
@@ -794,35 +870,33 @@
   })();
 
   // ===== 燈の独白（アイドル中にランダムな間隔でフェードイン/アウト） =====
-  (function initMurmur(){
-    const tomoriMurmurs = [
-      'ノイズの向こうに、まだ誰かいる気がするの。',
-      'あたたかい飲み物、そろそろ冷めてきたかな。',
-      'この周波数、ちゃんと届いてるといいな。',
-      'データは消えても、波形は残るのかもしれない。',
-      '静かな夜更けって、なんだか落ち着くんだよね。',
-      'ニャモ、また丸くなって眠ってる。',
-      '記録することって、祈りに似てるのだと思う。',
-      '星の光も、届く頃には少し古いんだよね。',
-      '聞こえる？ ここにも、小さな鼓動があるの。'
-    ];
-
+  (function initHeroTextbox(){
     const bodyEl = document.getElementById('heroTextboxBody');
     const tagEl = document.getElementById('heroTextboxTag');
     if (!bodyEl || !tagEl) return;
 
     let typingTimer = null;
+    const DEFAULT_TEXT = '見たいメニューをタップしてね。';
 
-    // タイプライター表示で1行を出す（tag: 'MONOLOGUE' か 'SIGNAL UPDATE'）
-    function typeText(text, tag, isSignal){
+    const reactions = {
+      'SIGNAL': { cmd: 'tomori@eternalog:~$ open signal', say: 'SIGNAL、オープンします。' },
+      'LOGS': { cmd: 'tomori@eternalog:~$ open logs', say: 'LOGS、オープンします。' },
+      'CHARACTERS': { cmd: 'tomori@eternalog:~$ open characters', say: 'CHARACTERS、オープンします。' },
+      'YOMI': { cmd: 'tomori@eternalog:~$ open yomi', say: 'YOMI、オープンします。' }
+    };
+
+    // 通常の案内文（1行のみ）
+    function typeText(text, tag, isReact){
       clearTimeout(typingTimer);
       tagEl.textContent = tag;
-      tagEl.classList.toggle('signal-mode', !!isSignal);
+      tagEl.classList.toggle('signal-mode', !!isReact);
+      bodyEl.classList.remove('typing');
+      bodyEl.innerHTML = '<span class="say-line"></span>';
+      const sayEl = bodyEl.querySelector('.say-line');
       bodyEl.classList.add('typing');
-      bodyEl.textContent = '';
       let i = 0;
       function step(){
-        bodyEl.textContent = text.substring(0, i);
+        sayEl.textContent = text.substring(0, i);
         i++;
         if (i <= text.length) {
           typingTimer = setTimeout(step, 32);
@@ -833,25 +907,58 @@
       step();
     }
 
-    // ===== 普段の独白ループ =====
-    function startMurmurLoop(){
-      function showOne(){
-        const line = tomoriMurmurs[Math.floor(Math.random() * tomoriMurmurs.length)];
-        typeText(line, 'MONOLOGUE', false);
-        const next = Math.floor(Math.random() * 16000) + 14000;
-        setTimeout(showOne, next);
+    // コマンド行→発話行の2段タイプ（ボタン反応時）
+    function typeTwoLine(cmd, say, tag){
+      clearTimeout(typingTimer);
+      tagEl.textContent = tag;
+      tagEl.classList.add('signal-mode');
+      bodyEl.classList.remove('typing');
+      bodyEl.innerHTML = '<span class="cmd-line"></span><span class="say-line"></span>';
+      const cmdEl = bodyEl.querySelector('.cmd-line');
+      const sayEl = bodyEl.querySelector('.say-line');
+
+      let i = 0;
+      function typeCmd(){
+        cmdEl.textContent = cmd.substring(0, i);
+        i++;
+        if (i <= cmd.length) {
+          typingTimer = setTimeout(typeCmd, 14);
+        } else {
+          setTimeout(typeSay, 200);
+        }
       }
-      showOne();
+      let j = 0;
+      function typeSay(){
+        bodyEl.classList.add('typing');
+        sayEl.textContent = say.substring(0, j);
+        j++;
+        if (j <= say.length) {
+          typingTimer = setTimeout(typeSay, 36);
+        } else {
+          setTimeout(() => { bodyEl.classList.remove('typing'); }, 400);
+        }
+      }
+      typeCmd();
     }
 
-    // ===== SIGNAL更新時に呼び出す差し込みAPI（今後、実データ連携で使用） =====
-    // 使い方: window.heroTextboxShowSignal('燈のSIGNAL本文の一部');
-    // 呼ばれると一時的にSIGNAL更新表示に切り替わり、しばらくしたら独白に戻る。
+    // ===== 初期表示 =====
+    typeText(DEFAULT_TEXT, 'GUIDE', false);
+
+    // ===== ピルボタンが押された時に反応（stub()から呼ばれる） =====
+    window.heroTextboxReact = function(name){
+      const r = reactions[name] || { cmd: 'tomori@eternalog:~$ open ' + name.toLowerCase(), say: name + '、オープンします。' };
+      typeTwoLine(r.cmd, r.say, 'REACT');
+    };
+
+    // ===== パネルを閉じた時にデフォルトへ戻す（closeReader()から呼ばれる） =====
+    window.heroTextboxReset = function(){
+      typeText(DEFAULT_TEXT, 'GUIDE', false);
+    };
+
+    // ===== 今後の実データ連携用（そのまま維持） =====
     window.heroTextboxShowSignal = function(text){
       typeText(text, 'SIGNAL UPDATE', true);
     };
-
-    startMurmurLoop();
   })();
 
   // ===== 浮遊ターミナル窓（20〜42秒間隔でランダムに出現→タイプ→消滅） =====
@@ -953,6 +1060,7 @@
     let lastIdle = '';
     let switchTimer = null;
     let busy = false;
+    let speaking = false;
 
     function pickIdle(){
       const pool = IDLE_POOL.filter(s => s !== lastIdle);
@@ -962,6 +1070,7 @@
     }
 
     function scheduleNext(){
+      if (speaking) return;
       clearTimeout(switchTimer);
       const vid = current;
       if (!vid.duration || isNaN(vid.duration)) {
@@ -974,7 +1083,13 @@
 
     // フェイルセーフ：durationの取得に失敗した環境（file://での再生など）でも、
     // 動画が最後まで再生し終わったら必ず次に切り替わるようにする。
-    function onEnded(){
+    function onEnded(e){
+      if (speaking) {
+        // 喋り動画は尺が不定でも構わないよう自前でループさせる
+        e.target.currentTime = 0;
+        e.target.play().catch(() => {});
+        return;
+      }
       if (!busy) crossfadeTo(pickIdle());
     }
     heroA.addEventListener('ended', onEnded);
@@ -983,12 +1098,13 @@
     // 動画が読み込めない場合はコンソールに警告し、少し待って次を試す
     function onError(e){
       console.warn('[EternaLog] idle video failed to load:', e.target.src);
-      if (!busy) setTimeout(() => crossfadeTo(pickIdle()), 800);
+      if (!busy && !speaking) setTimeout(() => crossfadeTo(pickIdle()), 800);
     }
     heroA.addEventListener('error', onError);
     heroB.addEventListener('error', onError);
 
-    function crossfadeTo(src){
+    function crossfadeTo(src, glitch){
+      if (glitch === undefined) glitch = true;
       if (busy) return;
       busy = true;
       clearTimeout(switchTimer);
@@ -998,7 +1114,7 @@
       next.load();
       next.play().catch(() => {});
 
-      triggerNoiseGlitch();
+      if (glitch) triggerNoiseGlitch();
 
       current.style.opacity = '0';
       next.style.opacity = '1';
@@ -1009,9 +1125,20 @@
 
       setTimeout(() => {
         busy = false;
-        scheduleNext();
+        if (!speaking) scheduleNext();
       }, FADE_MS);
     }
+
+    // ===== 喋りモードの切り替えAPI（モニター内メニュー等から呼び出す） =====
+    window.tomoriStartSpeak = function(){
+      speaking = true;
+      clearTimeout(switchTimer);
+      crossfadeTo('tomori_speak.mp4', false);
+    };
+    window.tomoriStopSpeak = function(){
+      speaking = false;
+      crossfadeTo(pickIdle(), false);
+    };
 
     // 切り替え瞬間の「色ブロックグリッチ＋筐体シェイク＋ノイズライン」演出
     function triggerNoiseGlitch(){
@@ -1272,6 +1399,12 @@
   const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
   function stub(name){
+    if (window.heroTextboxReact) window.heroTextboxReact(name);
+    if (window.tomoriStartSpeak) window.tomoriStartSpeak();
+    setTimeout(() => openReaderPanel(name), 950);
+  }
+
+  function openReaderPanel(name){
     document.getElementById('readerBack').classList.add('show');
     const reader = document.getElementById('reader');
     reader.classList.add('show');
@@ -1427,6 +1560,8 @@
     document.getElementById('reader').classList.remove('show');
     clearTimeout(contentTypeTimer);
     clearTimeout(logBubbleTimer);
+    if (window.heroTextboxReset) window.heroTextboxReset();
+    if (window.tomoriStopSpeak) window.tomoriStopSpeak();
   }
 
   // ===== EARTH SIGNAL: Cloudflare Workerから実データを取得 =====
