@@ -252,28 +252,29 @@
 
   /* ===== 試験実装：モニター内メニュー（cmdウィンドウ風） ===== */
   /* 浮遊ターミナル(.bg-terminal)と文法は揃えつつ、常駐＆操作可能なナビとして区別する */
+  /* 配色は燈の目周りHUD（明るいシアングロー）に寄せる */
   .nav-terminal{
     position:absolute; top:10px; right:10px; z-index:8;
     width:132px;
-    background:rgba(2,10,20,0.94);
-    border:1px solid rgba(0,90,200,0.55);
-    box-shadow:0 0 14px rgba(0,90,200,0.3);
+    background:rgba(3,16,26,0.9);
+    border:1px solid rgba(110,230,255,0.55);
+    box-shadow:0 0 18px rgba(110,230,255,0.35), inset 0 0 10px rgba(110,230,255,0.06);
     border-radius:3px;
     overflow:hidden;
   }
   .nt-titlebar{
     display:flex; align-items:center; gap:4px;
     padding:3px 6px;
-    background:rgba(0,90,200,0.22);
-    border-bottom:1px solid rgba(0,90,200,0.28);
+    background:rgba(110,230,255,0.16);
+    border-bottom:1px solid rgba(110,230,255,0.28);
   }
   .nt-dot{
-    width:5px; height:5px; border-radius:50%; background:#4ade80;
-    box-shadow:0 0 4px #4ade80;
+    width:5px; height:5px; border-radius:50%; background:#8ef3ff;
+    box-shadow:0 0 6px #8ef3ff;
     animation:ntDotPulse 2s ease-in-out infinite;
   }
   @keyframes ntDotPulse{ 0%,100%{ opacity:.5; } 50%{ opacity:1; } }
-  .nt-title{ font-size:7px; letter-spacing:1px; color:rgba(120,200,255,0.85); }
+  .nt-title{ font-size:7px; letter-spacing:1px; color:rgba(180,240,255,0.9); }
   .nt-body{ padding:5px 4px; }
   .nt-line{
     display:flex; align-items:center; gap:4px; width:100%;
@@ -282,16 +283,17 @@
     font-family:'Courier New',monospace; font-size:8.5px;
     transition:background .12s ease;
   }
-  .nt-line:active{ background:rgba(0,90,200,0.35); }
-  .nt-prompt{ color:#5fd4ff; opacity:.8; }
-  .nt-num{ color:rgba(120,200,255,0.6); }
-  .nt-name{ color:#eaf4ff; letter-spacing:.2px; }
+  .nt-line:active{ background:rgba(110,230,255,0.3); }
+  .nt-prompt{ color:#8ef3ff; opacity:.9; text-shadow:0 0 4px rgba(110,230,255,.5); }
+  .nt-num{ color:rgba(180,240,255,0.65); }
+  .nt-name{ color:#eafcff; letter-spacing:.2px; }
   .nt-cursor-row{
     display:flex; align-items:center; gap:4px; padding:3px 4px;
     font-family:'Courier New',monospace; font-size:8.5px;
   }
   .nt-cursor{
-    display:inline-block; width:5px; height:10px; background:#5fd4ff;
+    display:inline-block; width:5px; height:10px; background:#8ef3ff;
+    box-shadow:0 0 6px rgba(110,230,255,.7);
     animation:ntCursorBlink 1s steps(1) infinite;
   }
   @keyframes ntCursorBlink{ 0%,50%{ opacity:1; } 51%,100%{ opacity:0; } }
