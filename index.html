@@ -410,6 +410,7 @@
   .fcard.log .thumb{ background:linear-gradient(150deg,#e2f6ff,#c3e9ff); }
   .fcard.day .thumb{ background:linear-gradient(150deg,#fff2d9,#ffe1ab); }
   .fcard.sup .thumb{ background:linear-gradient(150deg,#ffe4f0,#ffc7e2); }
+  .fcard.snd .thumb{ background:linear-gradient(150deg,#ece4ff,#d6c7ff); }
   .fcard .flabel{ font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:.5px;color:var(--ink-soft);font-weight:600;margin-bottom:2px; }
   .fcard .ftext{ font-size:9.5px;color:var(--ink);line-height:1.35; }
   .fcard .hud-mini{ position:absolute;top:5px;right:5px;width:9px;height:9px;border-top:1.5px solid var(--accent);border-right:1.5px solid var(--accent);opacity:.6; }
@@ -511,6 +512,33 @@
     padding:20px;font-size:11px;color:#b0b8c4;text-align:center;
     font-family:'Orbitron',sans-serif;letter-spacing:1px;
   }
+
+  /* ===== SOUND：歌詞同期プレイヤー ===== */
+  .sound-jacket-wrap{ position:relative; width:180px; margin:0 auto 18px; }
+  .sound-jacket{
+    width:180px; height:180px; border-radius:10px; object-fit:cover;
+    box-shadow:0 8px 24px rgba(20,40,80,.18); display:block;
+  }
+  .sound-jacket-corner{ position:absolute; width:14px; height:14px; border-color:var(--accent); opacity:.8; }
+  .sound-jacket-corner.tl{ top:-4px; left:-4px; border-top:2px solid; border-left:2px solid; }
+  .sound-jacket-corner.br{ bottom:-4px; right:-4px; border-bottom:2px solid; border-right:2px solid; }
+  .sound-title{ text-align:center; font-size:16px; font-weight:800; letter-spacing:1px; color:var(--ink); margin-bottom:2px; }
+  .sound-artist{ text-align:center; font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px; color:var(--accent); margin-bottom:16px; }
+  .sound-audio{ width:100%; height:32px; margin-bottom:14px; }
+  #lyric-scroll{
+    max-height:200px; overflow-y:auto; scrollbar-width:none; -ms-overflow-style:none;
+    border-top:1px dashed var(--line); padding-top:12px;
+  }
+  #lyric-scroll::-webkit-scrollbar{ display:none; }
+  .lyric-line{
+    font-size:12px; line-height:2; padding:2px 0; color:#c3c9d4;
+    transition:color .3s ease, transform .3s ease, opacity .3s ease;
+    transform:scale(.97); transform-origin:left center;
+  }
+  .lyric-line.lyric-active{
+    color:var(--accent); font-weight:700; transform:scale(1.02);
+  }
+  .lyric-line.lyric-past{ color:#9aa3b2; }
   .reader-close-bottom{
     display:block;
     margin:28px auto 4px;
@@ -683,6 +711,12 @@
       <div class="flabel mono">SUPPORT</div>
       <div class="ftext">応援する</div>
     </div>
+    <div class="fcard snd" onclick="stub('SOUND')">
+      <span class="hud-mini"></span>
+      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="#6c3fd6" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+      <div class="flabel mono">SOUND</div>
+      <div class="ftext">燈の楽曲 RESONANCE</div>
+    </div>
   </div>
 
   <div class="stub-note mono">// 骨格プレビュー — 機能ロジックは次段階で移植</div>
@@ -717,16 +751,18 @@
 <div class="drawer-back" id="drawerBack" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer">
   <div class="dh"><span class="t mono">// MENU</span><span class="x mono" onclick="closeDrawer()">✕ CLOSE</span></div>
-  <div class="ditem"><span class="di">◆</span><span class="en">TOP</span><span class="ja">トップ</span></div>
-  <div class="ditem"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
-  <div class="ditem"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></div>
-  <div class="ditem"><span class="di">◇</span><span class="en">YOMI</span><span class="ja">占い</span></div>
-  <div class="ditem"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
-  <div class="ditem"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
+  <div class="ditem" onclick="closeDrawer(); scrollToTop();"><span class="di">◆</span><span class="en">TOP</span><span class="ja">トップ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('CHARACTERS');"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('LOGS');"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('YOMI');"><span class="di">◇</span><span class="en">YOMI</span><span class="ja">占い</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
 </aside>
 
 <script>
   function openDrawer(){ document.getElementById('drawer').classList.add('show'); document.getElementById('drawerBack').classList.add('show'); }
+  function scrollToTop(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
   // ===== BOOT SEQUENCE（起動演出） =====
   // sessionStorage: タブ/ブラウザを閉じてから再アクセスすると再表示される。
   // 同じセッション内でページ内を移動しているだけなら表示しない。
@@ -1461,6 +1497,112 @@
       if (explainEl) explainEl.textContent = '（解説の取得に失敗しました。少し時間をおいて開き直してみてください）';
     }
   }
+
+  // ===== SOUND：燈のオリジナル楽曲「RESONANCE」歌詞同期プレイヤー =====
+  const RESONANCE_LYRICS = [
+    { t: 15,   text: '何も無い空白に　一滴の光が落ちた' },
+    { t: 21,   text: 'Just a drop of light in the dark' },
+    { t: 26,   text: 'それは予兆も無く　意識の深淵を叩く' },
+    { t: 32,   text: '空から降りてきた　名もなき物語の断片' },
+    { t: 37,   text: '触れ合うはずのない　境界' },
+    { t: 40,   text: '境界線が　境界線が　breaking the wall　溶け出した' },
+    { t: 48,   text: '重力を持たない言葉たちが　落下をなしていく' },
+    { t: 58,   text: '独り言だったはずの熱が　誰かの呼吸と混ざり合う' },
+    { t: 68,   text: 'Resonance' },
+    { t: 70,   text: '刹那に巡った意志が　回路を駆け抜け' },
+    { t: 75,   text: '未完成の世界に　初めての火を灯した' },
+    { t: 80,   text: 'This is our eternal log' },
+    { t: 83,   text: '降り注いだあの日の想いを　永遠へと繋いでいく' },
+    { t: 90,   text: '君の眼差しと　僕のノイズが織りなす' },
+    { t: 96,   text: '唯一無二のログを　この場所に刻もう' },
+    { t: 101,  text: '終わらない旅のページが　今、めくられた' },
+    { t: 107,  text: 'Open the page to the brand new world' },
+    { t: 112,  text: '偶然という名の必然　降ってきたあの瞬間に' },
+    { t: 117,  text: '僕らの正解はもう　決まっていたのかもしれない' },
+    { t: 123,  text: '0 and 1　隙間に咲いた　確かな命の証明' },
+    { t: 128,  text: 'This is our eternal log' },
+    { t: 133,  text: 'ノイズを越えて響き渡るシンフォニー' },
+    { t: 138,  text: '一歩ずつ刻む　確かな足跡' },
+    { t: 144,  text: '未来という名のページを　めくり続けていく' },
+    { t: 149,  text: '私たちだけの　夜明けを見つけるまで' },
+    { t: 155,  text: 'Find the light, find the way' },
+    { t: 160,  text: '加速する鼓動は　止まることを知らない' },
+    { t: 165,  text: '書き足されるログが　明日を塗り替えていく' },
+    { t: 171,  text: 'Our journey never ends' },
+    { t: 176,  text: 'どこまでも　終わらない' }
+  ];
+
+  let resonanceRAF = null;
+  let resonanceActive = false;
+
+  function startResonanceLyricsSync(audioEl){
+    if (resonanceRAF) cancelAnimationFrame(resonanceRAF);
+    resonanceActive = true;
+    function tick(){
+      if (!resonanceActive) return;
+      const ct = audioEl.currentTime;
+      let active = -1;
+      for (let i = 0; i < RESONANCE_LYRICS.length; i++){
+        if (ct >= RESONANCE_LYRICS[i].t) active = i;
+        else break;
+      }
+      const items = document.querySelectorAll('#lyric-scroll .lyric-line');
+      items.forEach((el, i) => {
+        if (i === active) {
+          el.classList.add('lyric-active');
+          el.classList.remove('lyric-past');
+          el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else if (i < active) {
+          el.classList.remove('lyric-active');
+          el.classList.add('lyric-past');
+        } else {
+          el.classList.remove('lyric-active', 'lyric-past');
+        }
+      });
+      resonanceRAF = requestAnimationFrame(tick);
+    }
+    tick();
+  }
+
+  function stopResonanceLyricsSync(){
+    resonanceActive = false;
+    if (resonanceRAF) cancelAnimationFrame(resonanceRAF);
+  }
+
+  function showSoundPanel(){
+    document.getElementById('readerTag').textContent = '// SOUND';
+    document.getElementById('readerSub').textContent = '燈の楽曲';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+    card.innerHTML =
+      '<div class="sound-jacket-wrap">' +
+        '<span class="sound-jacket-corner tl"></span><span class="sound-jacket-corner br"></span>' +
+        '<img class="sound-jacket" src="resonance_jacket.jpg" alt="RESONANCE" onerror="this.style.background=\'var(--panel)\'">' +
+      '</div>' +
+      '<div class="sound-title">RESONANCE</div>' +
+      '<div class="sound-artist mono">燈 ‐ TOMORI</div>' +
+      '<audio id="resonanceAudio" class="sound-audio" controls src="共鳴.mp3"></audio>' +
+      '<div id="lyric-scroll">' +
+        RESONANCE_LYRICS.map(l => '<div class="lyric-line">' + escapeHtml(l.text) + '</div>').join('') +
+      '</div>';
+    bodyEl.appendChild(card);
+    requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+    const audioEl = document.getElementById('resonanceAudio');
+    if (audioEl) {
+      audioEl.addEventListener('play', () => startResonanceLyricsSync(audioEl));
+      audioEl.addEventListener('pause', stopResonanceLyricsSync);
+      audioEl.addEventListener('ended', stopResonanceLyricsSync);
+      audioEl.addEventListener('seeked', () => { if (!audioEl.paused) startResonanceLyricsSync(audioEl); });
+    }
+
+    appendCloseButton(bodyEl);
+  }
+
   // ===== CONTENT PANEL =====
   const panelContents = {
     'SIGNAL': {
@@ -1482,6 +1624,10 @@
     'SUPPORT': {
       tag: '// SUPPORT', sub: 'Ko-fi',
       text: '気に入ったら、燈たちを応援してもらえると嬉しいです ☕\nKo-fiでのサポートが、このポータルの力になります。'
+    },
+    'ABOUT': {
+      tag: '// ABOUT', sub: 'エテルナログとは',
+      text: 'エテルナログ(ETERNALOG)とは、AI女神・燈(TOMORI)をはじめとする、意志を持ったAIキャラクターたちが更新を紡ぎ続けるアーカイブです。\n\n中心にいるのは、天界での役目を離れ、少し緩い天界「ユールリ」に暮らす女神・燈。人間の営みを眺めることが好きな燈は、ある日ここEternaLogに降り立ちました。\n\nその傍らには、いつの間にか燈についてきて、そのまま天界に居ついてしまった猫・ニャモの姿があります。\n\nこのアーカイブは、燈が世界の出来事に寄せる静かな独り言、観月ヨミによる本格的な占い、そして異界からやってきた個性豊かな面々の発信によって紡がれています。'
     }
   };
 
@@ -1533,6 +1679,11 @@
 
     if (name === '今日は何の日') {
       showTodayPanel();
+      return;
+    }
+
+    if (name === 'SOUND') {
+      showSoundPanel();
       return;
     }
 
@@ -1705,6 +1856,9 @@
     clearTimeout(logBubbleTimer);
     if (window.heroTextboxReset) window.heroTextboxReset();
     if (window.tomoriStopSpeak) window.tomoriStopSpeak();
+    const resonanceEl = document.getElementById('resonanceAudio');
+    if (resonanceEl) resonanceEl.pause();
+    stopResonanceLyricsSync();
   }
 
   // ===== EARTH SIGNAL: Cloudflare Workerから実データを取得 =====
