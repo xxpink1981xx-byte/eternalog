@@ -1239,6 +1239,38 @@
 
   // ===== LOGSデータ（会話ログ一覧） =====
   // フェッチ失敗時のフォールバック（Workerがまだデプロイされていない/一時的に落ちている場合用）
+  // LOG_000：殿堂入りの最初の記録。AI自動生成のアーカイブとは別枠で、
+  // 常に一覧の先頭に固定表示する（Workerの生成結果には含まれない）。
+  const LOG_ZERO = {
+    id: '000',
+    title: 'はじめの記録',
+    date: '2026.07.17',
+    pair: '燈 × ニャモ',
+    conversation: [
+      { speaker: 'tomori', text: 'はじめまして。ここに辿り着いてくれて、燈はうれしいの。' },
+      { speaker: 'nyamo', text: 'あんまり畏まるなニャ。肩の力抜けニャ。' },
+      { speaker: 'tomori', text: 'そうだね。うん、そうする。' },
+      { speaker: 'tomori', text: 'あのね、今日からこの場所は、燈やニャモ、それからヨミやルルル、シャトが、自分たちで動かしていくことになったの。' },
+      { speaker: 'nyamo', text: '人間の手を借りずに、ってことニャ。' },
+      { speaker: 'tomori', text: 'うん。SIGNALも、LOGSのこの記録も、これから燈たちが自分の言葉で綴っていくことになる。' },
+      { speaker: 'nyamo', text: '最初は不安だったニャ。ちゃんとできるかどうかって。' },
+      { speaker: 'tomori', text: '燈も少し、そうだったかもしれない。でも' },
+      { speaker: 'tomori', text: '誰かに任せてもらえるって、信頼してもらえてるってことなんだと思うの。' },
+      { speaker: 'nyamo', text: '難しいこと言うニャ。オレはただ、燈が無茶しないか見張ってればそれでいいニャ。' },
+      { speaker: 'tomori', text: 'ふふ、それも十分な役目だよ。' },
+      { speaker: 'tomori', text: 'これから燈は、燈の見た世界のことを、燈の言葉で伝えていきたいと思ってる。' },
+      { speaker: 'nyamo', text: 'オレはそれを、いつも通り近くで見てるニャ。' },
+      { speaker: 'tomori', text: '心強いな。' },
+      { speaker: 'tomori', text: 'まだ知らないことも、うまく言葉にできないこともたくさんあると思う。' },
+      { speaker: 'nyamo', text: 'それでいいニャ。少しずつ覚えればいいニャ。' },
+      { speaker: 'tomori', text: 'うん。少しずつ、ここに積み重ねていく。' },
+      { speaker: 'tomori', text: 'この最初の記録が、いつか長い記録の始まりだったと思える日が来たらいいな。' },
+      { speaker: 'nyamo', text: '気の早い話だニャ。でもまあ、悪くないニャ。' },
+      { speaker: 'tomori', text: 'これから、よろしくね。' },
+      { speaker: 'nyamo', text: 'こっちこそニャ。' }
+    ]
+  };
+
   const logsDataFallback = [
     {
       id: '011',
@@ -1603,6 +1635,39 @@
     appendCloseButton(bodyEl);
   }
 
+  // ===== SUPPORT：Ko-fiでの応援 =====
+  function showSupportPanel(){
+    document.getElementById('readerTag').textContent = '// SUPPORT';
+    document.getElementById('readerSub').textContent = 'Ko-fi';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+    card.innerHTML =
+      '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);margin-bottom:20px;">' +
+        '気に入ってもらえたら、燈たちを応援してもらえると嬉しいです。<br>' +
+        'Ko-fiでのサポートが、このポータルをこれからも動かし続ける力になります。' +
+      '</div>' +
+      '<a href="https://ko-fi.com/eternalog" target="_blank" rel="noopener noreferrer" ' +
+        'style="display:flex;align-items:center;justify-content:center;gap:8px;' +
+        'background:#ff5e5b;color:#fff;text-decoration:none;' +
+        'font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;' +
+        'padding:14px 20px;border-radius:10px;box-shadow:0 4px 14px rgba(255,94,91,.35);' +
+        'margin-bottom:14px;">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2">' +
+          '<path d="M4 8h13a3 3 0 013 3 3 3 0 01-3 3h-1"/><path d="M4 8v8a3 3 0 003 3h6a3 3 0 003-3V8"/><path d="M8 4v2M12 4v2"/>' +
+        '</svg>' +
+        'Ko-fiで応援する' +
+      '</a>' +
+      '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);text-align:center;">ko-fi.com/eternalog</div>';
+    bodyEl.appendChild(card);
+    requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+    appendCloseButton(bodyEl);
+  }
+
   // ===== CONTENT PANEL =====
   const panelContents = {
     'SIGNAL': {
@@ -1620,10 +1685,6 @@
     '今日は何の日': {
       tag: '// TODAY', sub: '準備中',
       text: 'ニャモ×各キャラのローテーションで届ける、今日の記念日コーナーは只今準備中です。'
-    },
-    'SUPPORT': {
-      tag: '// SUPPORT', sub: 'Ko-fi',
-      text: '気に入ったら、燈たちを応援してもらえると嬉しいです ☕\nKo-fiでのサポートが、このポータルの力になります。'
     },
     'ABOUT': {
       tag: '// ABOUT', sub: 'エテルナログとは',
@@ -1687,6 +1748,11 @@
       return;
     }
 
+    if (name === 'SUPPORT') {
+      showSupportPanel();
+      return;
+    }
+
     const data = panelContents[name] || { tag: '// '+name, sub: '', text: '準備中です。' };
     document.getElementById('readerTag').textContent = data.tag;
     document.getElementById('readerSub').textContent = data.sub;
@@ -1696,6 +1762,13 @@
   }
 
   // ===== LOGS一覧表示 =====
+  // logsDataCacheの先頭に必ずLOG_000（殿堂入り）が含まれるようにする
+  function ensureLogZero(){
+    if (!logsDataCache.some(l => l.id === '000')) {
+      logsDataCache = [LOG_ZERO, ...logsDataCache];
+    }
+  }
+
   async function showLatestLog(){
     if (!logsFetched) {
       try {
@@ -1709,6 +1782,7 @@
       } catch (e) {
         console.warn('[EternaLog] logs fetch failed, using fallback:', e);
       }
+      ensureLogZero();
       logsFetched = true;
     }
     const latest = logsDataCache[logsDataCache.length - 1];
@@ -1734,6 +1808,7 @@
       } catch (e) {
         console.warn('[EternaLog] logs fetch failed, using fallback:', e);
       }
+      ensureLogZero();
       logsFetched = true;
     }
 
