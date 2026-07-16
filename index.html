@@ -1202,7 +1202,8 @@
   })();
 
   // ===== LOGSデータ（会話ログ一覧） =====
-  const logsData = [
+  // フェッチ失敗時のフォールバック（Workerがまだデプロイされていない/一時的に落ちている場合用）
+  const logsDataFallback = [
     {
       id: '011',
       title: '梅雨と、猛暑の助走',
@@ -1237,9 +1238,16 @@
     }
   ];
 
+  // 実際に表示に使うキャッシュ（初期値はフォールバック、Workerから取得できたら差し替わる）
+  let logsDataCache = logsDataFallback;
+  let logsFetched = false;
+
   const bubbleMeta = {
-    tomori: { name: '燈', align: 'flex-start', flexDir: 'row', bg: '#e8f9fd', border: '#00b8d4', nameColor: '#008fa8', icon: 'center-tomori.png' },
-    nyamo:  { name: 'ニャモ', align: 'flex-end', flexDir: 'row-reverse', bg: '#fbecfd', border: '#c026d3', nameColor: '#a020b8', icon: 'char-nyamo.png' }
+    tomori: { name: '燈', bg: '#e8f9fd', border: '#00b8d4', nameColor: '#008fa8', icon: 'center-tomori.png' },
+    nyamo:  { name: 'ニャモ', bg: '#fbecfd', border: '#c026d3', nameColor: '#a020b8', icon: 'char-nyamo.png' },
+    yomi:   { name: 'ヨミ', bg: '#f3ecfd', border: '#7c3aed', nameColor: '#6428c0', icon: 'char-yomi.png' },
+    rururu: { name: 'ルルル', bg: '#fdecf0', border: '#e11d48', nameColor: '#b8123a', icon: 'char-rururu.png' },
+    shat:   { name: 'シャト', bg: '#fef6e8', border: '#f59e0b', nameColor: '#c47f00', icon: 'char-shat.png' }
   };
 
   // ===== CHARACTERSデータ（5キャラのプロフィール） =====
@@ -1519,8 +1527,7 @@
     }
 
     if (name === 'LATEST LOG') {
-      const latest = logsData[logsData.length - 1];
-      showLogDetail(latest.id);
+      showLatestLog();
       return;
     }
 
@@ -1538,15 +1545,53 @@
   }
 
   // ===== LOGS一覧表示 =====
-  function showLogsList(){
+  async function showLatestLog(){
+    if (!logsFetched) {
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'logs', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items) && data.items.length) {
+            logsDataCache = data.items;
+          }
+        }
+      } catch (e) {
+        console.warn('[EternaLog] logs fetch failed, using fallback:', e);
+      }
+      logsFetched = true;
+    }
+    const latest = logsDataCache[logsDataCache.length - 1];
+    if (latest) showLogDetail(latest.id);
+  }
+
+  async function showLogsList(){
     document.getElementById('readerTag').textContent = '// LOGS';
     document.getElementById('readerSub').textContent = 'すべての記録（新しい順）';
 
     const bodyEl = document.getElementById('readerBody');
-    bodyEl.innerHTML = '';
 
+    if (!logsFetched) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING LOGS...</div>';
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'logs', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items) && data.items.length) {
+            logsDataCache = data.items;
+          }
+        }
+      } catch (e) {
+        console.warn('[EternaLog] logs fetch failed, using fallback:', e);
+      }
+      logsFetched = true;
+    }
+
+    // 表示中にLOGS以外に切り替わっていたら描画しない（誤表示防止）
+    if (document.getElementById('readerTag').textContent !== '// LOGS') return;
+
+    bodyEl.innerHTML = '';
     const listWrap = document.createElement('div');
-    [...logsData].reverse().forEach((log, idx) => {
+    [...logsDataCache].reverse().forEach((log, idx) => {
       const card = document.createElement('div');
       card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
       card.innerHTML =
@@ -1564,7 +1609,7 @@
   let logBubbleTimer = null;
 
   function showLogDetail(logId){
-    const log = logsData.find(l => l.id === logId);
+    const log = logsDataCache.find(l => l.id === logId);
     if (!log) return;
 
     clearTimeout(logBubbleTimer);
@@ -1584,6 +1629,13 @@
     const convWrap = document.createElement('div');
     bodyEl.appendChild(convWrap);
 
+    // 最初に喋った人を左、もう一方を右に固定する（話者そのものに左右は結び付けない）
+    const speakerOrder = [];
+    log.conversation.forEach(turn => {
+      if (!speakerOrder.includes(turn.speaker)) speakerOrder.push(turn.speaker);
+    });
+    function isLeftSpeaker(speaker){ return speaker === speakerOrder[0]; }
+
     // 次に来る発言の長さに応じて、入力中の表示時間を可変にする
     function getTypingDuration(str){
       const base = 400, perChar = 35, max = 2600;
@@ -1592,9 +1644,10 @@
 
     function showTypingIndicator(speaker){
       const meta = bubbleMeta[speaker] || bubbleMeta.tomori;
+      const flexDir = isLeftSpeaker(speaker) ? 'row' : 'row-reverse';
       const row = document.createElement('div');
       row.id = 'logTypingIndicator';
-      row.style.cssText = 'display:flex;flex-direction:' + meta.flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
       row.innerHTML =
         '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
         '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;">' +
@@ -1619,6 +1672,8 @@
       }
       const line = log.conversation[idx];
       const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
+      const isLeft = isLeftSpeaker(line.speaker);
+      const flexDir = isLeft ? 'row' : 'row-reverse';
 
       showTypingIndicator(line.speaker);
 
@@ -1626,10 +1681,10 @@
         removeTypingIndicator();
 
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;flex-direction:' + meta.flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
+        row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
         row.innerHTML =
         '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
-        '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (meta.align==='flex-end'?'flex-end':'flex-start') + ';">' +
+        '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (isLeft?'flex-start':'flex-end') + ';">' +
           '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:3px;">' + meta.name + '</div>' +
           '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + line.text + '</div>' +
         '</div>';
