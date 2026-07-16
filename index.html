@@ -1373,11 +1373,11 @@
   }
 
   const todayVoices = [
-    { id: 'tomori', name: '燈', color: 'var(--c-tomori)' },
-    { id: 'nyamo', name: 'ニャモ', color: 'var(--c-nyamo)' },
-    { id: 'yomi', name: 'ヨミ', color: 'var(--c-yomi)' },
-    { id: 'rururu', name: 'ルルル', color: 'var(--c-rururu)' },
-    { id: 'shat', name: 'シャト', color: 'var(--c-shat)' }
+    { id: 'tomori', name: '燈', color: 'var(--c-tomori)', icon: 'center-tomori.png' },
+    { id: 'nyamo', name: 'ニャモ', color: 'var(--c-nyamo)', icon: 'char-nyamo.png' },
+    { id: 'yomi', name: 'ヨミ', color: 'var(--c-yomi)', icon: 'char-yomi.png' },
+    { id: 'rururu', name: 'ルルル', color: 'var(--c-rururu)', icon: 'char-rururu.png' },
+    { id: 'shat', name: 'シャト', color: 'var(--c-shat)', icon: 'char-shat.png' }
   ];
 
   function showTodayPanel(){
@@ -1403,6 +1403,7 @@
     card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
     card.innerHTML =
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' +
+        '<img src="' + voice.icon + '" alt="' + voice.name + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid ' + voice.color + ';flex-shrink:0;" onerror="this.style.display=\'none\'">' +
         '<span style="font-size:14px;font-weight:800;color:' + voice.color + ';">' + voice.name + '</span>' +
         '<span class="mono" style="font-size:9px;color:var(--ink-soft);letter-spacing:.5px;">が今日を伝えます</span>' +
       '</div>' +
