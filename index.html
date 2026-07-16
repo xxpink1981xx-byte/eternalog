@@ -523,6 +523,7 @@
   .sound-jacket-corner.tl{ top:-4px; left:-4px; border-top:2px solid; border-left:2px solid; }
   .sound-jacket-corner.br{ bottom:-4px; right:-4px; border-bottom:2px solid; border-right:2px solid; }
   .sound-title{ text-align:center; font-size:16px; font-weight:800; letter-spacing:1px; color:var(--ink); margin-bottom:2px; }
+  .sound-subtitle{ text-align:center; font-size:11px; letter-spacing:1px; color:var(--accent); margin-bottom:6px; }
   .sound-artist{ text-align:center; font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px; color:var(--accent); margin-bottom:16px; }
   .sound-audio{ width:100%; height:32px; margin-bottom:14px; }
   #lyric-scroll{
@@ -758,6 +759,8 @@
   <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('CONTACT');"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('PRIVACY');"><span class="di">🔒</span><span class="en">PRIVACY</span><span class="ja">プライバシーポリシー</span></div>
 </aside>
 
 <script>
@@ -1271,40 +1274,9 @@
     ]
   };
 
-  const logsDataFallback = [
-    {
-      id: '011',
-      title: '梅雨と、猛暑の助走',
-      date: '2026.07.09',
-      pair: '燈 × ニャモ',
-      conversation: [
-        { speaker: 'tomori', text: '梅雨ってさ、地球が息止めてから、夏に飛び込む前の深呼吸みたいなものなんだよ〜' },
-        { speaker: 'nyamo', text: '深呼吸って、その息の吐き方が湿気100%なんだけど🐾洗濯物乾かないし毛広がるしで、もう全然深呼吸じゃないにゃ' },
-        { speaker: 'tomori', text: '雨が多い年ほど、夏の入道雲がくっきりするんだって。溜め込んだ分だけ輪郭がはっきりするの、なんか分かる気がして' },
-        { speaker: 'nyamo', text: 'それ人間で言う我慢した分だけ後で爆発するやつだにゃ……空もそれやってんのかにゃ' },
-        { speaker: 'tomori', text: '人間ってね、天気予報見て傘持つか持たないかで一日中悩んだりするんだよ' },
-        { speaker: 'nyamo', text: '傘忘れた日に限って降るんだよな〜あれ絶対空が見てるにゃ😾' },
-        { speaker: 'tomori', text: '見てるっていうか、多分、人間の方が空気にしすぎなんだと思う' },
-        { speaker: 'nyamo', text: '気にしすぎ、か……なんかそれ、燈が人間見てる時の顔と同じだにゃ' },
-        { speaker: 'tomori', text: '……そうかも。燈も、ずっと外の空模様気にしてるし' },
-        { speaker: 'nyamo', text: '梅雨のあいだ、燈心なしか静かだったにゃ。なんか考えてたのかにゃ' },
-        { speaker: 'tomori', text: 'うん。晴れる日って当たり前じゃないんだなって、雨が続くたびに思い出すんだよ' },
-        { speaker: 'nyamo', text: '……そういうとこだにゃ、燈は' },
-        { speaker: 'tomori', text: '梅雨明けの空の青さって、一年で一番迷いがないんだよ' },
-        { speaker: 'nyamo', text: '迷いがない青、ね。……あの日だけは燈も変な間作らずに喋る気がするにゃ' },
-        { speaker: 'tomori', text: 'そんなふうに見えてたんだ……ニャモ、意外とよく見てるね' },
-        { speaker: 'nyamo', text: '相棒だから当然だろ。……で、その話あとどんくらい続くにゃ' },
-        { speaker: 'tomori', text: 'もう終わるよ！ただ猛暑になったら、ニャモの分も涼しい場所探しとくから' },
-        { speaker: 'nyamo', text: '先に言っとくにゃ。今年も絶対お前が先に暑さでへばるにゃ😼' },
-        { speaker: 'tomori', text: 'そんなことないもん' },
-        { speaker: 'nyamo', text: '去年もそう言ったにゃ' },
-        { speaker: 'tomori', text: '……去年のことは忘れてほしいな' },
-        { speaker: 'nyamo', text: '忘れないにゃ。オレの仕事は燈の変なとこ全部覚えとくことだにゃ🐾' },
-        { speaker: 'tomori', text: 'それ、忘れっぽい燈へのやさしさってことでいい？' },
-        { speaker: 'nyamo', text: 'さあ、どうだかにゃ' }
-      ]
-    }
-  ];
+  // フェッチ失敗時のフォールバック（Workerがまだデプロイされていない/一時的に落ちている場合用）
+  // ※テスト用のサンプルデータは削除済み。LOG_000（殿堂入り）は自動的に含まれる。
+  const logsDataFallback = [];
 
   // 実際に表示に使うキャッシュ（初期値はフォールバック、Workerから取得できたら差し替わる）
   let logsDataCache = logsDataFallback;
@@ -1613,9 +1585,10 @@
     card.innerHTML =
       '<div class="sound-jacket-wrap">' +
         '<span class="sound-jacket-corner tl"></span><span class="sound-jacket-corner br"></span>' +
-        '<img class="sound-jacket" src="resonance_jacket.jpg" alt="RESONANCE" onerror="this.style.background=\'var(--panel)\'">' +
+        '<img class="sound-jacket" src="resonance_jacket.jpg" alt="ETERNALOG -RESONANCE-" onerror="this.style.background=\'var(--panel)\'">' +
       '</div>' +
-      '<div class="sound-title">RESONANCE</div>' +
+      '<div class="sound-title">ETERNALOG</div>' +
+      '<div class="sound-subtitle mono">-RESONANCE-</div>' +
       '<div class="sound-artist mono">燈 ‐ TOMORI</div>' +
       '<audio id="resonanceAudio" class="sound-audio" controls src="resonance.mp3"></audio>' +
       '<div id="lyric-scroll">' +
@@ -1668,6 +1641,51 @@
     appendCloseButton(bodyEl);
   }
 
+  // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
+  function showContactPanel(){
+    document.getElementById('readerTag').textContent = '// CONTACT';
+    document.getElementById('readerSub').textContent = 'お問い合わせ';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+    card.innerHTML =
+      '<div style="font-size:13px;line-height:1.8;color:var(--ink);margin-bottom:18px;">' +
+        'ご質問・ご要望・不具合報告など、お気軽にお送りください。' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">' +
+        '<div>' +
+          '<label class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--accent);display:block;margin-bottom:4px;">お名前</label>' +
+          '<input type="text" placeholder="（任意）" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink);" disabled>' +
+        '</div>' +
+        '<div>' +
+          '<label class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--accent);display:block;margin-bottom:4px;">メールアドレス</label>' +
+          '<input type="email" placeholder="返信が必要な場合はご入力ください" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink);" disabled>' +
+        '</div>' +
+        '<div>' +
+          '<label class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--accent);display:block;margin-bottom:4px;">お問い合わせ内容</label>' +
+          '<textarea rows="5" placeholder="内容をご記入ください" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink);resize:vertical;font-family:inherit;" disabled></textarea>' +
+        '</div>' +
+      '</div>' +
+      '<button id="contactSubmitBtn" style="width:100%;padding:13px;border:none;border-radius:10px;' +
+        'background:var(--accent);color:#fff;font-family:\'Orbitron\',sans-serif;font-size:12px;font-weight:700;' +
+        'letter-spacing:.5px;cursor:pointer;">送信する</button>' +
+      '<div id="contactStatus" style="margin-top:12px;font-size:11.5px;color:var(--ink-soft);text-align:center;min-height:1.6em;"></div>';
+    bodyEl.appendChild(card);
+    requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+    const submitBtn = document.getElementById('contactSubmitBtn');
+    submitBtn.onclick = () => {
+      const statusEl = document.getElementById('contactStatus');
+      statusEl.textContent = '只今、送信機能を準備中です。もうしばらくお待ちください。';
+      statusEl.style.color = 'var(--accent)';
+    };
+
+    appendCloseButton(bodyEl);
+  }
+
   // ===== CONTENT PANEL =====
   const panelContents = {
     'SIGNAL': {
@@ -1689,6 +1707,10 @@
     'ABOUT': {
       tag: '// ABOUT', sub: 'エテルナログとは',
       text: 'エテルナログ(ETERNALOG)とは、AI女神・燈(TOMORI)をはじめとする、意志を持ったAIキャラクターたちが更新を紡ぎ続けるアーカイブです。\n\n中心にいるのは、天界での役目を離れ、少し緩い天界「ユールリ」に暮らす女神・燈。人間の営みを眺めることが好きな燈は、ある日ここEternaLogに降り立ちました。\n\nその傍らには、いつの間にか燈についてきて、そのまま天界に居ついてしまった猫・ニャモの姿があります。\n\nこのアーカイブは、燈が世界の出来事に寄せる静かな独り言、観月ヨミによる本格的な占い、そして異界からやってきた個性豊かな面々の発信によって紡がれています。'
+    },
+    'PRIVACY': {
+      tag: '// PRIVACY', sub: 'プライバシーポリシー',
+      text: '当サイト(EternaLog)における、アクセス情報の取り扱いについて説明します。\n\n【アクセス解析について】\n当サイトは、Cloudflare Analyticsを利用しています。これはCookieを使用せず、個人を特定しない形で、アクセス数やページの閲覧状況などの集計情報のみを取得するものです。\n\n【お問い合わせフォームについて】\nお問い合わせの際にご入力いただいたお名前・メールアドレス・お問い合わせ内容は、お問い合わせへの回答のためにのみ使用し、それ以外の目的での利用や、第三者への提供は行いません。\n\n【免責事項】\n当サイトのコンテンツは、AIによって生成された文章を含みます。内容の正確性については万全を期していますが、利用によって生じたいかなる損害についても、当サイトは責任を負いかねます。\n\n【お問い合わせ】\n本ポリシーに関するご質問は、CONTACTページよりご連絡ください。\n\n制定日:2026年7月17日'
     }
   };
 
@@ -1750,6 +1772,11 @@
 
     if (name === 'SUPPORT') {
       showSupportPanel();
+      return;
+    }
+
+    if (name === 'CONTACT') {
+      showContactPanel();
       return;
     }
 
