@@ -687,10 +687,6 @@
     </div>
   </nav>
 
-  <!-- LATEST SIGNAL -->
-  <div class="sec-label mono">// LATEST TRANSMISSION</div>
-
-
   <!-- FEATURE CARDS -->
   <div class="sec-label mono">// ARCHIVE</div>
   <div class="cardrow">
@@ -776,8 +772,11 @@
 
     if (sessionStorage.getItem(BOOT_KEY)) {
       overlay.style.display = 'none';
+      window.eternalogBootWasSkipped = true;
+      window.dispatchEvent(new Event('eternalog:bootcomplete'));
       return;
     }
+    window.eternalogBootWasSkipped = false;
     sessionStorage.setItem(BOOT_KEY, '1');
 
     const bootLines = [
@@ -864,6 +863,7 @@
       overlay.style.transition = 'opacity 0.5s ease';
       overlay.style.opacity = '0';
       setTimeout(() => { overlay.style.display = 'none'; }, 520);
+      window.dispatchEvent(new Event('eternalog:bootcomplete'));
     }
 
     // 演出中にタップ/クリックしたら即座にスキップできるようにする
@@ -871,6 +871,7 @@
       overlay.style.transition = 'opacity 0.3s ease';
       overlay.style.opacity = '0';
       setTimeout(() => { overlay.style.display = 'none'; }, 320);
+      window.dispatchEvent(new Event('eternalog:bootcomplete'));
     });
 
     showIntro();
@@ -983,8 +984,21 @@
       typeCmd();
     }
 
-    // ===== 初期表示 =====
-    typeText(DEFAULT_TEXT, 'GUIDE', false);
+    // ===== 初期表示：ブート演出が終わるまでは何も表示しない =====
+    // （ブート演出が既にスキップ済み＝このセッションで既に見た場合は即座に表示）
+    if (window.eternalogBootWasSkipped) {
+      typeText(DEFAULT_TEXT, 'GUIDE', false);
+    } else {
+      let defaultShown = false;
+      const showDefaultOnce = () => {
+        if (defaultShown) return;
+        defaultShown = true;
+        typeText(DEFAULT_TEXT, 'GUIDE', false);
+      };
+      window.addEventListener('eternalog:bootcomplete', showDefaultOnce, { once: true });
+      // フェイルセーフ：何らかの理由でイベントが発火しなかった場合、12秒後に強制表示
+      setTimeout(showDefaultOnce, 12000);
+    }
 
     // ===== ピルボタンが押された時に反応（stub()から呼ばれる） =====
     window.heroTextboxReact = function(name){
