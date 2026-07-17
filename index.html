@@ -1105,34 +1105,26 @@
   (function initIdleVideoSystem(){
     const FADE_MS = 600;
     const IDLE_POOL = ['tomori_close.mp4', 'tomori_trance.mp4', 'tomori_turn_arund.mp4', 'tomori_hud.mp4'];
-
     const heroA = document.getElementById('heroVideo');
     const heroB = document.getElementById('heroVideoB');
     if (!heroA || !heroB) return;
     const miniVideo = document.getElementById('readerMiniVideo');
-
     let current = heroA, next = heroB;
     let lastIdle = '';
     let switchTimer = null;
     let busy = false;
     let speaking = false;
-
     function pickIdle(){
       const pool = IDLE_POOL.filter(s => s !== lastIdle);
       const picked = pool[Math.floor(Math.random() * pool.length)];
       lastIdle = picked;
       return picked;
     }
-
-    // ===== 動画の切り替えタイミングは「ended」イベントだけに一本化 =====
-    // 以前は duration を事前計算して終了直前にタイマーで切り替えていたが、
-    // mp4のエンコード次第で duration が Infinity 等になる不具合があり、
-    // それに引きずられて早く切り替わってしまう問題があった。
-    // 「動画が自然に最後まで再生し終わった」ことを示す ended イベントだけを
-    // 信じる方式にすることで、duration の誤読の影響を受けなくなる。
     function onEnded(e){
+      // ★修正1: 表示中(current)の動画から発火したendedだけを処理する。
+      //         裏で再生され続けている旧outgoing側の発火は無視。
+      if (e.target !== current) return;
       if (speaking) {
-        // 喋り動画は尺が不定でも構わないよう自前でループさせる
         e.target.currentTime = 0;
         e.target.play().catch(() => {});
         return;
@@ -1141,45 +1133,43 @@
     }
     heroA.addEventListener('ended', onEnded);
     heroB.addEventListener('ended', onEnded);
-
-    // 動画が読み込めない場合はコンソールに警告し、少し待って次を試す
     function onError(e){
       console.warn('[EternaLog] idle video failed to load:', e.target.src);
+      if (e.target !== current) return; // ★同様にcurrentのみ対象
       if (!busy && !speaking) setTimeout(() => crossfadeTo(pickIdle()), 800);
     }
     heroA.addEventListener('error', onError);
     heroB.addEventListener('error', onError);
-
     function crossfadeTo(src, glitch){
       if (glitch === undefined) glitch = true;
       if (busy) return;
       busy = true;
       clearTimeout(switchTimer);
-
-      next.src = src;
-      next.currentTime = 0;
-      next.load();
-      next.play().catch(() => {});
-
+      const outgoing = current;
+      const incoming = next;
+      incoming.src = src;
+      incoming.currentTime = 0;
+      incoming.load();
+      incoming.play().catch(() => {});
       if (glitch) triggerNoiseGlitch();
-
-      current.style.opacity = '0';
-      next.style.opacity = '1';
-
+      outgoing.style.opacity = '0';
+      incoming.style.opacity = '1';
       if (miniVideo) { miniVideo.src = src; miniVideo.play().catch(() => {}); }
-
-      const tmp = current; current = next; next = tmp;
-
-      setTimeout(() => {
+      current = incoming;
+      next = outgoing;
+      switchTimer = setTimeout(() => {
+        // ★修正2: フェード完了後、outgoingを明示的に停止する。
+        //         裏で再生され続けてendedが誤発火するのを防ぐ。
+        outgoing.pause();
+        outgoing.removeAttribute('src');
+        outgoing.load();
         busy = false;
       }, FADE_MS);
     }
-
-    // ===== 喋りモードの切り替えAPI（モニター内メニュー等から呼び出す） =====
     window.tomoriStartSpeak = function(){
       speaking = true;
       clearTimeout(switchTimer);
-      // キャッシュバスティング：素材を差し替えたら下のバージョン文字列を更新する
+      busy = false;
       crossfadeTo('tomori_speak.mp4?v=20260716', false);
     };
     window.tomoriStopSpeak = function(){
@@ -1248,6 +1238,7 @@
       next.style.opacity = '0';
       current.load();
       current.play().catch(() => {});
+      next.pause(); // 念のため待機側は明示的に停止しておく
       if (miniVideo) { miniVideo.src = initSrc; miniVideo.play().catch(() => {}); }
     }
 
