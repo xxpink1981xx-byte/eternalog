@@ -255,7 +255,7 @@
   /* 配色は燈の目周りHUD（彩度の高いシアングロー・透過ブルー）に寄せる */
   .nav-terminal{
     position:absolute; top:10px; left:10px; z-index:8;
-    width:132px;
+    width:min(58%, 210px);
     background:rgba(10,70,130,0.38);
     border:1px solid rgba(0,225,255,0.7);
     box-shadow:0 0 20px rgba(0,225,255,0.45), inset 0 0 12px rgba(0,225,255,0.1);
@@ -277,17 +277,18 @@
   @keyframes ntDotPulse{ 0%,100%{ opacity:.5; } 50%{ opacity:1; } }
   .nt-title{ font-size:7px; letter-spacing:1px; color:#c8f6ff; }
   .nt-body{ padding:5px 4px; }
-  .nt-line{
-    display:flex; align-items:center; gap:4px; width:100%;
-    background:none; border:none; cursor:pointer;
-    padding:3px 4px; border-radius:2px;
-    font-family:'Courier New',monospace; font-size:8.5px;
-    transition:background .12s ease;
+  .nt-feed-line{
+    display:flex; align-items:baseline; gap:4px; width:100%;
+    padding:3px 4px;
+    font-family:'Courier New',monospace; font-size:8px;
+    line-height:1.5;
   }
-  .nt-line:active{ background:rgba(0,225,255,0.32); }
+  .nt-feed-label{ color:rgba(200,246,255,0.65); flex-shrink:0; }
+  .nt-feed-text{
+    font-family:'Noto Sans JP',sans-serif; color:#ffffff; letter-spacing:.2px;
+    font-size:9px; word-break:break-all;
+  }
   .nt-prompt{ color:#00eaff; opacity:1; text-shadow:0 0 5px rgba(0,225,255,.7); }
-  .nt-num{ color:rgba(200,246,255,0.75); }
-  .nt-name{ font-family:'Noto Sans JP',sans-serif; color:#ffffff; letter-spacing:.2px; }
   .nt-cursor-row{
     display:flex; align-items:center; gap:4px; padding:3px 4px;
     font-family:'Courier New',monospace; font-size:8.5px;
@@ -634,18 +635,12 @@
           <span class="nt-title mono">NAV_TERMINAL</span>
         </div>
         <div class="nt-body">
-          <button class="nt-line" onclick="stub('SIGNAL')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">01</span><span class="nt-name">受信記録</span>
-          </button>
-          <button class="nt-line" onclick="stub('LOGS')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">02</span><span class="nt-name">記録集</span>
-          </button>
-          <button class="nt-line" onclick="stub('CHARACTERS')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">03</span><span class="nt-name">人物名鑑</span>
-          </button>
-          <button class="nt-line" onclick="stub('YOMI')">
-            <span class="nt-prompt">&gt;</span><span class="nt-num">04</span><span class="nt-name">占い</span>
-          </button>
+          <div class="nt-feed-line">
+            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">STATUS</span><span class="nt-feed-text" id="ntStatusText">起動中...</span>
+          </div>
+          <div class="nt-feed-line">
+            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">LATEST</span><span class="nt-feed-text" id="ntLatestText">確認中...</span>
+          </div>
           <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
         </div>
       </nav>
@@ -1098,6 +1093,74 @@
     setTimeout(spawnBackgroundTerminal, 9000);
   })();
 
+  // ===== NAV_TERMINAL：燈の"今"のステータス表示＋最新更新ミニフィード =====
+  (function initNavTerminal(){
+    const WORKER_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
+
+    const STATUS_TEXTS = {
+      'tomori_close.mp4': '静かに目を閉じている',
+      'tomori_trance.mp4': '力を取り戻しかけている',
+      'tomori_turn_arund.mp4': 'ゆっくり振り返っている',
+      'tomori_hud.mp4': '何かを見つめている',
+      'tomori_speak.mp4': '話しかけている'
+    };
+
+    // 待機動画が切り替わるたびに initIdleVideoSystem から呼ばれる
+    window.ntUpdateStatus = function(src){
+      const statusEl = document.getElementById('ntStatusText');
+      if (!statusEl) return;
+      const base = String(src).split('?')[0]; // キャッシュバスティング用のクエリを除く
+      statusEl.textContent = STATUS_TEXTS[base] || '待機中';
+    };
+
+    // ページ読み込み時に一度だけ、SIGNAL/LOGSの最新状況をバックグラウンドで取得
+    async function loadLatestFeed(){
+      const latestEl = document.getElementById('ntLatestText');
+      if (!latestEl) return;
+
+      let signalDate = null;
+      let logsLatest = null;
+
+      try {
+        const res = await fetch(WORKER_URL, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.updatedAt) signalDate = new Date(data.updatedAt);
+        }
+      } catch (e) { /* 取得失敗時はサイレントに諦める */ }
+
+      try {
+        const res2 = await fetch(WORKER_URL + 'logs', { cache: 'no-store' });
+        if (res2.ok) {
+          const data2 = await res2.json();
+          if (data2 && Array.isArray(data2.items) && data2.items.length) {
+            logsLatest = data2.items[data2.items.length - 1];
+          }
+        }
+      } catch (e) { /* 同上 */ }
+
+      // SIGNALとLOGS、どちらがより新しいか日付だけで大まかに比較
+      if (logsLatest && signalDate) {
+        const logsDate = new Date(logsLatest.date.replace(/\./g, '-'));
+        if (logsDate > signalDate) {
+          latestEl.textContent = 'LOG_' + logsLatest.id + ' 「' + logsLatest.title + '」';
+          return;
+        }
+      }
+      if (signalDate) {
+        latestEl.textContent = (signalDate.getMonth() + 1) + '/' + signalDate.getDate() + ' SIGNAL更新';
+        return;
+      }
+      if (logsLatest) {
+        latestEl.textContent = 'LOG_' + logsLatest.id + ' 「' + logsLatest.title + '」';
+        return;
+      }
+      latestEl.textContent = '取得できませんでした';
+    }
+
+    loadLatestFeed();
+  })();
+
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
   // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた4本を、
   // 各動画が終わりに近づくたびに自動でクロスフェード切り替え。
@@ -1152,6 +1215,7 @@
       incoming.load();
       incoming.play().catch(() => {});
       if (glitch) triggerNoiseGlitch();
+      if (window.ntUpdateStatus) window.ntUpdateStatus(src);
       outgoing.style.opacity = '0';
       incoming.style.opacity = '1';
       if (miniVideo) { miniVideo.src = src; miniVideo.play().catch(() => {}); }
@@ -1240,6 +1304,7 @@
       current.play().catch(() => {});
       next.pause(); // 念のため待機側は明示的に停止しておく
       if (miniVideo) { miniVideo.src = initSrc; miniVideo.play().catch(() => {}); }
+      if (window.ntUpdateStatus) window.ntUpdateStatus(initSrc);
     }
 
     start();
