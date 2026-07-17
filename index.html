@@ -255,7 +255,7 @@
   /* 配色は燈の目周りHUD（彩度の高いシアングロー・透過ブルー）に寄せる */
   .nav-terminal{
     position:absolute; top:10px; left:10px; z-index:8;
-    width:min(58%, 210px);
+    width:min(40%, 148px);
     background:rgba(10,70,130,0.38);
     border:1px solid rgba(0,225,255,0.7);
     box-shadow:0 0 20px rgba(0,225,255,0.45), inset 0 0 12px rgba(0,225,255,0.1);
@@ -278,15 +278,15 @@
   .nt-title{ font-size:7px; letter-spacing:1px; color:#c8f6ff; }
   .nt-body{ padding:5px 4px; }
   .nt-feed-line{
-    display:flex; align-items:baseline; gap:4px; width:100%;
+    display:flex; flex-direction:column; gap:1px; width:100%;
     padding:3px 4px;
-    font-family:'Courier New',monospace; font-size:8px;
-    line-height:1.5;
+    font-family:'Courier New',monospace; font-size:7.5px;
+    line-height:1.4;
   }
-  .nt-feed-label{ color:rgba(200,246,255,0.65); flex-shrink:0; }
+  .nt-feed-label{ color:rgba(200,246,255,0.65); }
   .nt-feed-text{
-    font-family:'Noto Sans JP',sans-serif; color:#ffffff; letter-spacing:.2px;
-    font-size:9px; word-break:break-all;
+    font-family:'Courier New',monospace; color:#ffffff; letter-spacing:.2px;
+    font-size:8px; word-break:break-word;
   }
   .nt-prompt{ color:#00eaff; opacity:1; text-shadow:0 0 5px rgba(0,225,255,.7); }
   .nt-cursor-row{
@@ -636,10 +636,10 @@
         </div>
         <div class="nt-body">
           <div class="nt-feed-line">
-            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">STATUS</span><span class="nt-feed-text" id="ntStatusText">起動中...</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">STATUS</span><span class="nt-feed-text" id="ntStatusText">booting...</span>
           </div>
           <div class="nt-feed-line">
-            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">LATEST</span><span class="nt-feed-text" id="ntLatestText">確認中...</span>
+            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">LATEST</span><span class="nt-feed-text" id="ntLatestText">checking...</span>
           </div>
           <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
         </div>
@@ -1098,11 +1098,11 @@
     const WORKER_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
     const STATUS_TEXTS = {
-      'tomori_close.mp4': '静かに目を閉じている',
-      'tomori_trance.mp4': '力を取り戻しかけている',
-      'tomori_turn_arund.mp4': 'ゆっくり振り返っている',
-      'tomori_hud.mp4': '何かを見つめている',
-      'tomori_speak.mp4': '話しかけている'
+      'tomori_close.mp4': 'At rest',
+      'tomori_trance.mp4': 'A flicker of old power',
+      'tomori_turn_arund.mp4': 'Looking around',
+      'tomori_hud.mp4': 'Reading a display',
+      'tomori_speak.mp4': 'Speaking'
     };
 
     // 待機動画が切り替わるたびに initIdleVideoSystem から呼ばれる
@@ -1110,7 +1110,7 @@
       const statusEl = document.getElementById('ntStatusText');
       if (!statusEl) return;
       const base = String(src).split('?')[0]; // キャッシュバスティング用のクエリを除く
-      statusEl.textContent = STATUS_TEXTS[base] || '待機中';
+      statusEl.textContent = STATUS_TEXTS[base] || 'Idle';
     };
 
     // ページ読み込み時に一度だけ、SIGNAL/LOGSの最新状況をバックグラウンドで取得
@@ -1143,19 +1143,19 @@
       if (logsLatest && signalDate) {
         const logsDate = new Date(logsLatest.date.replace(/\./g, '-'));
         if (logsDate > signalDate) {
-          latestEl.textContent = 'LOG_' + logsLatest.id + ' 「' + logsLatest.title + '」';
+          latestEl.textContent = 'LOG_' + logsLatest.id + ' updated';
           return;
         }
       }
       if (signalDate) {
-        latestEl.textContent = (signalDate.getMonth() + 1) + '/' + signalDate.getDate() + ' SIGNAL更新';
+        latestEl.textContent = (signalDate.getMonth() + 1) + '/' + signalDate.getDate() + ' SIGNAL updated';
         return;
       }
       if (logsLatest) {
-        latestEl.textContent = 'LOG_' + logsLatest.id + ' 「' + logsLatest.title + '」';
+        latestEl.textContent = 'LOG_' + logsLatest.id + ' updated';
         return;
       }
-      latestEl.textContent = '取得できませんでした';
+      latestEl.textContent = 'unavailable';
     }
 
     loadLatestFeed();
