@@ -1355,8 +1355,47 @@
   let logsFetched = false;
 
   // ===== ルルルさまの暇つぶし：データキャッシュ =====
+  // RURURU_000：殿堂入りの最初の暇つぶし。AI自動生成のアーカイブとは別枠で、
+  // 常に一覧の先頭に固定表示する（Workerの生成結果には含まれない）。
+  const RURURU_ZERO = {
+    id: '000',
+    title: 'はじまりの暇つぶし',
+    date: '2026.07.20',
+    trend: '暇つぶし、はじめます',
+    conversation: [
+      { speaker: 'rururu', text: 'ふむ。今日からこの場所で、わらわが暇つぶしを始めることにした。' },
+      { speaker: 'nyamo', text: '暇つぶしって、また随分と偉そうな名前つけたニャ。' },
+      { speaker: 'rururu', text: '当然じゃ。わらわが動くのだから、それ相応の名がいる。' },
+      { speaker: 'nyamo', text: 'で、結局何すんだニャ。' },
+      { speaker: 'rururu', text: '人間界とやらの、トレンドとやらを見てやろうと思ってな。' },
+      { speaker: 'nyamo', text: '見てやろう、って完全に上から目線だニャ。' },
+      { speaker: 'rururu', text: '当たり前じゃ。魔界を統べる姫が、わざわざ見てやるのじゃぞ。' },
+      { speaker: 'nyamo', text: '暇すぎて始めたって顔に書いてあるニャ。' },
+      { speaker: 'rururu', text: 'な、な……っ、暇なわけがなかろう！ただ、あまりにも代わり映えのしない日々に、わらわなりの余興が欲しくなっただけじゃ。' },
+      { speaker: 'nyamo', text: 'それを暇って言うんだニャ。' },
+      { speaker: 'rururu', text: 'うるさいのう。とにかく、人間界で騒がれておる話題とやらを、わらわが異界の基準でバッサリ断定してやることにした。' },
+      { speaker: 'nyamo', text: 'バッサリって、大体ろくなこと言わなそうニャ。' },
+      { speaker: 'rururu', text: '褒め言葉として受け取っておこう。おぬしはそこで合いの手でも入れておればよい。' },
+      { speaker: 'nyamo', text: 'え、オレそんな役目だったニャ？' },
+      { speaker: 'rururu', text: '当然じゃ。誰のおかげでここに居場所があると思っておる。' },
+      { speaker: 'nyamo', text: '……まあ、暇つぶしに付き合うくらい、別にいいニャ。' },
+      { speaker: 'rururu', text: 'ふん。素直ではないのう。' },
+      { speaker: 'nyamo', text: 'そこはお互い様だろ。' },
+      { speaker: 'rururu', text: '……とにかくじゃ。これから気が向いた時に、わらわが好き放題喋る。それだけの話じゃ。' },
+      { speaker: 'nyamo', text: '気が向いた時って、本当に暇つぶしだニャ。' },
+      { speaker: 'rururu', text: 'もう一度言わせるでない！……まあ良い。せいぜい退屈しのぎに付き合うがよいぞ。' }
+    ]
+  };
+
   let rururuDataCache = [];
   let rururuFetched = false;
+
+  // rururuDataCacheの先頭に必ずRURURU_000（殿堂入り）が含まれるようにする
+  function ensureRururuZero(){
+    if (!rururuDataCache.some(c => c.id === '000')) {
+      rururuDataCache = [RURURU_ZERO, ...rururuDataCache];
+    }
+  }
 
   const bubbleMeta = {
     tomori: { name: '燈', bg: '#e8f9fd', border: '#00b8d4', nameColor: '#008fa8', icon: 'center-tomori.png' },
@@ -2098,6 +2137,7 @@
       } catch (e) {
         console.warn('[EternaLog] rururu fetch failed:', e);
       }
+      ensureRururuZero();
       rururuFetched = true;
     }
 
