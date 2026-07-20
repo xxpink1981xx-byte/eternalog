@@ -748,6 +748,8 @@
   <div class="ditem" onclick="closeDrawer(); stub('LOGS');"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('YOMI');"><span class="di">◇</span><span class="en">YOMI</span><span class="ja">占い</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('RURURU');"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('GOODS');"><span class="di">🛍</span><span class="en">GOODS</span><span class="ja">グッズ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('CONTACT');"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></div>
@@ -1352,6 +1354,10 @@
   let logsDataCache = logsDataFallback;
   let logsFetched = false;
 
+  // ===== ルルルさまの暇つぶし：データキャッシュ =====
+  let rururuDataCache = [];
+  let rururuFetched = false;
+
   const bubbleMeta = {
     tomori: { name: '燈', bg: '#e8f9fd', border: '#00b8d4', nameColor: '#008fa8', icon: 'center-tomori.png' },
     nyamo:  { name: 'ニャモ', bg: '#fbecfd', border: '#c026d3', nameColor: '#a020b8', icon: 'char-nyamo.png' },
@@ -1711,6 +1717,45 @@
     appendCloseButton(bodyEl);
   }
 
+  // ===== GOODS：グッズページ（見た目のみ、SUZURI/BOOTHでの展開は準備中） =====
+  function showGoodsPanel(){
+    document.getElementById('readerTag').textContent = '// GOODS';
+    document.getElementById('readerSub').textContent = '準備中';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const mockItems = [
+      { icon: '👕', label: 'Tシャツ' },
+      { icon: '🏷️', label: 'ステッカー' },
+      { icon: '🧸', label: 'アクリルスタンド' },
+      { icon: '☕', label: 'マグカップ' }
+    ];
+
+    const card = document.createElement('div');
+    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+    card.innerHTML =
+      '<div style="font-size:13px;line-height:1.8;color:var(--ink);margin-bottom:18px;">' +
+        '燈たちのグッズを、SUZURI・BOOTHなどのプリントオンデマンドサービスで展開予定です。準備が整い次第、ここから直接ご覧いただけるようになります。' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;">' +
+        mockItems.map(item =>
+          '<div style="border:1px dashed var(--line);border-radius:12px;padding:18px 10px;text-align:center;opacity:.55;">' +
+            '<div style="font-size:28px;margin-bottom:6px;">' + item.icon + '</div>' +
+            '<div style="font-size:10px;color:var(--ink-soft);">' + item.label + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div style="text-align:center;padding:12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);' +
+        'font-family:\'Orbitron\',sans-serif;font-size:11px;letter-spacing:.5px;color:var(--ink-soft);">' +
+        '準備中です。もうしばらくお待ちください。' +
+      '</div>';
+    bodyEl.appendChild(card);
+    requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+    appendCloseButton(bodyEl);
+  }
+
   // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
   function showContactPanel(){
     document.getElementById('readerTag').textContent = '// CONTACT';
@@ -1817,6 +1862,16 @@
 
     if (name === 'LOGS') {
       showLogsList();
+      return;
+    }
+
+    if (name === 'RURURU') {
+      showRururuList();
+      return;
+    }
+
+    if (name === 'GOODS') {
+      showGoodsPanel();
       return;
     }
 
@@ -2021,11 +2076,149 @@
     showNext();
   }
 
+  // ===== ルルルさまの暇つぶし：一覧・詳細表示 =====
+  let rururuBubbleTimer = null;
+
+  async function showRururuList(){
+    document.getElementById('readerTag').textContent = '// RURURU';
+    document.getElementById('readerSub').textContent = 'ルルルさまの暇つぶし（新しい順）';
+
+    const bodyEl = document.getElementById('readerBody');
+
+    if (!rururuFetched) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING...</div>';
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'rururu', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) {
+            rururuDataCache = data.items;
+          }
+        }
+      } catch (e) {
+        console.warn('[EternaLog] rururu fetch failed:', e);
+      }
+      rururuFetched = true;
+    }
+
+    if (document.getElementById('readerTag').textContent !== '// RURURU') return;
+
+    bodyEl.innerHTML = '';
+
+    if (!rururuDataCache.length) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// まだ何も届いていません</div>';
+      appendCloseButton(bodyEl);
+      return;
+    }
+
+    const listWrap = document.createElement('div');
+    [...rururuDataCache].reverse().forEach((col, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
+      card.innerHTML =
+        '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:var(--accent);font-weight:700;margin-bottom:4px;">RURURU_' + col.id + '</div>' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:3px;">' + escapeHtml(col.title) + '</div>' +
+        '<div style="font-size:10px;color:var(--ink-soft);">「' + escapeHtml(col.trend) + '」・' + col.date + '</div>';
+      card.onclick = () => showRururuDetail(col.id);
+      listWrap.appendChild(card);
+      setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
+    });
+    bodyEl.appendChild(listWrap);
+  }
+
+  function showRururuDetail(colId){
+    const col = rururuDataCache.find(c => c.id === colId);
+    if (!col) return;
+
+    clearTimeout(rururuBubbleTimer);
+    document.getElementById('readerTag').textContent = '// RURURU';
+    document.getElementById('readerSub').textContent = 'RURURU_' + col.id + ' ・ 「' + col.trend + '」';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const backLink = document.createElement('div');
+    backLink.textContent = '← 一覧に戻る';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:16px;cursor:pointer;letter-spacing:.5px;';
+    backLink.onclick = showRururuList;
+    bodyEl.appendChild(backLink);
+
+    const convWrap = document.createElement('div');
+    bodyEl.appendChild(convWrap);
+
+    const speakerOrder = [];
+    col.conversation.forEach(turn => {
+      if (!speakerOrder.includes(turn.speaker)) speakerOrder.push(turn.speaker);
+    });
+    function isLeftSpeaker(speaker){ return speaker === speakerOrder[0]; }
+
+    function getTypingDuration(str){
+      const base = 400, perChar = 35, max = 2600;
+      return Math.min(base + str.length * perChar, max);
+    }
+
+    function showTypingIndicator(speaker){
+      const meta = bubbleMeta[speaker] || bubbleMeta.rururu;
+      const flexDir = isLeftSpeaker(speaker) ? 'row' : 'row-reverse';
+      const row = document.createElement('div');
+      row.id = 'rururuTypingIndicator';
+      row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:' + meta.nameColor + ';">RECEIVING</span>' +
+          '<span style="display:flex;align-items:flex-end;gap:2px;height:11px;">' +
+            [0,1,2,3].map(i => '<span style="width:3px;height:' + [5,9,11,7][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 1s ease-in-out infinite;animation-delay:' + (i*0.15) + 's;"></span>').join('') +
+          '</span>' +
+        '</div>';
+      convWrap.appendChild(row);
+      requestAnimationFrame(() => { row.style.opacity = '1'; });
+    }
+    function removeTypingIndicator(){
+      const el = document.getElementById('rururuTypingIndicator');
+      if (el) el.remove();
+    }
+
+    let idx = 0;
+    function showNext(){
+      if (idx >= col.conversation.length){
+        appendCloseButton(bodyEl);
+        return;
+      }
+      const line = col.conversation[idx];
+      const meta = bubbleMeta[line.speaker] || bubbleMeta.rururu;
+      const isLeft = isLeftSpeaker(line.speaker);
+      const flexDir = isLeft ? 'row' : 'row-reverse';
+
+      showTypingIndicator(line.speaker);
+
+      rururuBubbleTimer = setTimeout(() => {
+        removeTypingIndicator();
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
+        row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (isLeft?'flex-start':'flex-end') + ';">' +
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:3px;">' + meta.name + '</div>' +
+          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + escapeHtml(line.text) + '</div>' +
+        '</div>';
+        convWrap.appendChild(row);
+        requestAnimationFrame(() => { row.style.opacity = '1'; });
+
+        idx++;
+        rururuBubbleTimer = setTimeout(showNext, 500);
+      }, getTypingDuration(line.text));
+    }
+    showNext();
+  }
+
   function closeReader(){
     document.getElementById('readerBack').classList.remove('show');
     document.getElementById('reader').classList.remove('show');
     clearTimeout(contentTypeTimer);
     clearTimeout(logBubbleTimer);
+    clearTimeout(rururuBubbleTimer);
     if (window.heroTextboxReset) window.heroTextboxReset();
     if (window.tomoriStopSpeak) window.tomoriStopSpeak();
     const resonanceEl = document.getElementById('resonanceAudio');
