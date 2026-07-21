@@ -1795,6 +1795,60 @@
     appendCloseButton(bodyEl);
   }
 
+  // ===== YOMI：観月ヨミの週刊占い（LogiGrainの実計算に基づく） =====
+  function formatWeekRange(weekStart, weekEnd){
+    if (!weekStart || !weekEnd) return '';
+    const s = weekStart.split('-'), e = weekEnd.split('-');
+    return s[1] + '/' + s[2] + ' 〜 ' + e[1] + '/' + e[2];
+  }
+
+  async function showYomiPanel(){
+    document.getElementById('readerTag').textContent = '// YOMI';
+    document.getElementById('readerSub').textContent = '今週の占い';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '<div class="reader-placeholder mono">// 水晶玉を覗いています...</div>';
+
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi-weekly', { cache: 'no-store' });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const data = await res.json();
+      if (!data || !data.text) throw new Error('empty text');
+
+      if (document.getElementById('readerTag').textContent !== '// YOMI') return;
+
+      const weekRange = formatWeekRange(data.weekStart, data.weekEnd);
+      const moonLine = data.mondayMoon && data.sundayMoon
+        ? (data.mondayMoon.sign === data.sundayMoon.sign
+            ? '今週の月：' + data.mondayMoon.sign + '座'
+            : '今週の月の動き：' + data.mondayMoon.sign + '座 → ' + data.sundayMoon.sign + '座')
+        : '';
+
+      bodyEl.innerHTML = '';
+      const card = document.createElement('div');
+      card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+          '<img src="char-yomi.png" alt="ヨミ" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--c-yomi);flex-shrink:0;" onerror="this.style.display=\'none\'">' +
+          '<span style="font-size:14px;font-weight:800;color:var(--c-yomi);">ヨミ</span>' +
+        '</div>' +
+        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:14px;">' + escapeHtml(weekRange) + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);border-left:2px solid var(--c-yomi);padding-left:12px;margin-bottom:18px;">' +
+          escapeHtml(data.text) +
+        '</div>' +
+        (moonLine ? '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--accent);">' + escapeHtml(moonLine) + '</div>' : '') +
+        '<div class="mono" style="font-size:8px;letter-spacing:.3px;color:var(--ink-soft);margin-top:6px;">LogiGrainの天体計算に基づく占いです</div>';
+      bodyEl.appendChild(card);
+      requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+      appendCloseButton(bodyEl);
+    } catch (e) {
+      console.warn('[EternaLog] yomi weekly fetch failed:', e);
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// 占いの取得に失敗しました。少し時間をおいて開き直してみてください</div>';
+      appendCloseButton(bodyEl);
+    }
+  }
+
   // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
   function showContactPanel(){
     document.getElementById('readerTag').textContent = '// CONTACT';
@@ -1849,10 +1903,6 @@
     'CHARACTERS': {
       tag: '// CHARACTERS', sub: '5人のAIキャラクター',
       text: '燈・ニャモ・観月ヨミ・シャト・ルルル。エテルナログのAIキャラクターたちが、それぞれの視点で発信を続けています。'
-    },
-    'YOMI': {
-      tag: '// YOMI', sub: '準備中',
-      text: '観月ヨミによる本格占い鑑定は、只今一生懸命開発中です。もう少しだけ、お待ちください。'
     },
     '今日は何の日': {
       tag: '// TODAY', sub: '準備中',
@@ -1911,6 +1961,11 @@
 
     if (name === 'GOODS') {
       showGoodsPanel();
+      return;
+    }
+
+    if (name === 'YOMI') {
+      showYomiPanel();
       return;
     }
 
