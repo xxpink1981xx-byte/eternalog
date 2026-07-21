@@ -1795,16 +1795,18 @@
     appendCloseButton(bodyEl);
   }
 
-  // ===== YOMI：観月ヨミの週刊占い（LogiGrainの実計算に基づく） =====
+  // ===== YOMI：観月ヨミの週刊12星座ランキング（LogiGrainの実計算に基づく） =====
   function formatWeekRange(weekStart, weekEnd){
     if (!weekStart || !weekEnd) return '';
     const s = weekStart.split('-'), e = weekEnd.split('-');
     return s[1] + '/' + s[2] + ' 〜 ' + e[1] + '/' + e[2];
   }
 
+  const RANK_MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
   async function showYomiPanel(){
     document.getElementById('readerTag').textContent = '// YOMI';
-    document.getElementById('readerSub').textContent = '今週の占い';
+    document.getElementById('readerSub').textContent = '今週の12星座ランキング';
 
     const bodyEl = document.getElementById('readerBody');
     bodyEl.innerHTML = '<div class="reader-placeholder mono">// 水晶玉を覗いています...</div>';
@@ -1813,16 +1815,11 @@
       const res = await fetch(EARTH_SIGNAL_URL + 'yomi-weekly', { cache: 'no-store' });
       if (!res.ok) throw new Error('status ' + res.status);
       const data = await res.json();
-      if (!data || !data.text) throw new Error('empty text');
+      if (!data || !Array.isArray(data.ranking) || !data.ranking.length) throw new Error('empty ranking');
 
       if (document.getElementById('readerTag').textContent !== '// YOMI') return;
 
       const weekRange = formatWeekRange(data.weekStart, data.weekEnd);
-      const moonLine = data.mondayMoon && data.sundayMoon
-        ? (data.mondayMoon.sign === data.sundayMoon.sign
-            ? '今週の月：' + data.mondayMoon.sign + '座'
-            : '今週の月の動き：' + data.mondayMoon.sign + '座 → ' + data.sundayMoon.sign + '座')
-        : '';
 
       bodyEl.innerHTML = '';
       const card = document.createElement('div');
@@ -1832,12 +1829,23 @@
           '<img src="char-yomi.png" alt="ヨミ" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--c-yomi);flex-shrink:0;" onerror="this.style.display=\'none\'">' +
           '<span style="font-size:14px;font-weight:800;color:var(--c-yomi);">ヨミ</span>' +
         '</div>' +
-        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:14px;">' + escapeHtml(weekRange) + '</div>' +
-        '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);border-left:2px solid var(--c-yomi);padding-left:12px;margin-bottom:18px;">' +
-          escapeHtml(data.text) +
+        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:12px;">' + escapeHtml(weekRange) + '</div>' +
+        '<div style="font-size:13px;line-height:1.8;color:var(--ink);border-left:2px solid var(--c-yomi);padding-left:12px;margin-bottom:20px;">' +
+          escapeHtml(data.overview || '') +
         '</div>' +
-        (moonLine ? '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--accent);">' + escapeHtml(moonLine) + '</div>' : '') +
-        '<div class="mono" style="font-size:8px;letter-spacing:.3px;color:var(--ink-soft);margin-top:6px;">LogiGrainの天体計算に基づく占いです</div>';
+        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+          data.ranking.map(r =>
+            '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;' +
+              (r.rank <= 3 ? 'background:var(--accent-glow);' : '') + '">' +
+              '<div style="font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:800;color:' + (r.rank<=3?'var(--accent)':'var(--ink-soft)') + ';width:28px;text-align:center;flex-shrink:0;">' +
+                (RANK_MEDAL[r.rank] || r.rank) +
+              '</div>' +
+              '<div style="flex-shrink:0;font-size:13px;font-weight:700;color:var(--ink);width:64px;">' + escapeHtml(r.signJP) + '</div>' +
+              '<div style="font-size:12px;line-height:1.5;color:var(--ink-soft);">' + escapeHtml(r.comment) + '</div>' +
+            '</div>'
+          ).join('') +
+        '</div>' +
+        '<div class="mono" style="font-size:8px;letter-spacing:.3px;color:var(--ink-soft);margin-top:14px;">LogiGrainの天体計算に基づく占いです</div>';
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
