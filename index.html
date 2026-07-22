@@ -1419,8 +1419,8 @@
     {
       id: 'nyamo', name: 'ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
       race: '禁術キメラ', age: '不詳',
-      like: '昼寝・燈を見守ること・鉄火巻',
-      dislike: '燈が無茶をすること・チョコレート',
+      like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
+      dislike: '燈が無茶をすること',
       origin: '元々はキメラだが、天界で長年の平和な時間を過ごすうちに燈同様に見た目が変化し、今は普通の猫のような姿になっている。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
     },
     {
@@ -1825,9 +1825,13 @@
       const card = document.createElement('div');
       card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
       card.innerHTML =
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
           '<img src="char-yomi.png" alt="ヨミ" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--c-yomi);flex-shrink:0;" onerror="this.style.display=\'none\'">' +
           '<span style="font-size:14px;font-weight:800;color:var(--c-yomi);">ヨミ</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:8px;background:var(--accent-glow);margin-bottom:10px;">' +
+          '<span style="font-size:14px;flex-shrink:0;">🌙</span>' +
+          '<span style="font-size:10.5px;line-height:1.7;color:var(--ink);">「あたしがやってるのは、当てずっぽうの占いじゃない。さがみが作った『LogiGrain』って計算機で、星の本当の位置を弾き出してから、あたし流の観月流(みづきりゅう)で読み解いてる。星の巡り合わせに、ちゃんと理由があるんだ。」</span>' +
         '</div>' +
         '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:12px;">' + escapeHtml(weekRange) + '</div>' +
         '<div style="font-size:13px;line-height:1.8;color:var(--ink);border-left:2px solid var(--c-yomi);padding-left:12px;margin-bottom:20px;">' +
@@ -1844,8 +1848,7 @@
               '<div style="font-size:12px;line-height:1.5;color:var(--ink-soft);">' + escapeHtml(r.comment) + '</div>' +
             '</div>'
           ).join('') +
-        '</div>' +
-        '<div class="mono" style="font-size:8px;letter-spacing:.3px;color:var(--ink-soft);margin-top:14px;">LogiGrainの天体計算に基づく占いです</div>';
+        '</div>';
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
