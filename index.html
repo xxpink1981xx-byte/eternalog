@@ -1411,20 +1411,23 @@
   const charactersData = [
     {
       id: 'tomori', name: '燈', nameEn: 'TOMORI', color: 'var(--c-tomori)', icon: 'center-tomori.png',
+      bgImage: 'bg-tomori.png', bgPosition: 'center 42%',
       race: '女神', age: '不詳',
       like: '人間の営みを眺めること・あたたかい飲み物',
       dislike: '争いごと・誰かが泣くこと',
       origin: '天界で左遷され、緩い天界「ユールリ」に暮らしながらEternaLogに降臨している。天界の仰々しい衣装は着心地が悪いという理由で、人間界で見つけた赤いジャージを普段着にしている。ニャモに力を与えて以来弱体化しており、虹色の髪留めを手首に装着すると全盛期の力が約7分だけ戻る。'
     },
     {
-      id: 'nyamo', name: 'ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
+      id: 'nyamo', name: 'ニャーヤ＝モルフィア', alias: '通称：ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
+      bgImage: 'bg-nyamo.png', bgPosition: 'center 30%',
       race: '禁術キメラ', age: '不詳',
       like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
       dislike: '燈が無茶をすること',
       origin: '元々はキメラだが、天界で長年の平和な時間を過ごすうちに燈同様に見た目が変化し、今は普通の猫のような姿になっている。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
     },
     {
-      id: 'yomi', name: 'ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
+      id: 'yomi', name: '観月ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
+      bgImage: 'bg-yomi.png', bgPosition: 'center 25%',
       race: '人間', age: '秘密',
       like: '月夜・静かな夜更け',
       dislike: 'インチキ占い師・騒がしい場所',
@@ -1432,6 +1435,7 @@
     },
     {
       id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
+      bgImage: 'bg-rururu.png', bgPosition: 'center 20%',
       race: '魔族', age: '不詳',
       like: '紅茶・退屈しのぎ・見下ろすこと・ニャモ',
       dislike: '暇・へりくだること・平凡なトレンド',
@@ -1439,6 +1443,7 @@
     },
     {
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
+      bgImage: 'bg-shat.png', bgPosition: 'center 20%',
       race: '女神', age: '不詳(20歳前後)',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
@@ -1488,43 +1493,47 @@
 
     const backLink = document.createElement('div');
     backLink.textContent = '← CHARACTERS一覧に戻る';
-    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:18px;cursor:pointer;letter-spacing:.5px;';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:12px;cursor:pointer;letter-spacing:.5px;';
     backLink.onclick = showCharactersList;
     bodyEl.appendChild(backLink);
 
-    const card = document.createElement('div');
-    card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
-    card.innerHTML =
-      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">' +
-        '<img src="' + c.icon + '" alt="' + c.name + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid ' + c.color + ';flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
+    const panel = document.createElement('div');
+    panel.style.cssText = 'position:relative;overflow:hidden;height:640px;border-radius:14px;display:flex;flex-direction:column;opacity:0;transition:opacity .4s ease;';
+    panel.innerHTML =
+      '<img src="' + c.bgImage + '" alt="' + c.name + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:' + c.bgPosition + ';opacity:0.95;filter:contrast(1.1) saturate(1.15);" onerror="this.style.display=\'none\'">' +
+      '<div style="position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(15,15,25,0.42);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);">' +
+        '<img src="' + c.icon + '" alt="' + c.name + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid ' + c.color + ';flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
         '<div>' +
-          '<div style="font-size:24px;font-weight:800;line-height:1.2;">' + c.name + '</div>' +
-          '<div class="mono" style="font-size:11px;letter-spacing:1.5px;color:' + c.color + ';margin-top:2px;">' + c.nameEn + '</div>' +
+          '<div style="font-size:18px;font-weight:800;color:#fff;">' + c.name + '</div>' +
+          (c.alias ? '<div style="font-size:10px;color:#f3e8ff;margin-top:0;">' + c.alias + '</div>' : '') +
+          '<div class="mono" style="font-size:9px;letter-spacing:1.5px;color:#f3e8ff;margin-top:1px;">' + c.nameEn + '</div>' +
         '</div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px;">' +
-        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
-          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">RACE</div>' +
-          '<div style="font-size:12.5px;color:var(--ink);">' + c.race + '</div>' +
+      '<div style="position:relative;z-index:2;margin-top:auto;background:rgba(15,15,25,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:14px 16px;">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;">' +
+          '<div style="border-left:2px solid #fff;padding-left:9px;">' +
+            '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">RACE</div>' +
+            '<div style="font-size:12px;color:#fff;font-weight:500;">' + c.race + '</div>' +
+          '</div>' +
+          '<div style="border-left:2px solid #fff;padding-left:9px;">' +
+            '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">AGE</div>' +
+            '<div style="font-size:12px;color:#fff;font-weight:500;">' + c.age + '</div>' +
+          '</div>' +
+          '<div style="border-left:2px solid #fff;padding-left:9px;">' +
+            '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">LIKE</div>' +
+            '<div style="font-size:12px;color:#fff;font-weight:500;line-height:1.5;">' + c.like + '</div>' +
+          '</div>' +
+          '<div style="border-left:2px solid #fff;padding-left:9px;">' +
+            '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">DISLIKE</div>' +
+            '<div style="font-size:12px;color:#fff;font-weight:500;line-height:1.5;">' + c.dislike + '</div>' +
+          '</div>' +
         '</div>' +
-        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
-          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">AGE</div>' +
-          '<div style="font-size:12.5px;color:var(--ink);">' + c.age + '</div>' +
-        '</div>' +
-        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
-          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">LIKE</div>' +
-          '<div style="font-size:12.5px;color:var(--ink);line-height:1.5;">' + c.like + '</div>' +
-        '</div>' +
-        '<div style="border-left:2px solid ' + c.color + ';padding-left:9px;">' +
-          '<div class="mono" style="font-size:9px;letter-spacing:1px;color:' + c.color + ';margin-bottom:2px;">DISLIKE</div>' +
-          '<div style="font-size:12.5px;color:var(--ink);line-height:1.5;">' + c.dislike + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="font-size:13px;line-height:1.8;color:var(--ink);border-top:1px dashed var(--line);padding-top:14px;">' + c.origin + '</div>';
-    bodyEl.appendChild(card);
-    requestAnimationFrame(() => { card.style.opacity = '1'; });
+        '<div style="font-size:12.5px;line-height:1.75;color:#fff;font-weight:500;border-top:1px dashed rgba(255,255,255,.3);padding-top:12px;">' + c.origin + '</div>' +
+      '</div>';
+    bodyEl.appendChild(panel);
+    requestAnimationFrame(() => { panel.style.opacity = '1'; });
 
-    appendCloseButton(bodyEl);
+    appendCloseButton(bodyEl, showCharactersList);
   }
 
   // ===== TODAY（今日は何の日）：5キャラのローテーションで届ける =====
@@ -2378,12 +2387,12 @@
   }
 
   // 本文を読み終えたタイミングで、末尾に閉じるボタンを表示する
-  function appendCloseButton(bodyEl){
+  function appendCloseButton(bodyEl, onClick){
     if (bodyEl.querySelector('.reader-close-bottom')) return;
     const btn = document.createElement('button');
     btn.className = 'reader-close-bottom mono';
     btn.textContent = '✕ CLOSE';
-    btn.onclick = closeReader;
+    btn.onclick = onClick || closeReader;
     bodyEl.appendChild(btn);
   }
 
