@@ -750,6 +750,7 @@
   <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('RURURU');"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('GOODS');"><span class="di">🛍</span><span class="en">GOODS</span><span class="ja">グッズ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('SHATLAB');"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('CONTACT');"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></div>
@@ -1804,6 +1805,165 @@
     appendCloseButton(bodyEl);
   }
 
+  // ===== SHAT LAB：シャトの開発室（見た目のみ、コンテンツ設計は準備中） =====
+  // ===== SHAT LAB：一覧・詳細・いいね =====
+  let shatlabDataCache = [];
+  let shatlabFetched = false;
+  const SHATLAB_LIKE_THRESHOLD = 10000;
+
+  async function showShatLabPanel(){
+    document.getElementById('readerTag').textContent = '// SHAT LAB';
+    document.getElementById('readerSub').textContent = 'シャトの開発室（新しい順）';
+
+    const bodyEl = document.getElementById('readerBody');
+
+    if (!shatlabFetched) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING...</div>';
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'shatlab', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) shatlabDataCache = data.items;
+        }
+      } catch (e) {
+        console.warn('[EternaLog] shatlab fetch failed:', e);
+      }
+      shatlabFetched = true;
+    }
+
+    if (document.getElementById('readerTag').textContent !== '// SHAT LAB') return;
+
+    bodyEl.innerHTML = '';
+
+    const intro = document.createElement('div');
+    intro.style.cssText = 'font-size:12.5px;line-height:1.8;color:var(--ink);margin-bottom:16px;';
+    intro.textContent = 'わたし、ネットサーフィンしてて思いついたアイデアを、7日間かけて実際に形にしていくんだな。うまくいくかは分からないけど、失敗したらそれもネタにするから安心してほしいんだな。';
+    bodyEl.appendChild(intro);
+
+    if (!shatlabDataCache.length) {
+      const empty = document.createElement('div');
+      empty.className = 'reader-placeholder mono';
+      empty.textContent = '// まだ開発中の案件がありません';
+      bodyEl.appendChild(empty);
+      appendCloseButton(bodyEl);
+      return;
+    }
+
+    const listWrap = document.createElement('div');
+    [...shatlabDataCache].reverse().forEach((p, idx) => {
+      const progress = p.status === 'completed'
+        ? (p.failed ? '開発失敗…' : '完成！')
+        : (p.days.length) + '/7日目';
+      const card = document.createElement('div');
+      card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
+      card.innerHTML =
+        '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:var(--c-shat);font-weight:700;margin-bottom:4px;">SHATLAB_' + p.id + '</div>' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:3px;">' + escapeHtml(p.title) + '</div>' +
+        '<div style="font-size:10px;color:var(--ink-soft);">' + progress + (p.status === 'completed' && !p.failed ? ' ・ ❤️ ' + (p.likes || 0) : '') + '</div>';
+      card.onclick = () => showShatLabDetail(p.id);
+      listWrap.appendChild(card);
+      setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
+    });
+    bodyEl.appendChild(listWrap);
+    appendCloseButton(bodyEl, showShatLabPanel);
+  }
+
+  function showShatLabDetail(projectId){
+    const p = shatlabDataCache.find(x => x.id === projectId);
+    if (!p) return;
+
+    document.getElementById('readerTag').textContent = '// SHAT LAB';
+    document.getElementById('readerSub').textContent = 'SHATLAB_' + p.id + ' ・ ' + p.title;
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const backLink = document.createElement('div');
+    backLink.textContent = '← 一覧に戻る';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:16px;cursor:pointer;letter-spacing:.5px;';
+    backLink.onclick = showShatLabPanel;
+    bodyEl.appendChild(backLink);
+
+    const convWrap = document.createElement('div');
+    convWrap.style.marginBottom = '18px';
+    p.days.forEach(d => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;';
+      row.innerHTML =
+        '<img src="char-shat.png" alt="シャト" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid var(--c-shat);flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="max-width:82%;">' +
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:var(--c-shat);font-weight:700;margin-bottom:3px;">' + d.day + '日目 ・ ' + escapeHtml(d.phase) + '</div>' +
+          '<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + escapeHtml(d.text) + '</div>' +
+        '</div>';
+      convWrap.appendChild(row);
+    });
+    bodyEl.appendChild(convWrap);
+
+    if (p.status === 'completed' && p.appHTML) {
+      const finaleWrap = document.createElement('div');
+      finaleWrap.style.cssText = 'margin-bottom:16px;';
+      finaleWrap.innerHTML =
+        '<div style="font-size:13px;line-height:1.8;color:var(--ink);border-left:2px solid var(--c-shat);padding-left:12px;margin-bottom:14px;">' + escapeHtml(p.finaleComment || '') + '</div>' +
+        '<iframe srcdoc="' + p.appHTML.replace(/"/g, '&quot;') + '" sandbox="allow-scripts" style="width:100%;height:280px;border:1px solid var(--line);border-radius:12px;background:#fff;"></iframe>';
+      bodyEl.appendChild(finaleWrap);
+
+      const likeWrap = document.createElement('div');
+      likeWrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
+      const liked = localStorage.getItem('shatlab_liked_' + p.id) === '1';
+      likeWrap.innerHTML =
+        '<button id="shatlabLikeBtn" style="padding:9px 18px;border-radius:20px;border:1px solid var(--c-shat);' +
+          'background:' + (liked ? 'var(--c-shat)' : 'transparent') + ';color:' + (liked ? '#fff' : 'var(--c-shat)') + ';' +
+          'font-family:\'Orbitron\',sans-serif;font-size:11px;font-weight:700;cursor:pointer;" ' + (liked ? 'disabled' : '') + '>' +
+          (liked ? '❤️ いいね済み' : '🤍 いいね') +
+        '</button>' +
+        '<span id="shatlabLikeCount" class="mono" style="font-size:11px;color:var(--ink-soft);">' + (p.likes || 0) + ' 件のいいね</span>';
+      bodyEl.appendChild(likeWrap);
+
+      if ((p.likes || 0) >= SHATLAB_LIKE_THRESHOLD) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--accent-glow);font-size:11.5px;color:var(--ink);';
+        badge.textContent = '🌟 本格開発するかも？？(現実的なものに限る)';
+        bodyEl.appendChild(badge);
+      }
+
+      const likeBtn = likeWrap.querySelector('#shatlabLikeBtn');
+      if (!liked) {
+        likeBtn.onclick = async () => {
+          likeBtn.disabled = true;
+          try {
+            const res = await fetch(EARTH_SIGNAL_URL + 'shatlab-like?id=' + encodeURIComponent(p.id), { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (data && typeof data.likes === 'number') {
+              p.likes = data.likes;
+              localStorage.setItem('shatlab_liked_' + p.id, '1');
+              likeBtn.textContent = '❤️ いいね済み';
+              likeBtn.style.background = 'var(--c-shat)';
+              likeBtn.style.color = '#fff';
+              document.getElementById('shatlabLikeCount').textContent = data.likes + ' 件のいいね';
+            }
+          } catch (e) {
+            console.warn('[EternaLog] shatlab like failed:', e);
+            likeBtn.disabled = false;
+          }
+        };
+      }
+    } else if (p.status === 'completed' && p.failed) {
+      const failWrap = document.createElement('div');
+      failWrap.style.cssText = 'text-align:center;padding:18px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);';
+      failWrap.innerHTML =
+        '<div style="font-size:26px;margin-bottom:8px;">💦</div>' +
+        '<div style="font-size:13px;line-height:1.8;color:var(--ink);">今回は開発に失敗したっぽいんだな…。うまく形にならなかったから、また次のネタで頑張るんだな!</div>';
+      bodyEl.appendChild(failWrap);
+    } else {
+      const inProgress = document.createElement('div');
+      inProgress.className = 'reader-placeholder mono';
+      inProgress.textContent = '// まだ開発中です（' + p.days.length + '/7日目）';
+      bodyEl.appendChild(inProgress);
+    }
+
+    appendCloseButton(bodyEl, showShatLabPanel);
+  }
+
   // ===== YOMI：観月ヨミの週刊12星座ランキング（LogiGrainの実計算に基づく） =====
   function formatWeekRange(weekStart, weekEnd){
     if (!weekStart || !weekEnd) return '';
@@ -1981,6 +2141,11 @@
 
     if (name === 'GOODS') {
       showGoodsPanel();
+      return;
+    }
+
+    if (name === 'SHATLAB') {
+      showShatLabPanel();
       return;
     }
 
