@@ -356,33 +356,19 @@
   .bg-terminal .term-body .ok{ color:rgba(80,255,180,0.9); }
   .bg-terminal .term-body .warn{ color:rgba(255,140,210,0.9); }
 
-  /* ===== PILL NAV (2x2) ===== */
-  .pillwrap{ padding:16px 16px 4px; display:grid;grid-template-columns:1fr 1fr;gap:11px; }
-  .pill{
-    position:relative;overflow:hidden;
-    display:flex;align-items:center;gap:11px;
-    padding:14px 14px;
-    border-radius:16px;
-    color:#fff;
-    box-shadow:0 8px 20px rgba(20,40,80,.13);
+  /* ===== CHARACTER NAV（キャラミニアイコン列、各プロフィールへ直接ジャンプ） ===== */
+  .charnav{ padding:16px 16px 4px; display:flex; justify-content:space-between; gap:6px; }
+  .charnav-item{
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    flex:1; cursor:pointer;
+  }
+  .charnav-item img{
+    width:52px; height:52px; border-radius:50%; object-fit:cover;
+    border:2px solid; box-shadow:0 4px 12px rgba(20,40,80,.15);
     transition:transform .12s;
   }
-  .pill:active{ transform:scale(.97); }
-  .pill .pi{
-    width:34px;height:34px;flex-shrink:0;
-    background:rgba(255,255,255,.22);
-    border-radius:10px;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .pill .pi svg{ width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2; }
-  .pill .pt{ display:flex;flex-direction:column;line-height:1.15; }
-  .pill .pt .en{ font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px; }
-  .pill .pt .ja{ font-size:9px;opacity:.9;margin-top:2px; }
-  .pill .code{ position:absolute;top:7px;right:9px;font-family:'Orbitron',sans-serif;font-size:8px;opacity:.55; }
-  .pill.signal{ background:linear-gradient(135deg,#1fb6d8,#0678a8); }
-  .pill.logs{ background:linear-gradient(135deg,#d24fe0,#8f1bb0); }
-  .pill.chars{ background:linear-gradient(135deg,#ff9d3c,#e06a10); }
-  .pill.yomi{ background:linear-gradient(135deg,#9a6bff,#5b21c4); }
+  .charnav-item:active img{ transform:scale(.92); }
+  .charnav-label{ font-size:9.5px; font-weight:700; letter-spacing:.3px; }
 
   /* ===== SECTION LABEL ===== */
   .sec-label{
@@ -440,6 +426,12 @@
   .ditem .di{ width:22px;text-align:center;color:var(--accent); }
   .ditem .en{ font-family:'Orbitron',sans-serif;font-size:12px;font-weight:600;letter-spacing:.5px; }
   .ditem .ja{ font-size:9px;color:var(--ink-soft);margin-left:auto; }
+  .dsection{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px;
+    color:var(--accent); font-weight:700;
+    margin:18px 4px 4px; padding-top:10px;
+  }
+  .dsection:first-of-type{ margin-top:0; padding-top:0; }
 
   .stub-note{
     margin:14px 16px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;
@@ -659,26 +651,26 @@
   </section>
 
   <!-- PILL NAV -->
-  <nav class="pillwrap">
-    <div class="pill signal" onclick="stub('SIGNAL')">
-      <span class="code">01</span>
-      <span class="pi"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 018-8"/><path d="M4 12a8 8 0 008 8"/><circle cx="12" cy="12" r="2" fill="#fff" stroke="none"/><path d="M2 12a10 10 0 0110-10"/></svg></span>
-      <span class="pt"><span class="en">SIGNAL</span><span class="ja">今日のニュース</span></span>
+  <nav class="charnav">
+    <div class="charnav-item" onclick="openCharacterProfile('tomori')">
+      <img src="center-tomori.png" alt="燈" style="border-color:var(--c-tomori);" onerror="this.style.visibility='hidden'">
+      <span class="charnav-label" style="color:var(--c-tomori);">燈</span>
     </div>
-    <div class="pill logs" onclick="stub('LOGS')">
-      <span class="code">02</span>
-      <span class="pi"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3z"/></svg></span>
-      <span class="pt"><span class="en">LOGS</span><span class="ja">雑談を読む</span></span>
+    <div class="charnav-item" onclick="openCharacterProfile('nyamo')">
+      <img src="char-nyamo.png" alt="ニャモ" style="border-color:var(--c-nyamo);" onerror="this.style.visibility='hidden'">
+      <span class="charnav-label" style="color:var(--c-nyamo);">ニャモ</span>
     </div>
-    <div class="pill chars" onclick="stub('CHARACTERS')">
-      <span class="code">03</span>
-      <span class="pi"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="8" r="2.2"/><path d="M15.5 14.2c2.8.4 4.5 2.8 4.5 5.8"/></svg></span>
-      <span class="pt"><span class="en">CHARACTERS</span><span class="ja">5人を知る</span></span>
+    <div class="charnav-item" onclick="openCharacterProfile('yomi')">
+      <img src="char-yomi.png" alt="ヨミ" style="border-color:var(--c-yomi);" onerror="this.style.visibility='hidden'">
+      <span class="charnav-label" style="color:var(--c-yomi);">ヨミ</span>
     </div>
-    <div class="pill yomi" onclick="stub('YOMI')">
-      <span class="code">04</span>
-      <span class="pi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/></svg></span>
-      <span class="pt"><span class="en">YOMI</span><span class="ja">占いを視る</span></span>
+    <div class="charnav-item" onclick="openCharacterProfile('rururu')">
+      <img src="char-rururu.png" alt="ルルル" style="border-color:var(--c-rururu);" onerror="this.style.visibility='hidden'">
+      <span class="charnav-label" style="color:var(--c-rururu);">ルルル</span>
+    </div>
+    <div class="charnav-item" onclick="openCharacterProfile('shat')">
+      <img src="char-shat.png" alt="シャト" style="border-color:var(--c-shat);" onerror="this.style.visibility='hidden'">
+      <span class="charnav-label" style="color:var(--c-shat);">シャト</span>
     </div>
   </nav>
 
@@ -744,16 +736,25 @@
 <aside class="drawer" id="drawer">
   <div class="dh"><span class="t mono">// MENU</span><span class="x mono" onclick="closeDrawer()">✕ CLOSE</span></div>
   <div class="ditem" onclick="closeDrawer(); scrollToTop();"><span class="di">◆</span><span class="en">TOP</span><span class="ja">トップ</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('CHARACTERS');"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
+
+  <div class="dsection">// CONTENTS</div>
+  <div class="ditem" onclick="closeDrawer(); stub('SIGNAL');"><span class="di">◇</span><span class="en">SIGNAL</span><span class="ja">受信記録</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('LOGS');"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('RURURU');"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('ESSAY');"><span class="di">✒</span><span class="en">ESSAY</span><span class="ja">燈の週刊エッセイ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('今日は何の日');"><span class="di">◇</span><span class="en">TODAY</span><span class="ja">今日は何の日</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('SHATLAB');"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></div>
+
+  <div class="dsection">// CHARACTER & TOOLS</div>
+  <div class="ditem" onclick="closeDrawer(); stub('CHARACTERS');"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('YOMI');"><span class="di">◇</span><span class="en">YOMI</span><span class="ja">占い</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('RURURU');"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('GOODS');"><span class="di">🛍</span><span class="en">GOODS</span><span class="ja">グッズ</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('SHATLAB');"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></div>
+
+  <div class="dsection">// SITE</div>
   <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('GOODS');"><span class="di">🛍</span><span class="en">GOODS</span><span class="ja">グッズ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('CONTACT');"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('PRIVACY');"><span class="di">🔒</span><span class="en">PRIVACY</span><span class="ja">プライバシーポリシー</span></div>
 </aside>
 
@@ -1964,6 +1965,44 @@
     appendCloseButton(bodyEl, showShatLabPanel);
   }
 
+  // ===== ESSAY：燈の週刊エッセイ =====
+  async function showTomoriEssayPanel(){
+    document.getElementById('readerTag').textContent = '// ESSAY';
+    document.getElementById('readerSub').textContent = '燈の週刊エッセイ';
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '<div class="reader-placeholder mono">// 書きあぐねています...</div>';
+
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'tomori-essay', { cache: 'no-store' });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const data = await res.json();
+      if (!data || !data.body) throw new Error('empty essay');
+
+      if (document.getElementById('readerTag').textContent !== '// ESSAY') return;
+
+      bodyEl.innerHTML = '';
+      const card = document.createElement('div');
+      card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+          '<img src="center-tomori.png" alt="燈" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--c-tomori);flex-shrink:0;" onerror="this.style.display=\'none\'">' +
+          '<span style="font-size:13px;font-weight:700;color:var(--c-tomori);">燈</span>' +
+        '</div>' +
+        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:16px;">' + escapeHtml(data.weekKey || '') + '週</div>' +
+        '<div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:14px;line-height:1.4;">' + escapeHtml(data.title) + '</div>' +
+        '<div style="font-size:13.5px;line-height:2;color:var(--ink);white-space:pre-wrap;">' + escapeHtml(data.body) + '</div>';
+      bodyEl.appendChild(card);
+      requestAnimationFrame(() => { card.style.opacity = '1'; });
+
+      appendCloseButton(bodyEl);
+    } catch (e) {
+      console.warn('[EternaLog] tomori essay fetch failed:', e);
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// 取得に失敗しました。少し時間をおいて開き直してみてください</div>';
+      appendCloseButton(bodyEl);
+    }
+  }
+
   // ===== YOMI：観月ヨミの週刊12星座ランキング（LogiGrainの実計算に基づく） =====
   function formatWeekRange(weekStart, weekEnd){
     if (!weekStart || !weekEnd) return '';
@@ -2108,6 +2147,24 @@
     setTimeout(() => openReaderPanel(name), 1550);
   }
 
+  // ピルナビのミニアイコンから、特定キャラのプロフィールに直接ジャンプする
+  function openCharacterProfile(charId){
+    const c = charactersData.find(x => x.id === charId);
+    const label = c ? c.name : 'CHARACTERS';
+    if (window.heroTextboxReact) window.heroTextboxReact('CHARACTERS');
+    if (window.tomoriStartSpeak) window.tomoriStartSpeak();
+    setTimeout(() => {
+      document.getElementById('readerBack').classList.add('show');
+      const reader = document.getElementById('reader');
+      reader.classList.add('show');
+      reader.classList.remove('flash');
+      void reader.getBoundingClientRect();
+      reader.classList.add('flash');
+      clearTimeout(contentTypeTimer);
+      showCharacterDetail(charId);
+    }, 1550);
+  }
+
   function openReaderPanel(name){
     document.getElementById('readerBack').classList.add('show');
     const reader = document.getElementById('reader');
@@ -2146,6 +2203,11 @@
 
     if (name === 'SHATLAB') {
       showShatLabPanel();
+      return;
+    }
+
+    if (name === 'ESSAY') {
+      showTomoriEssayPanel();
       return;
     }
 
