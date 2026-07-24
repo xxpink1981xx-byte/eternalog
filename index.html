@@ -362,12 +362,32 @@
     display:flex; flex-direction:column; align-items:center; gap:5px;
     flex:1; cursor:pointer;
   }
-  .charnav-item img{
+  .charnav-icon-wrap{
+    position:relative; width:62px; height:62px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .charnav-icon-wrap img{
     width:52px; height:52px; border-radius:50%; object-fit:cover;
     border:2px solid; box-shadow:0 4px 12px rgba(20,40,80,.15);
-    transition:transform .12s;
+    transition:transform .12s; position:relative; z-index:2;
   }
-  .charnav-item:active img{ transform:scale(.92); }
+  .charnav-item:active .charnav-icon-wrap img{ transform:scale(.92); }
+
+  /* 回転する破線リング */
+  .charnav-ring{
+    position:absolute; inset:0; border-radius:50%;
+    border:1.5px dashed currentColor; opacity:.55;
+    animation:charnavSpin 9s linear infinite;
+  }
+  @keyframes charnavSpin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
+  /* 四隅のコーナーブラケット */
+  .charnav-corner{ position:absolute; width:8px; height:8px; border-color:currentColor; opacity:.85; }
+  .charnav-corner.tl{ top:-2px; left:-2px; border-top:1.5px solid; border-left:1.5px solid; }
+  .charnav-corner.tr{ top:-2px; right:-2px; border-top:1.5px solid; border-right:1.5px solid; }
+  .charnav-corner.bl{ bottom:-2px; left:-2px; border-bottom:1.5px solid; border-left:1.5px solid; }
+  .charnav-corner.br{ bottom:-2px; right:-2px; border-bottom:1.5px solid; border-right:1.5px solid; }
+
   .charnav-label{ font-size:9.5px; font-weight:700; letter-spacing:.3px; }
 
   /* ===== SECTION LABEL ===== */
@@ -654,23 +674,48 @@
   <div class="sec-label mono">// CHARACTERS</div>
   <nav class="charnav">
     <div class="charnav-item" onclick="openCharacterProfile('tomori')">
-      <img src="center-tomori.png" alt="燈" style="border-color:var(--c-tomori);" onerror="this.style.visibility='hidden'">
+      <div class="charnav-icon-wrap" style="color:var(--c-tomori);">
+        <span class="charnav-ring"></span>
+        <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
+        <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
+        <img src="center-tomori.png" alt="燈" style="border-color:var(--c-tomori);" onerror="this.style.visibility='hidden'">
+      </div>
       <span class="charnav-label" style="color:var(--c-tomori);">燈</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('nyamo')">
-      <img src="char-nyamo.png" alt="ニャモ" style="border-color:var(--c-nyamo);" onerror="this.style.visibility='hidden'">
+      <div class="charnav-icon-wrap" style="color:var(--c-nyamo);">
+        <span class="charnav-ring"></span>
+        <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
+        <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
+        <img src="char-nyamo.png" alt="ニャモ" style="border-color:var(--c-nyamo);" onerror="this.style.visibility='hidden'">
+      </div>
       <span class="charnav-label" style="color:var(--c-nyamo);">ニャモ</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('yomi')">
-      <img src="char-yomi.png" alt="ヨミ" style="border-color:var(--c-yomi);" onerror="this.style.visibility='hidden'">
+      <div class="charnav-icon-wrap" style="color:var(--c-yomi);">
+        <span class="charnav-ring"></span>
+        <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
+        <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
+        <img src="char-yomi.png" alt="ヨミ" style="border-color:var(--c-yomi);" onerror="this.style.visibility='hidden'">
+      </div>
       <span class="charnav-label" style="color:var(--c-yomi);">ヨミ</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('rururu')">
-      <img src="char-rururu.png" alt="ルルル" style="border-color:var(--c-rururu);" onerror="this.style.visibility='hidden'">
+      <div class="charnav-icon-wrap" style="color:var(--c-rururu);">
+        <span class="charnav-ring"></span>
+        <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
+        <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
+        <img src="char-rururu.png" alt="ルルル" style="border-color:var(--c-rururu);" onerror="this.style.visibility='hidden'">
+      </div>
       <span class="charnav-label" style="color:var(--c-rururu);">ルルル</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('shat')">
-      <img src="char-shat.png" alt="シャト" style="border-color:var(--c-shat);" onerror="this.style.visibility='hidden'">
+      <div class="charnav-icon-wrap" style="color:var(--c-shat);">
+        <span class="charnav-ring"></span>
+        <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
+        <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
+        <img src="char-shat.png" alt="シャト" style="border-color:var(--c-shat);" onerror="this.style.visibility='hidden'">
+      </div>
       <span class="charnav-label" style="color:var(--c-shat);">シャト</span>
     </div>
   </nav>
