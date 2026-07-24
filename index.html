@@ -651,6 +651,7 @@
   </section>
 
   <!-- PILL NAV -->
+  <div class="sec-label mono">// CHARACTERS</div>
   <nav class="charnav">
     <div class="charnav-item" onclick="openCharacterProfile('tomori')">
       <img src="center-tomori.png" alt="燈" style="border-color:var(--c-tomori);" onerror="this.style.visibility='hidden'">
@@ -1414,6 +1415,7 @@
     {
       id: 'tomori', name: '燈', nameEn: 'TOMORI', color: 'var(--c-tomori)', icon: 'center-tomori.png',
       bgImage: 'bg-tomori.png', bgPosition: 'center 42%',
+      role: 'エッセイ担当',
       race: '女神', age: '不詳',
       like: '人間の営みを眺めること・あたたかい飲み物',
       dislike: '争いごと・誰かが泣くこと',
@@ -1422,6 +1424,7 @@
     {
       id: 'nyamo', name: 'ニャーヤ＝モルフィア', alias: '通称：ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
       bgImage: 'bg-nyamo.png', bgPosition: 'center 30%',
+      role: 'ツッコミ担当',
       race: '禁術キメラ', age: '不詳',
       like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
       dislike: '燈が無茶をすること',
@@ -1430,6 +1433,7 @@
     {
       id: 'yomi', name: '観月ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
       bgImage: 'bg-yomi.png', bgPosition: 'center 25%',
+      role: '占い担当',
       race: '人間', age: '秘密',
       like: '月夜・静かな夜更け',
       dislike: 'インチキ占い師・騒がしい場所',
@@ -1438,6 +1442,7 @@
     {
       id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
       bgImage: 'bg-rururu.png', bgPosition: 'center 20%',
+      role: '毒舌担当',
       race: '魔族', age: '不詳',
       like: '紅茶・退屈しのぎ・見下ろすこと・ニャモ',
       dislike: '暇・へりくだること・平凡なトレンド',
@@ -1446,6 +1451,7 @@
     {
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
       bgImage: 'bg-shat.png', bgPosition: 'center 20%',
+      role: '開発担当',
       race: '女神', age: '不詳(20歳前後)',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
@@ -1506,8 +1512,11 @@
       '<div style="position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(15,15,25,0.42);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);">' +
         '<img src="' + c.icon + '" alt="' + c.name + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid ' + c.color + ';flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
         '<div>' +
-          '<div style="font-size:18px;font-weight:800;color:#fff;">' + c.name + '</div>' +
-          (c.alias ? '<div style="font-size:10px;color:#f3e8ff;margin-top:0;">' + c.alias + '</div>' : '') +
+          '<div style="display:flex;align-items:center;gap:6px;">' +
+            '<span style="font-size:18px;font-weight:800;color:#fff;">' + c.name + '</span>' +
+            (c.role ? '<span class="mono" style="font-size:8px;letter-spacing:.5px;color:#fff;background:' + c.color + ';padding:2px 7px;border-radius:8px;">' + c.role + '</span>' : '') +
+          '</div>' +
+          (c.alias ? '<div style="font-size:10px;color:#f3e8ff;margin-top:1px;">' + c.alias + '</div>' : '') +
           '<div class="mono" style="font-size:9px;letter-spacing:1.5px;color:#f3e8ff;margin-top:1px;">' + c.nameEn + '</div>' +
         '</div>' +
       '</div>' +
