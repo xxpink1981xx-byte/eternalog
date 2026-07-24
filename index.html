@@ -365,6 +365,7 @@
   .charnav-icon-wrap{
     position:relative; width:62px; height:62px;
     display:flex; align-items:center; justify-content:center;
+    border-radius:16px;
   }
   .charnav-icon-wrap img{
     width:52px; height:52px; border-radius:50%; object-fit:cover;
@@ -389,6 +390,11 @@
   .charnav-corner.br{ bottom:-2px; right:-2px; border-bottom:1.5px solid; border-right:1.5px solid; }
 
   .charnav-label{ font-size:9.5px; font-weight:700; letter-spacing:.3px; }
+  .charnav-icon-wrap.tomori{ background:linear-gradient(150deg,#e2f6ff,#b8ecf7); }
+  .charnav-icon-wrap.nyamo{ background:linear-gradient(150deg,#fbecfd,#f3c9fa); }
+  .charnav-icon-wrap.yomi{ background:linear-gradient(150deg,#f0e7fd,#d8c2fa); }
+  .charnav-icon-wrap.rururu{ background:linear-gradient(150deg,#ffe4ea,#ffc0cf); }
+  .charnav-icon-wrap.shat{ background:linear-gradient(150deg,#fff3d9,#ffe1a3); }
 
   /* ===== SECTION LABEL ===== */
   .sec-label{
@@ -674,7 +680,7 @@
   <div class="sec-label mono">// CHARACTERS</div>
   <nav class="charnav">
     <div class="charnav-item" onclick="openCharacterProfile('tomori')">
-      <div class="charnav-icon-wrap" style="color:var(--c-tomori);">
+      <div class="charnav-icon-wrap tomori" style="color:var(--c-tomori);">
         <span class="charnav-ring"></span>
         <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
         <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
@@ -683,7 +689,7 @@
       <span class="charnav-label" style="color:var(--c-tomori);">燈</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('nyamo')">
-      <div class="charnav-icon-wrap" style="color:var(--c-nyamo);">
+      <div class="charnav-icon-wrap nyamo" style="color:var(--c-nyamo);">
         <span class="charnav-ring"></span>
         <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
         <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
@@ -692,7 +698,7 @@
       <span class="charnav-label" style="color:var(--c-nyamo);">ニャモ</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('yomi')">
-      <div class="charnav-icon-wrap" style="color:var(--c-yomi);">
+      <div class="charnav-icon-wrap yomi" style="color:var(--c-yomi);">
         <span class="charnav-ring"></span>
         <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
         <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
@@ -701,7 +707,7 @@
       <span class="charnav-label" style="color:var(--c-yomi);">ヨミ</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('rururu')">
-      <div class="charnav-icon-wrap" style="color:var(--c-rururu);">
+      <div class="charnav-icon-wrap rururu" style="color:var(--c-rururu);">
         <span class="charnav-ring"></span>
         <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
         <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
@@ -710,7 +716,7 @@
       <span class="charnav-label" style="color:var(--c-rururu);">ルルル</span>
     </div>
     <div class="charnav-item" onclick="openCharacterProfile('shat')">
-      <div class="charnav-icon-wrap" style="color:var(--c-shat);">
+      <div class="charnav-icon-wrap shat" style="color:var(--c-shat);">
         <span class="charnav-ring"></span>
         <span class="charnav-corner tl"></span><span class="charnav-corner tr"></span>
         <span class="charnav-corner bl"></span><span class="charnav-corner br"></span>
