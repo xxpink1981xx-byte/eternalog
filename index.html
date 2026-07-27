@@ -850,6 +850,9 @@
 <div class="drawer-back" id="drawerBack" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer">
   <div class="dh"><span class="t mono">// MENU</span><span class="x mono" onclick="closeDrawer()">✕ CLOSE</span></div>
+  <div class="ditem" onclick="openTranslatedSite()" style="background:var(--accent-glow);border-radius:8px;margin-bottom:6px;">
+    <span class="di">🌐</span><span class="en">English</span><span class="ja">Translate this site</span>
+  </div>
   <div class="ditem" onclick="closeDrawer(); scrollToTop();"><span class="di">◆</span><span class="en">TOP</span><span class="ja">トップ</span></div>
 
   <div class="dsection">// CONTENTS</div>
@@ -877,6 +880,10 @@
 <script>
   function openDrawer(){ document.getElementById('drawer').classList.add('show'); document.getElementById('drawerBack').classList.add('show'); }
   function scrollToTop(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function openTranslatedSite(){
+    const url = 'https://translate.google.com/translate?sl=ja&tl=en&u=' + encodeURIComponent(window.location.href);
+    window.open(url, '_blank');
+  }
   // ===== BOOT SEQUENCE（起動演出） =====
   // sessionStorage: タブ/ブラウザを閉じてから再アクセスすると再表示される。
   // 同じセッション内でページ内を移動しているだけなら表示しない。
