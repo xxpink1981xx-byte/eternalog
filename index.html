@@ -500,6 +500,7 @@
     background:#fff;box-shadow:-12px 0 44px rgba(0,0,0,.16);
     transform:translateX(100%);transition:transform .38s cubic-bezier(.19,1,.22,1);
     z-index:95;padding:22px 20px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
   .drawer.show{ transform:translateX(0); }
   .drawer .dh{ display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line); }
@@ -1738,6 +1739,7 @@
     bodyEl.appendChild(panel);
     requestAnimationFrame(() => { panel.style.opacity = '1'; });
 
+    renderLikeButton('character', charId, bodyEl);
     appendCloseButton(bodyEl, showCharactersList);
   }
 
@@ -1747,6 +1749,54 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+  }
+
+  // ===== 汎用いいねボタン：LOGS・RURURU・エッセイ・CHARACTERSプロフィール共通 =====
+  async function renderLikeButton(type, id, containerEl){
+    const likedKey = 'liked_' + type + '_' + id;
+    const alreadyLiked = localStorage.getItem(likedKey) === '1';
+
+    let count = 0;
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'content-likes?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        count = data.likes || 0;
+      }
+    } catch (e) { /* 取得失敗時は0のまま表示 */ }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:16px;';
+    wrap.innerHTML =
+      '<button class="like-btn" style="padding:8px 16px;border-radius:20px;border:1px solid var(--accent);' +
+        'background:' + (alreadyLiked ? 'var(--accent)' : 'transparent') + ';color:' + (alreadyLiked ? '#fff' : 'var(--accent)') + ';' +
+        'font-family:\'Orbitron\',sans-serif;font-size:11px;font-weight:700;cursor:pointer;" ' + (alreadyLiked ? 'disabled' : '') + '>' +
+        (alreadyLiked ? '❤️ いいね済み' : '🤍 いいね') +
+      '</button>' +
+      '<span class="like-count mono" style="font-size:11px;color:var(--ink-soft);">' + count + ' 件のいいね</span>';
+    containerEl.appendChild(wrap);
+
+    if (!alreadyLiked) {
+      const btn = wrap.querySelector('.like-btn');
+      const countEl = wrap.querySelector('.like-count');
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          const res = await fetch(EARTH_SIGNAL_URL + 'content-like?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id), { cache: 'no-store' });
+          const data = await res.json();
+          if (data && typeof data.likes === 'number') {
+            localStorage.setItem(likedKey, '1');
+            btn.textContent = '❤️ いいね済み';
+            btn.style.background = 'var(--accent)';
+            btn.style.color = '#fff';
+            countEl.textContent = data.likes + ' 件のいいね';
+          }
+        } catch (e) {
+          console.warn('[EternaLog] like failed:', e);
+          btn.disabled = false;
+        }
+      };
+    }
   }
 
   const todayVoices = [
@@ -2198,6 +2248,7 @@
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
+      renderLikeButton('essay', data.weekKey, bodyEl);
       appendCloseButton(bodyEl);
     } catch (e) {
       console.warn('[EternaLog] tomori essay fetch failed:', e);
@@ -2618,6 +2669,7 @@
     let idx = 0;
     function showNext(){
       if (idx >= log.conversation.length){
+        renderLikeButton('logs', log.id, bodyEl);
         appendCloseButton(bodyEl);
         return;
       }
@@ -2756,6 +2808,7 @@
     let idx = 0;
     function showNext(){
       if (idx >= col.conversation.length){
+        renderLikeButton('rururu', col.id, bodyEl);
         appendCloseButton(bodyEl);
         return;
       }
