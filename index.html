@@ -863,6 +863,7 @@
   <div class="ditem" onclick="closeDrawer(); stub('ESSAY');"><span class="di">✒</span><span class="en">ESSAY</span><span class="ja">燈の週刊エッセイ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('今日は何の日');"><span class="di">◇</span><span class="en">TODAY</span><span class="ja">今日は何の日</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SHATLAB');"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('MEETING');"><span class="di">🪑</span><span class="en">MEETING</span><span class="ja">会議室</span></div>
 
   <div class="dsection">// CHARACTER & TOOLS</div>
   <div class="ditem" onclick="closeDrawer(); stub('CHARACTERS');"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
@@ -1647,7 +1648,7 @@
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
       bgImage: 'bg-shat.png', bgPosition: 'center 20%',
       role: '開発担当',
-      race: '女神', age: '不詳(20歳前後)',
+      race: '女神', age: '不詳',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
       origin: '記録と星を司る女神セシャトの末裔。誰も知らない秘境のオアシス「ワーハ」で、衛星Wifiを使い人間界を観測している。ネットで見つけた着想をもとに、EternaLog内でアプリを発案・制作している。'
@@ -2218,6 +2219,146 @@
     appendCloseButton(bodyEl, showShatLabPanel);
   }
 
+  // ===== MEETING：全員参加の月例会（会議室） =====
+  let meetingDataCache = [];
+  let meetingFetched = false;
+  let meetingBubbleTimer = null;
+
+  async function showMeetingPanel(){
+    document.getElementById('readerTag').textContent = '// MEETING';
+    document.getElementById('readerSub').textContent = '会議室（月例会、新しい順）';
+
+    const bodyEl = document.getElementById('readerBody');
+
+    if (!meetingFetched) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING...</div>';
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'meeting', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) meetingDataCache = data.items;
+        }
+      } catch (e) {
+        console.warn('[EternaLog] meeting fetch failed:', e);
+      }
+      meetingFetched = true;
+    }
+
+    if (document.getElementById('readerTag').textContent !== '// MEETING') return;
+
+    bodyEl.innerHTML = '';
+
+    const intro = document.createElement('div');
+    intro.style.cssText = 'font-size:12.5px;line-height:1.8;color:var(--ink);margin-bottom:16px;';
+    intro.textContent = '月に一度、5人全員が集まって、今月の活動報告と、これからやってみたい新しい企画を持ち寄る定例会です。';
+    bodyEl.appendChild(intro);
+
+    if (!meetingDataCache.length) {
+      const empty = document.createElement('div');
+      empty.className = 'reader-placeholder mono';
+      empty.textContent = '// まだ会議が開かれていません';
+      bodyEl.appendChild(empty);
+      appendCloseButton(bodyEl);
+      return;
+    }
+
+    const listWrap = document.createElement('div');
+    [...meetingDataCache].reverse().forEach((m, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
+      card.innerHTML =
+        '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:var(--accent);font-weight:700;margin-bottom:4px;">MEETING_' + m.id + '</div>' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:3px;">' + escapeHtml(m.title) + '</div>' +
+        '<div style="font-size:10px;color:var(--ink-soft);">' + escapeHtml(m.monthLabel) + '</div>';
+      card.onclick = () => showMeetingDetail(m.id);
+      listWrap.appendChild(card);
+      setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
+    });
+    bodyEl.appendChild(listWrap);
+    appendCloseButton(bodyEl, showMeetingPanel);
+  }
+
+  function showMeetingDetail(meetingId){
+    const m = meetingDataCache.find(x => x.id === meetingId);
+    if (!m) return;
+
+    clearTimeout(meetingBubbleTimer);
+    document.getElementById('readerTag').textContent = '// MEETING';
+    document.getElementById('readerSub').textContent = 'MEETING_' + m.id + ' ・ ' + m.monthLabel;
+
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '';
+
+    const backLink = document.createElement('div');
+    backLink.textContent = '← 一覧に戻る';
+    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:16px;cursor:pointer;letter-spacing:.5px;';
+    backLink.onclick = showMeetingPanel;
+    bodyEl.appendChild(backLink);
+
+    const convWrap = document.createElement('div');
+    bodyEl.appendChild(convWrap);
+
+    // 5人が参加するグループ会話なので、左右2分割ではなく、
+    // 全員左寄せ＋アイコン＋名前ラベルのグループチャット形式で表示する。
+    function getTypingDuration(str){
+      const base = 350, perChar = 30, max = 2200;
+      return Math.min(base + str.length * perChar, max);
+    }
+
+    function showTypingIndicator(speaker){
+      const meta = bubbleMeta[speaker] || bubbleMeta.tomori;
+      const row = document.createElement('div');
+      row.id = 'meetingTypingIndicator';
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:' + meta.nameColor + ';">RECEIVING</span>' +
+          '<span style="display:flex;align-items:flex-end;gap:2px;height:11px;">' +
+            [0,1,2,3].map(i => '<span style="width:3px;height:' + [5,9,11,7][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 1s ease-in-out infinite;animation-delay:' + (i*0.15) + 's;"></span>').join('') +
+          '</span>' +
+        '</div>';
+      convWrap.appendChild(row);
+      requestAnimationFrame(() => { row.style.opacity = '1'; });
+    }
+    function removeTypingIndicator(){
+      const el = document.getElementById('meetingTypingIndicator');
+      if (el) el.remove();
+    }
+
+    let idx = 0;
+    function showNext(){
+      if (idx >= m.conversation.length){
+        renderLikeButton('meeting', m.id, bodyEl);
+        appendCloseButton(bodyEl, showMeetingPanel);
+        return;
+      }
+      const line = m.conversation[idx];
+      const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
+
+      showTypingIndicator(line.speaker);
+
+      meetingBubbleTimer = setTimeout(() => {
+        removeTypingIndicator();
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
+        row.innerHTML =
+        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
+        '<div style="max-width:82%;display:flex;flex-direction:column;align-items:flex-start;">' +
+          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:3px;">' + meta.name + '</div>' +
+          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + escapeHtml(line.text) + '</div>' +
+        '</div>';
+        convWrap.appendChild(row);
+        requestAnimationFrame(() => { row.style.opacity = '1'; });
+
+        idx++;
+        meetingBubbleTimer = setTimeout(showNext, 450);
+      }, getTypingDuration(line.text));
+    }
+    showNext();
+  }
+
   // ===== ESSAY：燈の週刊エッセイ =====
   async function showTomoriEssayPanel(){
     document.getElementById('readerTag').textContent = '// ESSAY';
@@ -2486,6 +2627,11 @@
 
     if (name === 'SHATLAB') {
       showShatLabPanel();
+      return;
+    }
+
+    if (name === 'MEETING') {
+      showMeetingPanel();
       return;
     }
 
