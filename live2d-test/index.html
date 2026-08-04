@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Live2D 動作テスト - 桃瀬ひより</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; overflow: hidden; }
+  #canvas { display: block; margin: 0 auto; border: 1px solid red; }
+  #info {
+    position: fixed; top: 8px; left: 8px; color: #0f0;
+    font-family: monospace; font-size: 12px; z-index: 10;
+    background: rgba(0,0,0,0.5); padding: 4px 8px;
+  }
+</style>
+</head>
+<body>
+<div id="info">読み込み中...</div>
+<canvas id="canvas" width="800" height="900"></canvas>
+
+<!-- PixiJS本体（pixi-live2d-displayが依存） -->
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.9/dist/browser/pixi.min.js"></script>
+<!-- Cubism 3/4系モデル用ランタイム（Cubism Core）
+     ※ CDN直リンクは公式に「不安定なので使うな」とされているため、
+     Cubism SDK for Web からCoreフォルダのファイルを取り出し、
+     このindex.htmlと同じ階層に置いてローカル参照する -->
+<script src="./live2dcubismcore.min.js"></script>
+<!-- pixi-live2d-display本体（Cubism4専用ビルド。live2d.min.js(Cubism2用)は不要） -->
+<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+
+<script>
+(async () => {
+  const info = document.getElementById("info");
+  try {
+    // 各ライブラリが正しく読み込めているか、モデル読み込み前に確認する。
+    // ここで引っかかれば「どのスクリプトが原因か」がすぐ分かる。
+    if (typeof window.Live2DCubismCore === "undefined") {
+      throw new Error("live2dcubismcore.min.js が読み込めていません（ファイルの配置場所を確認してください）");
+    }
+    if (typeof PIXI === "undefined") {
+      throw new Error("pixi.min.js が読み込めていません（ネット接続を確認してください）");
+    }
+    if (typeof PIXI.live2d === "undefined") {
+      throw new Error("cubism4.min.js（pixi-live2d-display）が読み込めていません（ネット接続を確認してください）");
+    }
+
+    // Tickerを明示登録しないと、モデルの内部状態（頂点座標等）が更新されず
+    // 「読み込みは成功するが画面には何も描画されない」状態になることがある。
+    PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
+
+    const app = new PIXI.Application({
+      view: document.getElementById("canvas"),
+      width: 800,
+      height: 900,
+      backgroundAlpha: 0,
+    });
+
+    // 同じフォルダに置いたmodel3.jsonを読み込む
+    const model = await PIXI.live2d.Live2DModel.from("runtime/hiyori_free_t08.model3.json");
+
+    app.stage.addChild(model);
+
+    // デバッグ用：モデルの実サイズをコンソールに出力（表示されない場合の手がかり）
+    console.log("model.width/height:", model.width, model.height);
+
+    // アンカーを中央にして、キャンバス中央に配置する（widthが0や不正値でもズレにくい）
+    model.anchor.set(0.5, 0.5);
+    model.position.set(app.renderer.width / 2, app.renderer.height / 2);
+
+    // まずは固定スケールで確実に画面内に収める（桃瀬ひよりの原寸は数千px単位のことが多いため）
+    let scale = 0.15;
+    if (model.width > 0 && model.height > 0) {
+      // widthが正しく取れていれば、キャンバスに収まるよう再計算する
+      scale = Math.min(
+        (app.renderer.width * 0.85) / model.width,
+        (app.renderer.height * 0.85) / model.height
+      );
+    }
+    model.scale.set(scale);
+
+    info.textContent = `読み込み成功 (scale=${scale.toFixed(3)}, w=${model.width}, h=${model.height}) / タップでモーション再生`;
+
+    // コンソールから直接調べられるようにしておく（デバッグ用）
+    window.__app = app;
+    window.__model = model;
+
+    // タップ・クリックでモーション再生
+    model.on("hit", (hitAreas) => {
+      if (hitAreas.includes("Body")) {
+        model.motion("Tap@Body");
+      }
+    });
+  } catch (err) {
+    info.textContent = "読み込み失敗: " + err.message;
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
