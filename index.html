@@ -1139,13 +1139,14 @@
       }
       window.addEventListener('eternalog:videoready', () => { videoDone = true; tryShow(); }, { once: true });
 
-      // フェイルセーフ：何らかの理由でイベントが発火しなかった場合、12秒後に強制表示
+      // フェイルセーフ：低電力モードのiOS等では動画の自動再生がブロックされ、
+      // 'playing'が永久に発火しないことがある。その場合でもガイド文言は出す必要があるため、
+      // 4秒経ったら動画の状態に関わらず表示する。
       setTimeout(() => {
-        defaultShown = false; // tryShowを通さず強制的に出す
         if (!document.getElementById('heroTextboxBody')) return;
         bootDone = true; videoDone = true;
         tryShow();
-      }, 12000);
+      }, 4000);
 
       tryShow();
     })();
@@ -1363,12 +1364,21 @@
   })();
 
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
-  // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた4本を、
+  // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた5本を、
   // 各動画が終わりに近づくたびに自動でクロスフェード切り替え。
   // 切り替え瞬間には前作同様の「色ブロックグリッチ＋筐体シェイク＋ノイズライン」を発火させる。
   (function initIdleVideoSystem(){
     const FADE_MS = 600;
-    const IDLE_POOL = ['tomori_close.mp4', 'tomori_trance.mp4', 'tomori_turn_arund.mp4', 'tomori_hud.mp4', 'tomori_flap.mp4'];
+    // 動画ファイルを同名で差し替えた際、ブラウザ／CDNが古い版をキャッシュし続けてしまうため、
+    // クエリ文字列でバージョンを明示する。動画を差し替えたらこの値を更新すること。
+    const VIDEO_VER = '?v=20260806c';
+    const IDLE_POOL = [
+      'tomori_close.mp4' + VIDEO_VER,
+      'tomori_trance.mp4' + VIDEO_VER,
+      'tomori_turn_arund.mp4' + VIDEO_VER,
+      'tomori_hud.mp4' + VIDEO_VER,
+      'tomori_flap.mp4' + VIDEO_VER
+    ];
     const heroA = document.getElementById('heroVideo');
     const heroB = document.getElementById('heroVideoB');
     if (!heroA || !heroB) return;
@@ -1435,7 +1445,7 @@
       speaking = true;
       clearTimeout(switchTimer);
       busy = false;
-      crossfadeTo('tomori_speak.mp4?v=20260716', false);
+      crossfadeTo('tomori_speak.mp4' + VIDEO_VER, false);
     };
     window.tomoriStopSpeak = function(){
       speaking = false;
@@ -1506,7 +1516,27 @@
       current.addEventListener('playing', () => {
         window.dispatchEvent(new Event('eternalog:videoready'));
       }, { once: true });
-      current.play().catch(() => {});
+      // 低電力モードのiOS等では自動再生がブロックされ 'playing' が発火しないことがある。
+      // その場合でも「動画の読み込み自体は終わっている」なら画面は成立しているので、
+      // loadeddata でも同じイベントを発火させ、ガイド文言が出ないまま止まるのを防ぐ。
+      current.addEventListener('loadeddata', () => {
+        window.dispatchEvent(new Event('eternalog:videoready'));
+      }, { once: true });
+      // iOS Safari等では、muted+playsinlineでも自動再生がブロックされることがある。
+      // その場合、ブラウザ標準の巨大な再生ボタンが表示されてしまうため、
+      // 最初のユーザー操作（タップ/クリック/スクロール）をきっかけに再生を復帰させる。
+      current.play().catch(() => {
+        function resumeOnce(){
+          current.play().catch(() => {});
+          if (miniVideo) miniVideo.play().catch(() => {});
+          document.removeEventListener('touchstart', resumeOnce);
+          document.removeEventListener('click', resumeOnce);
+          document.removeEventListener('scroll', resumeOnce);
+        }
+        document.addEventListener('touchstart', resumeOnce, { once: true, passive: true });
+        document.addEventListener('click', resumeOnce, { once: true });
+        document.addEventListener('scroll', resumeOnce, { once: true, passive: true });
+      });
       next.pause(); // 念のため待機側は明示的に停止しておく
       if (miniVideo) { miniVideo.src = initSrc; miniVideo.play().catch(() => {}); }
       if (window.ntUpdateStatus) window.ntUpdateStatus(initSrc);
