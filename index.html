@@ -235,7 +235,7 @@
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
   .hero-video-frame{ width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative; }
-  .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:8% center;display:block; }
+  .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block; }
 
   /* ===== 待機動画切り替え時のグリッチ/ノイズ演出 ===== */
   .hero-glitch-overlay{
@@ -296,12 +296,54 @@
   .nav-terminal{
     position:absolute; top:10px; left:10px; z-index:8;
     width:min(40%, 148px);
+    height:auto;
     background:rgba(10,70,130,0.38);
     border:1px solid rgba(0,225,255,0.7);
     box-shadow:0 0 20px rgba(0,225,255,0.45), inset 0 0 12px rgba(0,225,255,0.1);
     border-radius:3px;
     overflow:hidden;
     backdrop-filter:blur(2px);
+    transition:width .38s cubic-bezier(.19,1,.22,1), height .38s cubic-bezier(.19,1,.22,1),
+               top .38s cubic-bezier(.19,1,.22,1), left .38s cubic-bezier(.19,1,.22,1);
+  }
+  /* タップ後：モニター左半分・縦いっぱいまで拡大 */
+  .nav-terminal.nt-expanded{
+    top:0; left:0;
+    width:52%;
+    height:100%;
+    border-radius:0;
+    box-shadow:0 0 28px rgba(0,225,255,0.55), inset 0 0 16px rgba(0,225,255,0.14);
+  }
+  .nt-expand-close{
+    display:none; margin-left:auto; font-size:9px; color:rgba(200,246,255,0.75);
+    cursor:pointer; padding:0 2px;
+  }
+  .nav-terminal.nt-expanded .nt-expand-close{ display:inline-block; }
+  .nt-feed-line-tappable{ cursor:pointer; }
+  .nt-feed-line-tappable:active{ opacity:.7; }
+  /* 拡大時、記事本文をタイピング表示するエリア（通常時は非表示） */
+  .nt-article-body{
+    display:none;
+    padding:6px 7px 10px;
+    height:calc(100% - 24px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    font-family:'Courier New',monospace;
+    font-size:9.5px;
+    line-height:1.6;
+    color:#eaf9ff;
+    white-space:pre-wrap;
+  }
+  .nav-terminal.nt-expanded .nt-article-body{ display:block; }
+  .nav-terminal.nt-expanded .nt-body{ display:none; }
+  .nt-article-title{
+    font-size:10.5px; font-weight:700; color:#fff; margin-bottom:8px; line-height:1.5;
+  }
+  .nt-article-cursor{
+    display:inline-block; width:5px; height:10px; background:#00eaff;
+    box-shadow:0 0 7px rgba(0,225,255,.8);
+    animation:ntCursorBlink 1s steps(1) infinite;
+    vertical-align:middle; margin-left:1px;
   }
   .nt-titlebar{
     display:flex; align-items:center; gap:4px;
@@ -706,21 +748,24 @@
       <!-- ガラス反射 -->
       <div class="screen-glass"></div>
 
-      <!-- 試験実装：モニター内メニュー（cmdウィンドウ風。浮遊ターミナルとは別枠の常駐ナビ） -->
-      <nav class="nav-terminal">
+      <!-- 試験実装：モニター内メニュー（cmdウィンドウ風。浮遊ターミナルとは別枠の常駐ナビ）
+           タップすると左半分・縦いっぱいに拡大し、SIGNAL最新記事をタイピング表示する -->
+      <nav class="nav-terminal" id="navTerminal">
         <div class="nt-titlebar">
           <span class="nt-dot"></span>
           <span class="nt-title mono">NAV_TERMINAL</span>
+          <span class="nt-expand-close mono" id="ntCloseBtn">✕</span>
         </div>
-        <div class="nt-body">
+        <div class="nt-body" id="ntBodyDefault">
           <div class="nt-feed-line">
             <span class="nt-prompt">&gt;</span><span class="nt-feed-label">STATUS</span><span class="nt-feed-text" id="ntStatusText">booting...</span>
           </div>
-          <div class="nt-feed-line">
+          <div class="nt-feed-line nt-feed-line-tappable" id="ntLatestLine">
             <span class="nt-prompt">&gt;</span><span class="nt-feed-label">LATEST</span><span class="nt-feed-text" id="ntLatestText">checking...</span>
           </div>
           <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
         </div>
+        <div class="nt-article-body" id="ntArticleBody"></div>
       </nav>
     </div>
 
@@ -1249,7 +1294,7 @@
     setTimeout(spawnBackgroundTerminal, 9000);
   })();
 
-  // ===== NAV_TERMINAL：燈の"今"のステータス表示＋最新更新ミニフィード =====
+  // ===== NAV_TERMINAL：燈の"今"のステータス表示＋SIGNAL最新記事のタップ展開ビューア =====
   (function initNavTerminal(){
     const WORKER_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
@@ -1270,52 +1315,86 @@
       statusEl.textContent = STATUS_TEXTS[base] || 'Idle';
     };
 
-    // ページ読み込み時に一度だけ、SIGNAL/LOGSの最新状況をバックグラウンドで取得
-    async function loadLatestFeed(){
+    let latestSignalItem = null; // タップ展開時に使う、SIGNAL最新1件のフルデータ
+    let expanded = false;
+    let typingTimer = null;
+
+    // タイトルが長い場合、LATEST行の幅に収まるよう省略する
+    function truncate(str, max){
+      str = String(str || '');
+      return str.length > max ? str.slice(0, max - 1) + '…' : str;
+    }
+
+    // ページ読み込み時に一度だけ、SIGNALの最新記事を取得して保持する
+    async function loadLatestSignal(){
       const latestEl = document.getElementById('ntLatestText');
       if (!latestEl) return;
-
-      let signalDate = null;
-      let logsLatest = null;
-
       try {
         const res = await fetch(WORKER_URL, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.updatedAt) signalDate = new Date(data.updatedAt);
-        }
-      } catch (e) { /* 取得失敗時はサイレントに諦める */ }
-
-      try {
-        const res2 = await fetch(WORKER_URL + 'logs', { cache: 'no-store' });
-        if (res2.ok) {
-          const data2 = await res2.json();
-          if (data2 && Array.isArray(data2.items) && data2.items.length) {
-            logsLatest = data2.items[data2.items.length - 1];
+          if (data && Array.isArray(data.items) && data.items.length) {
+            latestSignalItem = data.items[data.items.length - 1];
+            latestEl.textContent = truncate(latestSignalItem.title, 20);
+            return;
           }
         }
-      } catch (e) { /* 同上 */ }
-
-      // SIGNALとLOGS、どちらがより新しいか日付だけで大まかに比較
-      if (logsLatest && signalDate) {
-        const logsDate = new Date(logsLatest.date.replace(/\./g, '-'));
-        if (logsDate > signalDate) {
-          latestEl.textContent = 'LOG_' + logsLatest.id + ' updated';
-          return;
-        }
-      }
-      if (signalDate) {
-        latestEl.textContent = (signalDate.getMonth() + 1) + '/' + signalDate.getDate() + ' SIGNAL updated';
-        return;
-      }
-      if (logsLatest) {
-        latestEl.textContent = 'LOG_' + logsLatest.id + ' updated';
-        return;
-      }
+      } catch (e) { /* 取得失敗時はサイレントに諦める */ }
       latestEl.textContent = 'unavailable';
     }
 
-    loadLatestFeed();
+    // タップで拡大し、記事本文（summary＋comment）をタイピング表示する
+    function openArticle(){
+      if (!latestSignalItem || expanded) return;
+      expanded = true;
+      const nav = document.getElementById('navTerminal');
+      const articleEl = document.getElementById('ntArticleBody');
+      nav.classList.add('nt-expanded');
+
+      const item = latestSignalItem;
+      const fullText =
+        (item.title || '') + '\n\n' +
+        (item.summary ? item.summary + '\n\n' : '') +
+        (item.comment || '');
+
+      articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span>';
+      const titleEl = articleEl.querySelector('.nt-article-title');
+      const bodyTextEl = articleEl.querySelector('.nt-article-body-text');
+      titleEl.textContent = item.title || '';
+
+      const bodyOnly = (item.summary ? item.summary + '\n\n' : '') + (item.comment || '');
+      let i = 0;
+      clearTimeout(typingTimer);
+      function step(){
+        bodyTextEl.textContent = bodyOnly.substring(0, i);
+        i++;
+        if (i <= bodyOnly.length) {
+          typingTimer = setTimeout(step, 16);
+        } else {
+          // タイピング完了後、下のガイド欄に燈の感想（＝item.comment）を表示する
+          if (window.heroTextboxShowSignal && item.comment) {
+            window.heroTextboxShowSignal(item.comment);
+          }
+        }
+      }
+      step();
+    }
+
+    function closeArticle(){
+      if (!expanded) return;
+      expanded = false;
+      clearTimeout(typingTimer);
+      const nav = document.getElementById('navTerminal');
+      nav.classList.remove('nt-expanded');
+      if (window.heroTextboxReset) window.heroTextboxReset();
+    }
+
+    const latestLine = document.getElementById('ntLatestLine');
+    if (latestLine) latestLine.addEventListener('click', openArticle);
+    const closeBtn = document.getElementById('ntCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeArticle(); });
+
+    loadLatestSignal();
   })();
 
   // ===== ACTIVITY FEED：既存アーカイブから集約した最新10件を表示 =====
