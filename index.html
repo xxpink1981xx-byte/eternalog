@@ -309,7 +309,7 @@
   /* タップ後：モニター左半分・縦いっぱいまで拡大 */
   .nav-terminal.nt-expanded{
     top:0; left:0;
-    width:52%;
+    width:46%;
     height:100%;
     border-radius:0;
     box-shadow:0 0 28px rgba(0,225,255,0.55), inset 0 0 16px rgba(0,225,255,0.14);
@@ -1352,17 +1352,14 @@
       nav.classList.add('nt-expanded');
 
       const item = latestSignalItem;
-      const fullText =
-        (item.title || '') + '\n\n' +
-        (item.summary ? item.summary + '\n\n' : '') +
-        (item.comment || '');
-
       articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span>';
       const titleEl = articleEl.querySelector('.nt-article-title');
       const bodyTextEl = articleEl.querySelector('.nt-article-body-text');
       titleEl.textContent = item.title || '';
 
-      const bodyOnly = (item.summary ? item.summary + '\n\n' : '') + (item.comment || '');
+      // 燈のコメントは下のガイド欄（heroTextboxShowSignal）に表示するため、
+      // ターミナル側では要約のみをタイピングし、重複させない。
+      const bodyOnly = item.summary || '';
       let i = 0;
       clearTimeout(typingTimer);
       function step(){
