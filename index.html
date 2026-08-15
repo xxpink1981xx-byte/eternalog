@@ -371,6 +371,22 @@
     font-size:8px; word-break:break-word;
   }
   .nt-prompt{ color:#00eaff; opacity:1; text-shadow:0 0 5px rgba(0,225,255,.7); }
+  .nt-date-row{
+    padding:4px 6px 3px;
+    font-size:8px; letter-spacing:1px; color:rgba(0,225,255,0.85);
+    border-bottom:1px solid rgba(0,225,255,0.2);
+    margin-bottom:2px;
+  }
+  .nt-headline-list{ padding:2px 2px 3px; }
+  .nt-headline-loading{ padding:4px 6px; font-size:7.5px; color:rgba(200,246,255,0.55); }
+  .nt-headline-item{
+    display:flex; align-items:flex-start; gap:4px;
+    padding:2.5px 5px; cursor:pointer;
+    font-family:'Courier New',monospace; font-size:7.5px; line-height:1.5;
+    color:#eaf9ff; word-break:break-word;
+  }
+  .nt-headline-item:active{ background:rgba(0,225,255,0.14); }
+  .nt-headline-num{ color:rgba(0,225,255,0.75); flex-shrink:0; }
   .nt-cursor-row{
     display:flex; align-items:center; gap:4px; padding:3px 4px;
     font-family:'Courier New',monospace; font-size:8.5px;
@@ -757,13 +773,10 @@
           <span class="nt-expand-close mono" id="ntCloseBtn">✕</span>
         </div>
         <div class="nt-body" id="ntBodyDefault">
-          <div class="nt-feed-line">
-            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">STATUS</span><span class="nt-feed-text" id="ntStatusText">booting...</span>
+          <div class="nt-date-row mono" id="ntDateRow">-- / --</div>
+          <div class="nt-headline-list" id="ntHeadlineList">
+            <div class="nt-headline-loading mono">checking...</div>
           </div>
-          <div class="nt-feed-line nt-feed-line-tappable" id="ntLatestLine">
-            <span class="nt-prompt">&gt;</span><span class="nt-feed-label">LATEST</span><span class="nt-feed-text" id="ntLatestText">checking...</span>
-          </div>
-          <div class="nt-cursor-row"><span class="nt-prompt">&gt;</span><span class="nt-cursor"></span></div>
         </div>
         <div class="nt-article-body" id="ntArticleBody"></div>
       </nav>
@@ -1294,64 +1307,74 @@
     setTimeout(spawnBackgroundTerminal, 9000);
   })();
 
-  // ===== NAV_TERMINAL：燈の"今"のステータス表示＋SIGNAL最新記事のタップ展開ビューア =====
+  // ===== NAV_TERMINAL：SIGNAL最新5件の見出し一覧＋タップ展開ビューア =====
+  // 2026年8月：待機動画のステータス表示（At rest等）は廃止し、代わりに
+  // 「見出しが5件並んでいる」こと自体で、一目で更新されていると分かる見せ方にした。
   (function initNavTerminal(){
     const WORKER_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
-    const STATUS_TEXTS = {
-      'tomori_close.mp4': 'At rest',
-      'tomori_trance.mp4': 'A flicker of old power',
-      'tomori_turn_arund.mp4': 'Looking around',
-      'tomori_hud.mp4': 'Reading a display',
-      'tomori_flap.mp4': 'Stretching her wings',
-      'tomori_speak.mp4': 'Speaking'
-    };
+    // ntUpdateStatusは待機動画切替時に呼ばれ続けるが、ステータス表示欄自体を廃止したため、
+    // 呼び出し元（initIdleVideoSystem）を変更せずに済むよう、何もしない関数として残す。
+    window.ntUpdateStatus = function(){};
 
-    // 待機動画が切り替わるたびに initIdleVideoSystem から呼ばれる
-    window.ntUpdateStatus = function(src){
-      const statusEl = document.getElementById('ntStatusText');
-      if (!statusEl) return;
-      const base = String(src).split('?')[0]; // キャッシュバスティング用のクエリを除く
-      statusEl.textContent = STATUS_TEXTS[base] || 'Idle';
-    };
-
-    let latestSignalItem = null; // タップ展開時に使う、SIGNAL最新1件のフルデータ
-    let expanded = false;
+    let signalItems = [];   // SIGNAL最新5件のフルデータ
+    let signalDateLabel = '-- / --';
+    let expandedIndex = -1; // 現在展開中の見出しのインデックス（-1は未展開）
     let typingTimer = null;
 
-    // タイトルが長い場合、LATEST行の幅に収まるよう省略する
     function truncate(str, max){
       str = String(str || '');
       return str.length > max ? str.slice(0, max - 1) + '…' : str;
     }
 
-    // ページ読み込み時に一度だけ、SIGNALの最新記事を取得して保持する
-    async function loadLatestSignal(){
-      const latestEl = document.getElementById('ntLatestText');
-      if (!latestEl) return;
+    // ページ読み込み時に一度だけ、SIGNAL最新5件を取得して一覧に並べる
+    async function loadSignalHeadlines(){
+      const listEl = document.getElementById('ntHeadlineList');
+      const dateEl = document.getElementById('ntDateRow');
+      if (!listEl) return;
       try {
         const res = await fetch(WORKER_URL, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data.items) && data.items.length) {
-            latestSignalItem = data.items[data.items.length - 1];
-            latestEl.textContent = truncate(latestSignalItem.title, 20);
+            signalItems = data.items;
+            if (data.updatedAt) {
+              const d = new Date(data.updatedAt);
+              signalDateLabel = (d.getMonth() + 1) + '/' + d.getDate() + ' SIGNAL';
+            }
+            renderHeadlineList();
             return;
           }
         }
       } catch (e) { /* 取得失敗時はサイレントに諦める */ }
-      latestEl.textContent = 'unavailable';
+      listEl.innerHTML = '<div class="nt-headline-loading mono">unavailable</div>';
     }
 
-    // タップで拡大し、記事本文（summary＋comment）をタイピング表示する
-    function openArticle(){
-      if (!latestSignalItem || expanded) return;
-      expanded = true;
+    function renderHeadlineList(){
+      const listEl = document.getElementById('ntHeadlineList');
+      const dateEl = document.getElementById('ntDateRow');
+      if (dateEl) dateEl.textContent = signalDateLabel;
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      signalItems.forEach((item, idx) => {
+        const line = document.createElement('div');
+        line.className = 'nt-headline-item';
+        line.innerHTML = '<span class="nt-headline-num mono">' + (idx + 1) + '</span><span>' + truncate(item.title, 26) + '</span>';
+        line.addEventListener('click', () => openArticle(idx));
+        listEl.appendChild(line);
+      });
+    }
+
+    // タップで拡大し、その見出しの記事（要約）をタイピング表示する
+    function openArticle(idx){
+      if (expandedIndex === idx) return;
+      const item = signalItems[idx];
+      if (!item) return;
+      expandedIndex = idx;
       const nav = document.getElementById('navTerminal');
       const articleEl = document.getElementById('ntArticleBody');
       nav.classList.add('nt-expanded');
 
-      const item = latestSignalItem;
       articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span>';
       const titleEl = articleEl.querySelector('.nt-article-title');
       const bodyTextEl = articleEl.querySelector('.nt-article-body-text');
@@ -1368,7 +1391,6 @@
         if (i <= bodyOnly.length) {
           typingTimer = setTimeout(step, 16);
         } else {
-          // タイピング完了後、下のガイド欄に燈の感想（＝item.comment）を表示する
           if (window.heroTextboxShowSignal && item.comment) {
             window.heroTextboxShowSignal(item.comment);
           }
@@ -1378,20 +1400,18 @@
     }
 
     function closeArticle(){
-      if (!expanded) return;
-      expanded = false;
+      if (expandedIndex === -1) return;
+      expandedIndex = -1;
       clearTimeout(typingTimer);
       const nav = document.getElementById('navTerminal');
       nav.classList.remove('nt-expanded');
       if (window.heroTextboxReset) window.heroTextboxReset();
     }
 
-    const latestLine = document.getElementById('ntLatestLine');
-    if (latestLine) latestLine.addEventListener('click', openArticle);
     const closeBtn = document.getElementById('ntCloseBtn');
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeArticle(); });
 
-    loadLatestSignal();
+    loadSignalHeadlines();
   })();
 
   // ===== ACTIVITY FEED：既存アーカイブから集約した最新10件を表示 =====
