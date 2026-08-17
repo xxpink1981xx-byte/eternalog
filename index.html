@@ -966,19 +966,8 @@
 
     const bootLines = [
       '> INITIALIZING ETERNALOG CORE SYSTEM v3.2.1...',
-      '> ALLOCATING MEMORY BLOCKS......... [0x4A2F0000] OK',
-      '> ESTABLISHING CONNECTION TO 燈_MODULE...',
       '> HANDSHAKE WITH ユールリ RELAY STATION......... [OK]',
-      '> DECRYPTING CHARACTER PROFILE ARCHIVE.........',
-      '>   - 燈 (TOMORI) ................. LOADED',
-      '>   - ニャモ (NYAMO) ............... LOADED',
-      '>   - ヨミ (YOMI) ................. LOADED',
-      '>   - ルルル (RURURU) ............. LOADED',
-      '>   - シャト (SHAT) ................ LOADED',
-      '> CALIBRATING SOUL WAVEFORM SENSOR......... [OK]',
-      '> SYNCING WITH EARTH SIGNAL RELAY......... [OK]',
-      '> VERIFYING LOGS ARCHIVE INTEGRITY......... [OK]',
-      '> MOUNTING YOMI DIVINATION ENGINE......... [OK]',
+      '> DECRYPTING CHARACTER PROFILE ARCHIVE......... [OK]',
       '> ALL SYSTEMS NOMINAL. STANDING BY...'
     ];
 
@@ -989,12 +978,12 @@
     const progressBar = document.getElementById('boot-progress-bar');
 
     let lineIdx = 0, charIdx = 0;
-    const CHAR_SPEED = 9;
-    const LINE_GAP = 120;
+    const CHAR_SPEED = 4;
+    const LINE_GAP = 55;
 
     function showIntro(){
       introEl.classList.add('show');
-      setTimeout(hideIntro, 1700);
+      setTimeout(hideIntro, 780);
     }
 
     function hideIntro(){
@@ -1008,7 +997,7 @@
 
     function typeLine(){
       if (lineIdx >= bootLines.length) {
-        setTimeout(showSuccess, 160);
+        setTimeout(showSuccess, 75);
         return;
       }
       const line = bootLines[lineIdx];
@@ -1027,7 +1016,7 @@
 
     function showSuccess(){
       successEl.classList.remove('hidden');
-      setTimeout(showLoading, 360);
+      setTimeout(showLoading, 165);
     }
 
     function showLoading(){
@@ -1035,13 +1024,13 @@
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { progressBar.style.width = '100%'; });
       });
-      setTimeout(showNoise, 850);
+      setTimeout(showNoise, 390);
     }
 
     function showNoise(){
       const noiseEl = document.getElementById('boot-noise');
       noiseEl.classList.remove('hidden');
-      setTimeout(finishBoot, 170);
+      setTimeout(finishBoot, 80);
     }
 
     function finishBoot(){
