@@ -1198,13 +1198,25 @@
       window.addEventListener('eternalog:videoready', () => { videoDone = true; tryShow(); }, { once: true });
 
       // フェイルセーフ：低電力モードのiOS等では動画の自動再生がブロックされ、
-      // 'playing'が永久に発火しないことがある。その場合でもガイド文言は出す必要があるため、
-      // 4秒経ったら動画の状態に関わらず表示する。
+      // 'playing'/'loadeddata'が永久に発火しないことがある。その場合の保険として、
+      // videoDoneだけを強制する（bootDoneは finishBoot() から確実に発火するため、
+      // ここで強制する必要はない。以前はbootDoneも一緒に強制していたため、
+      // ブート演出がまだ画面上で流れている最中にGUIDEが先に表示されてしまう
+      // タイミングのズレが起きていた）。
       setTimeout(() => {
         if (!document.getElementById('heroTextboxBody')) return;
-        bootDone = true; videoDone = true;
+        videoDone = true;
         tryShow();
       }, 4000);
+
+      // ブート演出自体が何らかの理由で完走しなかった場合の、さらなる保険。
+      // 通常は finishBoot() が約10.9秒で確実に完了イベントを発火するため、
+      // それより長い12秒を設定し、通常時には発動しないようにする。
+      setTimeout(() => {
+        if (!document.getElementById('heroTextboxBody')) return;
+        bootDone = true;
+        tryShow();
+      }, 12000);
 
       tryShow();
     })();
