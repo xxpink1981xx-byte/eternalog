@@ -989,12 +989,12 @@
     const progressBar = document.getElementById('boot-progress-bar');
 
     let lineIdx = 0, charIdx = 0;
-    const CHAR_SPEED = 14;
-    const LINE_GAP = 180;
+    const CHAR_SPEED = 9;
+    const LINE_GAP = 120;
 
     function showIntro(){
       introEl.classList.add('show');
-      setTimeout(hideIntro, 2600);
+      setTimeout(hideIntro, 1700);
     }
 
     function hideIntro(){
@@ -1008,7 +1008,7 @@
 
     function typeLine(){
       if (lineIdx >= bootLines.length) {
-        setTimeout(showSuccess, 250);
+        setTimeout(showSuccess, 160);
         return;
       }
       const line = bootLines[lineIdx];
@@ -1027,7 +1027,7 @@
 
     function showSuccess(){
       successEl.classList.remove('hidden');
-      setTimeout(showLoading, 550);
+      setTimeout(showLoading, 360);
     }
 
     function showLoading(){
@@ -1035,13 +1035,13 @@
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { progressBar.style.width = '100%'; });
       });
-      setTimeout(showNoise, 1300);
+      setTimeout(showNoise, 850);
     }
 
     function showNoise(){
       const noiseEl = document.getElementById('boot-noise');
       noiseEl.classList.remove('hidden');
-      setTimeout(finishBoot, 260);
+      setTimeout(finishBoot, 170);
     }
 
     function finishBoot(){
