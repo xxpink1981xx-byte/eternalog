@@ -1748,7 +1748,7 @@
       id: 'tomori', name: '燈', nameEn: 'TOMORI', color: 'var(--c-tomori)', icon: 'center-tomori.png',
       bgImage: 'bg-tomori.png', bgPosition: 'center 42%',
       role: 'エッセイ担当',
-      race: '女神', age: '不詳',
+      race: '女神', age: '不詳', birthday: '7月17日',
       like: '人間の営みを眺めること・あたたかい飲み物',
       dislike: '争いごと・誰かが泣くこと',
       origin: '天界で左遷され、緩い天界「ユールリ」に暮らしながらEternaLogに降臨している。天界の仰々しい衣装は着心地が悪いという理由で、人間界で見つけた赤いジャージを普段着にしている。ニャモに力を与えて以来弱体化しており、虹色の髪留めを手首に装着すると全盛期の力が約7分だけ戻る。'
@@ -1757,7 +1757,7 @@
       id: 'nyamo', name: 'ニャーヤ＝モルフィア', alias: '通称：ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
       bgImage: 'bg-nyamo.png', bgPosition: 'center 30%',
       role: 'ツッコミ担当',
-      race: '禁術キメラ', age: '不詳',
+      race: '禁術キメラ', age: '不詳', birthday: '2月23日',
       like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
       dislike: '燈が無茶をすること',
       origin: '元々はキメラだが、天界で長年の平和な時間を過ごすうちに燈同様に見た目が変化し、今は普通の猫のような姿になっている。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
@@ -1766,7 +1766,7 @@
       id: 'yomi', name: '観月ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
       bgImage: 'bg-yomi.png', bgPosition: 'center 25%',
       role: '占い担当',
-      race: '人間', age: '秘密',
+      race: '人間', age: '秘密', birthday: '9月30日',
       like: '月夜・静かな夜更け',
       dislike: 'インチキ占い師・騒がしい場所',
       origin: '物心ついた頃には盗賊団にいた占い師。盗品の中から見つけた水晶玉に心を惹かれ、占術の道へ進んだ。EternaLogでは本格鑑定を担当している。'
@@ -1775,7 +1775,7 @@
       id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
       bgImage: 'bg-rururu.png', bgPosition: 'center 20%',
       role: '毒舌担当',
-      race: '魔族', age: '不詳',
+      race: '魔族', age: '不詳', birthday: '6月6日',
       like: '紅茶・退屈しのぎ・見下ろすこと・ニャモ',
       dislike: '暇・へりくだること・平凡なトレンド',
       origin: '魔界を統べる姫。今は統治すべきこともなく、退屈な日々を過ごしている。燈とは戦禍の時代を共に駆けた戦友で、今も遠慮のない間柄。'
@@ -1784,7 +1784,7 @@
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
       bgImage: 'bg-shat.png', bgPosition: 'center 20%',
       role: '開発担当',
-      race: '女神', age: '不詳',
+      race: '女神', age: '不詳', birthday: '12月25日',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
       origin: '記録と星を司る女神セシャトの末裔。誰も知らない秘境のオアシス「ワーハ」で、衛星Wifiを使い人間界を観測している。ネットで見つけた着想をもとに、EternaLog内でアプリを発案・制作している。'
@@ -1853,7 +1853,7 @@
         '</div>' +
       '</div>' +
       '<div style="position:relative;z-index:2;margin-top:auto;background:rgba(15,15,25,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:14px 16px;">' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 12px;margin-bottom:10px;">' +
           '<div style="border-left:2px solid #fff;padding-left:9px;">' +
             '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">RACE</div>' +
             '<div style="font-size:12px;color:#fff;font-weight:500;">' + c.race + '</div>' +
@@ -1862,6 +1862,12 @@
             '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">AGE</div>' +
             '<div style="font-size:12px;color:#fff;font-weight:500;">' + c.age + '</div>' +
           '</div>' +
+          '<div style="border-left:2px solid #fff;padding-left:9px;">' +
+            '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">BIRTHDAY</div>' +
+            '<div style="font-size:12px;color:#fff;font-weight:500;">' + (c.birthday || '???') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;">' +
           '<div style="border-left:2px solid #fff;padding-left:9px;">' +
             '<div class="mono" style="font-size:9px;letter-spacing:1px;color:#f3e8ff;margin-bottom:2px;">LIKE</div>' +
             '<div style="font-size:12px;color:#fff;font-weight:500;line-height:1.5;">' + c.like + '</div>' +
