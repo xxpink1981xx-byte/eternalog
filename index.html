@@ -236,6 +236,9 @@
 
   .hero-video-frame{ width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative; }
   .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block; }
+  /* ヨミモード中はNAV_TERMINALを隠すため、燈のために空けていた左側の余白が不要になる。
+     中央配置に切り替える。 */
+  .hero-video-frame.yomi-mode video{ object-position:center center; }
 
   /* ===== 待機動画切り替え時のグリッチ/ノイズ演出 ===== */
   .hero-glitch-overlay{
@@ -1601,6 +1604,13 @@
       // 両方の要素を一旦止め、確実にクリーンな状態からヨミの動画を出せるようにする
       heroA.pause();
       heroB.pause();
+      // NAV_TERMINALはSIGNAL（人間界のニュース）を見るための窓なので、
+      // 占ってもらっている最中は文脈的に不要。隠して、代わりに動画を
+      // 中央に据える（燈のために空けていた左側の余白が不要になるため）。
+      const frame = document.querySelector('.hero-video-frame');
+      if (frame) frame.classList.add('yomi-mode');
+      const navTerminal = document.getElementById('navTerminal');
+      if (navTerminal) navTerminal.style.display = 'none';
     };
 
     // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
@@ -1655,6 +1665,10 @@
       yomiVideoEndedCallback = null;
       heroA.muted = true;
       heroB.muted = true;
+      const frame = document.querySelector('.hero-video-frame');
+      if (frame) frame.classList.remove('yomi-mode');
+      const navTerminal = document.getElementById('navTerminal');
+      if (navTerminal) navTerminal.style.display = '';
       crossfadeTo(pickIdle());
     };
 
