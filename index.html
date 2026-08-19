@@ -955,6 +955,10 @@
   // 「燈モニタ→ヨミモニタ」のような、後からの画面切り替え演出にも
   // 同じ見た目（タイピングログ→SUCCESS→ローディングバー→ノイズ→フェード）を
   // 使い回せるよう、ログ内容・完了ラベル・完了時コールバックを外から渡せる形にした。
+  // 2026年8月：以前はタイピングログ→SUCCESS→ローディングバー→ノイズという
+  // 段階を踏んでいたが、燈↔ヨミの切り替えのように何度も発生する演出では
+  // まどろっこしく感じられたため、ローディングバーだけの短い演出に簡略化した。
+  // lines/successLabel引数は後方互換のために残しているが、もう使用しない。
   function runBootOverlay(lines, successLabel, onComplete){
     const overlay = document.getElementById('boot-overlay');
     if (!overlay) { onComplete(); return; }
@@ -970,99 +974,53 @@
     overlay.style.display = '';
     overlay.style.opacity = '1';
     overlay.style.transition = '';
-    introEl.classList.remove('hidden');
+    introEl.classList.add('hidden');
     introEl.classList.remove('show');
     logEl.classList.add('hidden');
     logEl.textContent = '';
     successEl.classList.add('hidden');
-    successEl.textContent = successLabel;
-    loadingEl.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+    progressBar.style.transition = 'none';
     progressBar.style.width = '0%';
     noiseEl.classList.add('hidden');
 
-    let lineIdx = 0, charIdx = 0;
-    const CHAR_SPEED = 4;
-    const LINE_GAP = 55;
     let finished = false;
 
-    function showIntro(){
-      introEl.classList.add('show');
-      setTimeout(hideIntro, 780);
-    }
-
-    function hideIntro(){
-      introEl.classList.remove('show');
-      setTimeout(() => {
-        introEl.classList.add('hidden');
-        logEl.classList.remove('hidden');
-        typeLine();
-      }, 500);
-    }
-
-    function typeLine(){
-      if (lineIdx >= lines.length) {
-        setTimeout(showSuccess, 75);
-        return;
-      }
-      const line = lines[lineIdx];
-      if (charIdx <= line.length) {
-        const done = lines.slice(0, lineIdx).join('\n');
-        logEl.textContent = (done ? done + '\n' : '') + line.substring(0, charIdx);
-        logEl.scrollTop = logEl.scrollHeight;
-        charIdx++;
-        setTimeout(typeLine, CHAR_SPEED);
-      } else {
-        lineIdx++;
-        charIdx = 0;
-        setTimeout(typeLine, LINE_GAP);
-      }
-    }
-
-    function showSuccess(){
-      successEl.classList.remove('hidden');
-      setTimeout(showLoading, 165);
-    }
-
     function showLoading(){
-      loadingEl.classList.remove('hidden');
       requestAnimationFrame(() => {
+        progressBar.style.transition = 'width 0.9s ease';
         requestAnimationFrame(() => { progressBar.style.width = '100%'; });
       });
-      setTimeout(showNoise, 390);
-    }
-
-    function showNoise(){
-      noiseEl.classList.remove('hidden');
-      setTimeout(finishOverlay, 80);
+      setTimeout(finishOverlay, 950);
     }
 
     function finishOverlay(){
       if (finished) return;
       finished = true;
-      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.transition = 'opacity 0.35s ease';
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.style.display = 'none';
         overlay.removeEventListener('click', skipHandler);
         onComplete();
-      }, 520);
+      }, 380);
     }
 
     // 演出中にタップ/クリックしたら即座にスキップできるようにする
     function skipHandler(){
       if (finished) return;
       finished = true;
-      overlay.style.transition = 'opacity 0.3s ease';
+      overlay.style.transition = 'opacity 0.25s ease';
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.style.display = 'none';
         overlay.removeEventListener('click', skipHandler);
         onComplete();
-      }, 320);
+      }, 260);
     }
     overlay.addEventListener('click', skipHandler);
 
-    showIntro();
+    showLoading();
   }
 
   (function initBootSequence(){
