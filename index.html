@@ -950,36 +950,40 @@
   // ===== BOOT SEQUENCE（起動演出） =====
   // sessionStorage: タブ/ブラウザを閉じてから再アクセスすると再表示される。
   // 同じセッション内でページ内を移動しているだけなら表示しない。
-  (function initBootSequence(){
-    const BOOT_KEY = 'eternalog_boot_shown';
+  // ===== ブート演出の共通エンジン =====
+  // 元々は初回サイト起動時（燈が現れる瞬間）専用だったが、
+  // 「燈モニタ→ヨミモニタ」のような、後からの画面切り替え演出にも
+  // 同じ見た目（タイピングログ→SUCCESS→ローディングバー→ノイズ→フェード）を
+  // 使い回せるよう、ログ内容・完了ラベル・完了時コールバックを外から渡せる形にした。
+  function runBootOverlay(lines, successLabel, onComplete){
     const overlay = document.getElementById('boot-overlay');
-    if (!overlay) return;
-
-    if (sessionStorage.getItem(BOOT_KEY)) {
-      overlay.style.display = 'none';
-      window.eternalogBootWasSkipped = true;
-      window.dispatchEvent(new Event('eternalog:bootcomplete'));
-      return;
-    }
-    window.eternalogBootWasSkipped = false;
-    sessionStorage.setItem(BOOT_KEY, '1');
-
-    const bootLines = [
-      '> INITIALIZING ETERNALOG CORE SYSTEM v3.2.1...',
-      '> HANDSHAKE WITH ユールリ RELAY STATION......... [OK]',
-      '> DECRYPTING CHARACTER PROFILE ARCHIVE......... [OK]',
-      '> ALL SYSTEMS NOMINAL. STANDING BY...'
-    ];
+    if (!overlay) { onComplete(); return; }
 
     const introEl = document.getElementById('boot-intro');
     const logEl = document.getElementById('boot-log');
     const successEl = document.getElementById('boot-success');
     const loadingEl = document.getElementById('boot-loading');
     const progressBar = document.getElementById('boot-progress-bar');
+    const noiseEl = document.getElementById('boot-noise');
+
+    // 再利用のたびに、演出の見た目を初期状態へリセットする
+    overlay.style.display = '';
+    overlay.style.opacity = '1';
+    overlay.style.transition = '';
+    introEl.classList.remove('hidden');
+    introEl.classList.remove('show');
+    logEl.classList.add('hidden');
+    logEl.textContent = '';
+    successEl.classList.add('hidden');
+    successEl.textContent = successLabel;
+    loadingEl.classList.add('hidden');
+    progressBar.style.width = '0%';
+    noiseEl.classList.add('hidden');
 
     let lineIdx = 0, charIdx = 0;
     const CHAR_SPEED = 4;
     const LINE_GAP = 55;
+    let finished = false;
 
     function showIntro(){
       introEl.classList.add('show');
@@ -996,13 +1000,13 @@
     }
 
     function typeLine(){
-      if (lineIdx >= bootLines.length) {
+      if (lineIdx >= lines.length) {
         setTimeout(showSuccess, 75);
         return;
       }
-      const line = bootLines[lineIdx];
+      const line = lines[lineIdx];
       if (charIdx <= line.length) {
-        const done = bootLines.slice(0, lineIdx).join('\n');
+        const done = lines.slice(0, lineIdx).join('\n');
         logEl.textContent = (done ? done + '\n' : '') + line.substring(0, charIdx);
         logEl.scrollTop = logEl.scrollHeight;
         charIdx++;
@@ -1028,31 +1032,62 @@
     }
 
     function showNoise(){
-      const noiseEl = document.getElementById('boot-noise');
       noiseEl.classList.remove('hidden');
-      setTimeout(finishBoot, 80);
+      setTimeout(finishOverlay, 80);
     }
 
-    function finishBoot(){
+    function finishOverlay(){
+      if (finished) return;
+      finished = true;
       overlay.style.transition = 'opacity 0.5s ease';
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.style.display = 'none';
-        window.dispatchEvent(new Event('eternalog:bootcomplete'));
+        onComplete();
       }, 520);
     }
 
     // 演出中にタップ/クリックしたら即座にスキップできるようにする
-    overlay.addEventListener('click', () => {
+    function skipHandler(){
+      if (finished) return;
+      finished = true;
       overlay.style.transition = 'opacity 0.3s ease';
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.style.display = 'none';
-        window.dispatchEvent(new Event('eternalog:bootcomplete'));
+        overlay.removeEventListener('click', skipHandler);
+        onComplete();
       }, 320);
-    });
+    }
+    overlay.addEventListener('click', skipHandler);
 
     showIntro();
+  }
+
+  (function initBootSequence(){
+    const BOOT_KEY = 'eternalog_boot_shown';
+    const overlay = document.getElementById('boot-overlay');
+    if (!overlay) return;
+
+    if (sessionStorage.getItem(BOOT_KEY)) {
+      overlay.style.display = 'none';
+      window.eternalogBootWasSkipped = true;
+      window.dispatchEvent(new Event('eternalog:bootcomplete'));
+      return;
+    }
+    window.eternalogBootWasSkipped = false;
+    sessionStorage.setItem(BOOT_KEY, '1');
+
+    const bootLines = [
+      '> INITIALIZING ETERNALOG CORE SYSTEM v3.2.1...',
+      '> HANDSHAKE WITH ユールリ RELAY STATION......... [OK]',
+      '> DECRYPTING CHARACTER PROFILE ARCHIVE......... [OK]',
+      '> ALL SYSTEMS NOMINAL. STANDING BY...'
+    ];
+
+    runBootOverlay(bootLines, '[ SUCCESS ]', () => {
+      window.dispatchEvent(new Event('eternalog:bootcomplete'));
+    });
   })();
 
   function closeDrawer(){ document.getElementById('drawer').classList.remove('show'); document.getElementById('drawerBack').classList.remove('show'); }
@@ -1224,6 +1259,11 @@
     // ===== 今後の実データ連携用（そのまま維持） =====
     window.heroTextboxShowSignal = function(text){
       typeText(text, 'SIGNAL UPDATE', true);
+    };
+
+    // ===== ヨミモード中、ヨミの語りかけをGUIDE欄と同じ場所に表示する =====
+    window.heroTextboxShowYomi = function(text){
+      typeText(text, 'ヨミ', true);
     };
   })();
 
@@ -1497,6 +1537,20 @@
       // ★修正1: 表示中(current)の動画から発火したendedだけを処理する。
       //         裏で再生され続けている旧outgoing側の発火は無視。
       if (e.target !== current) return;
+      if (yomiMode) {
+        // ヨミモード中は、燈側の自動巡回ロジックを一切働かせない。
+        // ループさせたい動画かどうかは yomiLoopCurrent 側で制御し、
+        // 単発動画（占い演出等）の終了は yomiVideoEndedCallback に委ねる。
+        if (yomiLoopCurrent) {
+          e.target.currentTime = 0;
+          e.target.play().catch(() => {});
+        } else if (yomiVideoEndedCallback) {
+          const cb = yomiVideoEndedCallback;
+          yomiVideoEndedCallback = null;
+          cb();
+        }
+        return;
+      }
       if (speaking) {
         e.target.currentTime = 0;
         e.target.play().catch(() => {});
@@ -1509,6 +1563,7 @@
     function onError(e){
       console.warn('[EternaLog] idle video failed to load:', e.target.src);
       if (e.target !== current) return; // ★同様にcurrentのみ対象
+      if (yomiMode) return; // ヨミモード中は燈側の自動復帰をさせない
       if (!busy && !speaking) setTimeout(() => crossfadeTo(pickIdle()), 800);
     }
     heroA.addEventListener('error', onError);
@@ -1549,6 +1604,56 @@
     window.tomoriStopSpeak = function(){
       speaking = false;
       crossfadeTo(pickIdle(), false);
+    };
+
+    // ===== ヨミモード：燈モニタを一時的にヨミモニタとして使うための制御 =====
+    // 待機ループ・speak機構とは独立した状態として扱い、通常の燈の自動巡回を完全に止める。
+    let yomiMode = false;
+    let yomiLoopCurrent = false;
+    let yomiVideoEndedCallback = null;
+
+    // 燈→ヨミへ切り替える。以後の crossfadeTo は通常の待機ループを経由せず、
+    // このplayYomiVideoだけが動画の出し入れを担う。
+    window.eternalogEnterYomiMode = function(){
+      yomiMode = true;
+      speaking = false;
+      clearTimeout(switchTimer);
+      busy = false;
+    };
+
+    // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
+    // loop=falseなら再生が終わった時点でonEndedコールバックを1回呼ぶ。
+    window.eternalogPlayYomiVideo = function(src, loop, onEndedCallback){
+      if (!yomiMode) return;
+      yomiLoopCurrent = !!loop;
+      yomiVideoEndedCallback = onEndedCallback || null;
+      busy = true;
+      clearTimeout(switchTimer);
+      const outgoing = current;
+      const incoming = next;
+      incoming.src = src;
+      incoming.currentTime = 0;
+      incoming.load();
+      incoming.play().catch(() => {});
+      triggerNoiseGlitch();
+      outgoing.style.opacity = '0';
+      incoming.style.opacity = '1';
+      current = incoming;
+      next = outgoing;
+      switchTimer = setTimeout(() => {
+        outgoing.pause();
+        outgoing.removeAttribute('src');
+        outgoing.load();
+        busy = false;
+      }, FADE_MS);
+    };
+
+    // ヨミ→燈へ戻す。通常の待機ループに復帰させる。
+    window.eternalogExitYomiMode = function(){
+      yomiMode = false;
+      yomiLoopCurrent = false;
+      yomiVideoEndedCallback = null;
+      crossfadeTo(pickIdle());
     };
 
     // 切り替え瞬間の「色ブロックグリッチ＋筐体シェイク＋ノイズライン」演出
@@ -2597,12 +2702,153 @@
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
+      const upsell = document.createElement('div');
+      upsell.style.cssText = 'margin-top:22px;padding:16px;border:1px solid var(--c-yomi);border-radius:10px;background:linear-gradient(135deg, rgba(124,58,237,.08), transparent);text-align:center;';
+      upsell.innerHTML =
+        '<div style="font-size:12px;color:var(--ink);line-height:1.7;margin-bottom:12px;">週間の運勢だけじゃなく、あんた個人の命盤をじっくり視てみるかい？</div>' +
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;" onclick="startYomiFullDivination()">本格鑑定を受ける</button>';
+      bodyEl.appendChild(upsell);
+
       appendCloseButton(bodyEl);
     } catch (e) {
       console.warn('[EternaLog] yomi weekly fetch failed:', e);
       bodyEl.innerHTML = '<div class="reader-placeholder mono">// 占いの取得に失敗しました。少し時間をおいて開き直してみてください</div>';
       appendCloseButton(bodyEl);
     }
+  }
+
+  // ===== YOMI 本格鑑定：燈モニタをヨミモニタに切り替えて進行する対話フロー =====
+  // READERパネルは使わず、燈モニタ（.hero-video-frame）とGUIDEテキストボックスを
+  // 一時的にヨミの表示に差し替える形で進行する。サイトの一貫性を保つため、
+  // 新しい独立画面は作らず、既存の「燈がいる場所」がそのままヨミの部屋になる。
+  const YOMI_VIDEO_VER = '?v=20260819';
+  const YOMI_SWITCH_IN_LINES = [
+    '> DISCONNECTING FROM 燈_MODULE...',
+    '> ESTABLISHING LINK TO 観月ヨミ...',
+    '> SYNCHRONIZING SOUL WAVEFORM......... [OK]',
+    '> READY.'
+  ];
+  const YOMI_SWITCH_OUT_LINES = [
+    '> CLOSING LINK TO 観月ヨミ...',
+    '> RECONNECTING TO 燈_MODULE......... [OK]',
+    '> STANDING BY...'
+  ];
+
+  function startYomiFullDivination(){
+    closeReader();
+    if (!window.eternalogEnterYomiMode || !window.eternalogPlayYomiVideo) {
+      console.warn('[EternaLog] yomi mode controls not available');
+      return;
+    }
+    runBootOverlay(YOMI_SWITCH_IN_LINES, '[ LINKED ]', () => {
+      window.eternalogEnterYomiMode();
+      yomiFlowStep1();
+    });
+  }
+
+  function yomiExitToTomori(){
+    if (!window.eternalogExitYomiMode) return;
+    runBootOverlay(YOMI_SWITCH_OUT_LINES, '[ SUCCESS ]', () => {
+      window.eternalogExitYomiMode();
+      if (window.heroTextboxReset) window.heroTextboxReset();
+    });
+  }
+
+  // ① ヨミの語りかけ（待機動画をループ再生しながら、毎回違う一言を添える）
+  const YOMI_GREETINGS = [
+    '……何か、見えなくて困ってることでもあるんじゃないかい？',
+    '考えが行き詰まって、抜け出せずにいるんじゃないのかい。',
+    'ふらっとここに来たんじゃない、そんな顔してるよ。',
+  ];
+  function yomiFlowStep1(){
+    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null);
+    const greeting = YOMI_GREETINGS[Math.floor(Math.random() * YOMI_GREETINGS.length)];
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi(greeting);
+
+    const bodyEl = document.getElementById('readerBody');
+    // 本格鑑定フローは燈モニタ側で進行するため、READERは開かない。
+    // 代わりに、開始・入力用のミニUIをモニター下の常設エリアに表示する。
+    showYomiFlowControls('start');
+  }
+
+  // 燈モニタ・GUIDEの下に、ヨミフロー専用の簡易コントロールを表示する領域。
+  // READERパネルとは別の、常設の小さなオーバーレイとして実装する。
+  function ensureYomiControlPanel(){
+    let panel = document.getElementById('yomiControlPanel');
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.id = 'yomiControlPanel';
+    panel.style.cssText = 'margin:10px 16px 0;padding:14px 16px;border:1px solid var(--c-yomi);border-radius:10px;background:rgba(124,58,237,.06);';
+    const heroSection = document.querySelector('.hero');
+    heroSection.insertAdjacentElement('afterend', panel);
+    return panel;
+  }
+  function removeYomiControlPanel(){
+    const panel = document.getElementById('yomiControlPanel');
+    if (panel) panel.remove();
+  }
+
+  function showYomiFlowControls(mode){
+    const panel = ensureYomiControlPanel();
+    if (mode === 'start') {
+      panel.innerHTML =
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStep2()">占いを始める</button>' +
+        '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+    }
+  }
+
+  // ② 生年月日・出生時刻・出生地の入力
+  function yomiFlowStep2(){
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('よし。じゃあ、あんたのことを教えてもらおうか。');
+    const panel = ensureYomiControlPanel();
+    panel.innerHTML =
+      '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:10px;">// BIRTH DATA INPUT</div>' +
+      '<div style="margin-bottom:10px;">' +
+        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">生年月日</label>' +
+        '<input type="date" id="yomiInputDate" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
+      '</div>' +
+      '<div style="margin-bottom:10px;">' +
+        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生時刻（不明な場合は空欄でよい）</label>' +
+        '<input type="time" id="yomiInputTime" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
+      '</div>' +
+      '<div style="margin-bottom:14px;">' +
+        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生地</label>' +
+        '<select id="yomiInputPlace" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
+          '<option value="tokyo">東京</option>' +
+          '<option value="osaka">大阪</option>' +
+        '</select>' +
+      '</div>' +
+      '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiFlowStep3()">この内容で占ってもらう</button>';
+  }
+
+  // ③ 占い演出（音声付き、単発再生）
+  function yomiFlowStep3(){
+    removeYomiControlPanel();
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('水晶玉に、あんたの生まれた刻を映してる……');
+    window.eternalogPlayYomiVideo('yomi_casting.mp4' + YOMI_VIDEO_VER, false, () => {
+      setTimeout(() => { yomiFlowStep4(); }, 400);
+    });
+  }
+
+  // ④ 完了・5ジャンル見出し（今はダミーデータ。実データ連携は別途対応）
+  function yomiFlowStep4(){
+    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null);
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから見な。');
+    const panel = ensureYomiControlPanel();
+    const genres = [
+      { key: 'jikorikai', label: '自己理解', en: 'SELF-UNDERSTANDING' },
+      { key: 'renai', label: '恋愛', en: 'LOVE' },
+      { key: 'shigoto', label: '仕事', en: 'WORK' },
+      { key: 'kinun', label: '金運', en: 'MONEY' },
+      { key: 'ningenkankei', label: '人間関係', en: 'BONDS' },
+    ];
+    panel.innerHTML = genres.map(g =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid rgba(124,58,237,.15);cursor:pointer;" onclick="alert(\'' + g.label + 'の詳細表示は次回実装\')">' +
+        '<span style="font-size:13px;color:var(--ink);">' + g.label + '</span>' +
+        '<span class="mono" style="font-size:8px;color:var(--ink-soft);">' + g.en + ' ›</span>' +
+      '</div>'
+    ).join('') +
+    '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;margin-top:12px;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
   }
 
   // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
