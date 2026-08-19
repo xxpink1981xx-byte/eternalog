@@ -1043,6 +1043,7 @@
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.style.display = 'none';
+        overlay.removeEventListener('click', skipHandler);
         onComplete();
       }, 520);
     }
@@ -1633,8 +1634,23 @@
       const incoming = next;
       incoming.src = src;
       incoming.currentTime = 0;
+      // 待機動画（loop=true）は他の待機動画と同じく無音のまま。
+      // 単発の演出動画（loop=false、例：占い演出）は、音声込みで作られているため
+      // ここでミュートを解除する。ただし音声ありの自動再生はブラウザにブロックされる
+      // ことがあるため、まずミュートで再生を試み、成功したら直後にミュートを解除する
+      // （「ユーザー操作の直後」という導線なら、この解除は概ね許可される）。
+      if (loop) {
+        incoming.muted = true;
+      }
       incoming.load();
-      incoming.play().catch(() => {});
+      const playPromise = incoming.play();
+      if (playPromise && playPromise.then) {
+        playPromise.then(() => {
+          if (!loop) incoming.muted = false;
+        }).catch(() => {});
+      } else if (!loop) {
+        incoming.muted = false;
+      }
       triggerNoiseGlitch();
       outgoing.style.opacity = '0';
       incoming.style.opacity = '1';
@@ -1653,6 +1669,8 @@
       yomiMode = false;
       yomiLoopCurrent = false;
       yomiVideoEndedCallback = null;
+      heroA.muted = true;
+      heroB.muted = true;
       crossfadeTo(pickIdle());
     };
 
