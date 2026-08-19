@@ -1562,8 +1562,21 @@
     heroA.addEventListener('ended', onEnded);
     heroB.addEventListener('ended', onEnded);
     function onError(e){
-      console.warn('[EternaLog] idle video failed to load:', e.target.src);
-      if (e.target !== current) return; // ★同様にcurrentのみ対象
+      // srcを外したクリーンアップ処理（removeAttribute + load）でも
+      // errorイベントは発火するため、無条件にログを出すと
+      // 「ファイルは存在するのに読み込み失敗に見える」誤解を生む。
+      // 表示中(current)の要素で、かつsrcが実際に設定されている場合だけを
+      // 本物の読み込み失敗として扱う。
+      const isCleanup = !e.target.getAttribute('src');
+      if (isCleanup) return;
+      console.warn(
+        '[EternaLog] video load error:', e.target.src,
+        '| isCurrent=', e.target === current,
+        '| yomiMode=', yomiMode,
+        '| networkState=', e.target.networkState,
+        '| errorCode=', e.target.error ? e.target.error.code : 'none'
+      );
+      if (e.target !== current) return; // 表示中の要素のみ対象
       if (yomiMode) return; // ヨミモード中は燈側の自動復帰をさせない
       if (!busy && !speaking) setTimeout(() => crossfadeTo(pickIdle()), 800);
     }
@@ -1590,6 +1603,9 @@
       switchTimer = setTimeout(() => {
         // ★修正2: フェード完了後、outgoingを明示的に停止する。
         //         裏で再生され続けてendedが誤発火するのを防ぐ。
+        // ★修正3: 連続切り替えでタイマーが交錯した際に、
+        //         表示中になった要素を誤って止めないよう確認する。
+        if (outgoing === current) return;
         outgoing.pause();
         outgoing.removeAttribute('src');
         outgoing.load();
@@ -1618,8 +1634,15 @@
     window.eternalogEnterYomiMode = function(){
       yomiMode = true;
       speaking = false;
+      // 直前まで動いていた燈側のクロスフェード処理を完全に打ち切る。
+      // closeReader() が tomoriStopSpeak() 経由で crossfadeTo() を呼んでいるため、
+      // ここで止めないと、ヨミの動画を差し込んだ直後に
+      // 燈側の後始末タイマーが動いて競合する。
       clearTimeout(switchTimer);
       busy = false;
+      // 両方の要素を一旦止め、確実にクリーンな状態からヨミの動画を出せるようにする
+      heroA.pause();
+      heroB.pause();
     };
 
     // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
@@ -1657,6 +1680,9 @@
       current = incoming;
       next = outgoing;
       switchTimer = setTimeout(() => {
+        // 連続呼び出しでタイマーが交錯した場合に、
+        // 今まさに表示中の動画を誤って停止してしまわないよう確認する
+        if (outgoing === current) return;
         outgoing.pause();
         outgoing.removeAttribute('src');
         outgoing.load();
@@ -2753,7 +2779,9 @@
   ];
 
   function startYomiFullDivination(){
-    closeReader();
+    // 第1引数true = 燈の待機動画・GUIDE文言への復帰処理をスキップする。
+    // 直後にヨミの動画へ切り替えるため、ここで燈に戻すと競合する。
+    closeReader(true);
     if (!window.eternalogEnterYomiMode || !window.eternalogPlayYomiVideo) {
       console.warn('[EternaLog] yomi mode controls not available');
       return;
@@ -3420,14 +3448,18 @@
     showNext();
   }
 
-  function closeReader(){
+  function closeReader(skipTomoriRestore){
     document.getElementById('readerBack').classList.remove('show');
     document.getElementById('reader').classList.remove('show');
     clearTimeout(contentTypeTimer);
     clearTimeout(logBubbleTimer);
     clearTimeout(rururuBubbleTimer);
-    if (window.heroTextboxReset) window.heroTextboxReset();
-    if (window.tomoriStopSpeak) window.tomoriStopSpeak();
+    // ヨミモードへ移行する場合は、燈の待機動画やGUIDE文言に戻す必要がない。
+    // むしろ戻す処理が走ると、直後に差し込むヨミの動画と競合してしまう。
+    if (!skipTomoriRestore) {
+      if (window.heroTextboxReset) window.heroTextboxReset();
+      if (window.tomoriStopSpeak) window.tomoriStopSpeak();
+    }
     const resonanceEl = document.getElementById('resonanceAudio');
     if (resonanceEl) resonanceEl.pause();
     stopResonanceLyricsSync();
@@ -3484,7 +3516,10 @@
     const btn = document.createElement('button');
     btn.className = 'reader-close-bottom mono';
     btn.textContent = '✕ CLOSE';
-    btn.onclick = onClick || closeReader;
+    // closeReaderをそのまま渡すと、クリックイベントオブジェクトが
+    // 第1引数(skipTomoriRestore)として渡ってしまい、意図せず
+    // 燈への復帰処理がスキップされてしまうため、明示的にラップする。
+    btn.onclick = onClick || (() => closeReader());
     bodyEl.appendChild(btn);
   }
 
