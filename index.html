@@ -1619,7 +1619,7 @@
 
     // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
     // loop=falseなら再生が終わった時点でonEndedコールバックを1回呼ぶ。
-    window.eternalogPlayYomiVideo = function(src, loop, onEndedCallback){
+    window.eternalogPlayYomiVideo = function(src, loop, onEndedCallback, fadeMs){
       if (!yomiMode) return;
       yomiLoopCurrent = !!loop;
       yomiVideoEndedCallback = onEndedCallback || null;
@@ -1627,6 +1627,12 @@
       clearTimeout(switchTimer);
       const outgoing = current;
       const incoming = next;
+      const effectiveFadeMs = fadeMs || FADE_MS;
+      // 通常は要素のCSSで指定された .6s のフェードを使うが、
+      // 占い演出→待機画面のように、もっとゆっくり戻したい場面では
+      // 呼び出し側からフェード時間を上書きできるようにする。
+      outgoing.style.transition = 'opacity ' + effectiveFadeMs + 'ms ease';
+      incoming.style.transition = 'opacity ' + effectiveFadeMs + 'ms ease';
       incoming.src = src;
       incoming.currentTime = 0;
       // 待機動画（loop=true）は他の待機動画と同じく無音のまま。
@@ -1646,7 +1652,10 @@
       } else if (!loop) {
         incoming.muted = false;
       }
-      triggerNoiseGlitch();
+      // 通常の切り替え(600ms)ではノイズグリッチ演出を伴わせるが、
+      // ゆっくりフェードを指定した場合（占い演出からの復帰など）は
+      // 荒々しいノイズと相性が悪いため、フェード時間が通常より長い時はスキップする。
+      if (effectiveFadeMs <= FADE_MS) triggerNoiseGlitch();
       outgoing.style.opacity = '0';
       incoming.style.opacity = '1';
       current = incoming;
@@ -1659,7 +1668,7 @@
         outgoing.removeAttribute('src');
         outgoing.load();
         busy = false;
-      }, FADE_MS);
+      }, effectiveFadeMs);
     };
 
     // ヨミ→燈へ戻す。通常の待機ループに復帰させる。
@@ -2858,7 +2867,10 @@
 
   // ④ 完了・5ジャンル見出し（今はダミーデータ。実データ連携は別途対応）
   function yomiFlowStep4(){
-    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null);
+    // 占い演出（白フラッシュ）から待機画面へ戻る瞬間は、
+    // 通常の切り替え(600ms)よりゆっくりフェードインさせ、
+    // 白い余韻から静かに立ち上がってくるような印象にする。
+    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
     if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから見な。');
     const panel = ensureYomiControlPanel();
     const genres = [
