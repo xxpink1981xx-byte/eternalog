@@ -730,8 +730,8 @@
   <section class="hero">
     <div class="hero-bezel top">
       <div class="hero-hud-row mono">
-        <span class="l">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
-        <span class="r"><span class="rec">REC ●</span><br>CH-01 · LIVE</span>
+        <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
+        <span class="r"><span class="rec">REC ●</span><br><span id="heroChannelLine">CH-01 · LIVE</span></span>
       </div>
     </div>
 
@@ -1611,6 +1611,10 @@
       if (frame) frame.classList.add('yomi-mode');
       const navTerminal = document.getElementById('navTerminal');
       if (navTerminal) navTerminal.style.display = 'none';
+      const subjectLine = document.getElementById('heroSubjectLine');
+      if (subjectLine) subjectLine.innerHTML = 'SUBJECT // ヨミ-YOMI-<br><span class="ok">● STATUS: DIVINING</span>';
+      const channelLine = document.getElementById('heroChannelLine');
+      if (channelLine) channelLine.textContent = 'CH-02 · LIVE';
     };
 
     // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
@@ -1669,6 +1673,10 @@
       if (frame) frame.classList.remove('yomi-mode');
       const navTerminal = document.getElementById('navTerminal');
       if (navTerminal) navTerminal.style.display = '';
+      const subjectLine = document.getElementById('heroSubjectLine');
+      if (subjectLine) subjectLine.innerHTML = 'SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span>';
+      const channelLine = document.getElementById('heroChannelLine');
+      if (channelLine) channelLine.textContent = 'CH-01 · LIVE';
       crossfadeTo(pickIdle());
     };
 
