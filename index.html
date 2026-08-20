@@ -210,14 +210,26 @@
   .sys-ticker #sysClock{ color:var(--accent-bright); }
 
   /* ===== HERO（モニター：上下ベゼル方式、吹き出し・HUDかっこなし） ===== */
-  .hero{ width:100%; background:#fff; }
-  .hero-bezel{
-    background:var(--bezel);
-    padding:9px 16px;
+  .hero{ width:100%; background:#fff; padding:10px 10px 0; }
+  .hero-monitor-shell{
+    max-width:420px; margin:0 auto;
+    background:linear-gradient(155deg, #f4f7fc 0%, #e4eaf3 55%, #d9e1ec 100%);
+    border-radius:20px;
+    padding:10px 10px 12px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.8) inset,
+      0 -1px 0 rgba(150,165,190,0.25) inset,
+      0 8px 20px rgba(20,40,70,0.12),
+      0 1px 3px rgba(20,40,70,0.08);
     position:relative;
   }
-  .hero-bezel.top{ border-bottom:2px solid var(--accent); }
-  .hero-bezel.bottom{ border-top:2px solid var(--accent); }
+  .hero-bezel{
+    background:transparent;
+    padding:8px 6px;
+    position:relative;
+  }
+  .hero-bezel.top{ padding-bottom:10px; }
+  .hero-bezel.bottom{ padding-top:8px; }
   .hero-hud-row{ display:flex; justify-content:space-between; align-items:flex-start; }
   .hero-hud-row .l, .hero-hud-row .r{ font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:.5px;line-height:1.7; }
   .hero-hud-row .l{ color:var(--accent); text-align:left; }
@@ -234,11 +246,82 @@
   .hero-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.4; }
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
-  .hero-video-frame{ width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative; }
+  .hero-video-frame{
+    width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative;
+    border-radius:12px;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(0,180,230,0.35),
+      inset 0 0 16px rgba(0,140,200,0.15),
+      0 1px 2px rgba(0,0,0,0.25);
+  }
   .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block; }
   /* ヨミモード中はNAV_TERMINALを隠すため、燈のために空けていた左側の余白が不要になる。
      中央配置に切り替える。 */
   .hero-video-frame.yomi-mode video{ object-position:center center; }
+  /* 画面ガラスの反射：上から下へ薄いハイライトが抜けるレイヤー。旧EternaLogの
+     screen-glassを踏襲し、「画面越しに見ている」という実在感を出す。 */
+  .hero-video-frame::after{
+    content:''; position:absolute; inset:0; z-index:5; pointer-events:none; border-radius:12px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 14%, rgba(255,255,255,0) 30%),
+      radial-gradient(125% 95% at 50% 42%, rgba(0,0,0,0) 58%, rgba(0,10,18,0.35) 100%);
+  }
+  /* ベゼル小物：電源LEDとラベル。稼働している機器という実在感を添える */
+  .hero-bezel-led-row{
+    display:flex; align-items:center; gap:5px; padding:6px 8px 2px;
+    font-family:'Courier New',monospace; font-size:7px; letter-spacing:1px; color:rgba(70,90,110,0.65);
+  }
+  .hero-bezel-led{
+    width:6px; height:6px; border-radius:50%; background:#5affaa;
+    box-shadow:0 0 6px rgba(90,255,170,0.85); flex:none;
+    animation:heroBezelLedBlink 2s steps(1) infinite;
+  }
+  @keyframes heroBezelLedBlink{ 92%,100%{ opacity:1; } 96%{ opacity:.3; } }
+
+  /* ===== 着信トランスミッション（PR広告）：モニタ内スライドイン =====
+     旧EternaLogの「着信通信」演出を踏襲しつつ、今のサイトの配色言語
+     （NAV_TERMINALと同じ、濃紺の半透明背景＋シアンの縁取り）に合わせて
+     作り直したもの。モニタが燈モードかヨミモードかで、アクセントカラーを
+     --c-tomori / --c-yomi に自動で切り替える。 */
+  .ad-trans{
+    position:absolute; left:6%; right:6%; bottom:16px; z-index:6;
+    display:block; text-decoration:none;
+    background:rgba(10,20,35,0.82); backdrop-filter:blur(3px);
+    border:1px solid rgba(0,225,255,0.55);
+    box-shadow:0 0 16px rgba(0,225,255,0.22), inset 0 0 10px rgba(0,225,255,0.08);
+    border-radius:4px; padding:7px 10px 8px;
+    transform:translateY(160%); opacity:0;
+    transition:transform .5s cubic-bezier(.2,.8,.2,1), opacity .5s;
+    pointer-events:none;
+  }
+  .ad-trans.show{ transform:translateY(0); opacity:1; pointer-events:auto; }
+  /* ヨミモード中は、燈のシアンではなく、ヨミの紫を基調にする */
+  .hero-video-frame.yomi-mode .ad-trans{
+    border-color:rgba(124,58,237,0.55);
+    box-shadow:0 0 16px rgba(124,58,237,0.22), inset 0 0 10px rgba(124,58,237,0.08);
+  }
+  .ad-trans-head{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .ad-trans-dot{
+    width:5px; height:5px; border-radius:50%; background:#5affaa;
+    box-shadow:0 0 5px rgba(90,255,170,.8); flex:none;
+    animation:adTransBlink 1.2s steps(1) infinite;
+  }
+  @keyframes adTransBlink{ 50%{ opacity:.35; } }
+  .ad-trans-tag{
+    font-family:'Orbitron',sans-serif; font-size:7px; padding:1px 4px;
+    border:1px solid rgba(255,200,90,.7); color:rgba(255,212,110,.97);
+    border-radius:2px; letter-spacing:1px; flex:none;
+  }
+  .ad-trans-title{
+    font-family:'Orbitron',sans-serif; font-size:7px; letter-spacing:.5px;
+    color:rgba(120,220,255,.75); overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  }
+  .hero-video-frame.yomi-mode .ad-trans-title{ color:rgba(200,170,255,.8); }
+  .ad-trans-body{ font-size:10px; line-height:1.5; color:rgba(230,248,255,.95); }
+  .ad-trans-close{
+    position:absolute; top:2px; right:6px; font-size:12px; line-height:1;
+    color:rgba(150,200,220,.6); pointer-events:auto; cursor:pointer; padding:3px 4px;
+  }
 
   /* ===== 待機動画切り替え時のグリッチ/ノイズ演出 ===== */
   .hero-glitch-overlay{
@@ -728,6 +811,7 @@
 
   <!-- HERO -->
   <section class="hero">
+    <div class="hero-monitor-shell">
     <div class="hero-bezel top">
       <div class="hero-hud-row mono">
         <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
@@ -783,17 +867,33 @@
         </div>
         <div class="nt-article-body" id="ntArticleBody"></div>
       </nav>
+
+      <!-- 着信トランスミッション（PR広告）：スライドイン・タップ可・自動退場 -->
+      <a id="adTransmission" href="#" target="_blank" rel="noopener sponsored" class="ad-trans">
+        <span class="ad-trans-close" role="button" aria-label="閉じる">✕</span>
+        <div class="ad-trans-head">
+          <span class="ad-trans-dot"></span>
+          <span class="ad-trans-tag">PR</span>
+          <span class="ad-trans-title" id="adTransTitle">INCOMING TRANSMISSION</span>
+        </div>
+        <div class="ad-trans-body" id="adTransBody"></div>
+      </a>
+    </div>
+
+    <div class="hero-bezel bottom">
+      <div class="hero-wave-label mono">SOUL WAVEFORM // DECODING</div>
+      <div class="hero-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="hero-bezel-led-row">
+      <span class="hero-bezel-led"></span>
+      <span id="heroBezelLabel">TOMORI-CAM // CH-01 LIVE</span>
+    </div>
     </div>
 
     <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる -->
     <div class="hero-textbox">
       <span class="hero-textbox-tag mono" id="heroTextboxTag">GUIDE</span>
       <span class="hero-textbox-body" id="heroTextboxBody"></span>
-    </div>
-
-    <div class="hero-bezel bottom">
-      <div class="hero-wave-label mono">SOUL WAVEFORM // DECODING</div>
-      <div class="hero-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
   </section>
 
@@ -1464,6 +1564,52 @@
     loadActivityFeed();
   })();
 
+  // ===== 着信トランスミッション（PR広告）：スライドイン・自動退場・自動ローテーション =====
+  // 旧EternaLogの「着信通信」演出を、今のサイトの配色・両モニタ（燈/ヨミ）対応で再実装。
+  // Amazon・タイアップ募集は確定枠、残りは有用な候補をローテーションする想定。
+  (function initAdTransmission(){
+    const AD_CREATIVES = [
+      { tag:'PR', title:'AMAZON', body:'Amazon // 気になったあの一冊も、この一つも ▸', url:'https://www.amazon.co.jp/' },
+      { tag:'PR', title:'OPEN SLOT', body:'EternaLog タイアップ募集中 // この周波数に、あなたの信号を ▸', url:'#contact' },
+      // 以下3枠は候補。実装確定後、実際のリンク・文言に差し替える
+      { tag:'PR', title:'SUPPORT', body:'Ko-fi // 燈たちの活動を、そっと支える ▸', url:'#' },
+      { tag:'PR', title:'DIVINATION', body:'観月ヨミ // 今宵の月が、あなたの周波数を読む ▸', url:'#' },
+      { tag:'PR', title:'SIGNAL', body:'忍者AdMax // この枠、まだ空いています ▸', url:'#' },
+    ];
+    let adIdx = 0, adTimer = null, adHideTimer = null;
+
+    function showAd(){
+      const el = document.getElementById('adTransmission');
+      if (!el) return;
+      const ad = AD_CREATIVES[adIdx % AD_CREATIVES.length];
+      adIdx++;
+      const titleEl = document.getElementById('adTransTitle');
+      const bodyEl = document.getElementById('adTransBody');
+      if (titleEl) titleEl.textContent = ad.title || 'INCOMING TRANSMISSION';
+      if (bodyEl) bodyEl.textContent = ad.body;
+      el.href = ad.url || '#';
+      el.classList.add('show');
+      clearTimeout(adHideTimer);
+      adHideTimer = setTimeout(() => el.classList.remove('show'), 7000);
+      clearTimeout(adTimer);
+      // 表示7秒＋間隔20〜32秒（ランダム）をおいて次を表示
+      adTimer = setTimeout(showAd, 7000 + 20000 + Math.random() * 12000);
+    }
+
+    const el = document.getElementById('adTransmission');
+    if (!el) return;
+    const closeBtn = el.querySelector('.ad-trans-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        el.classList.remove('show');
+        clearTimeout(adHideTimer);
+      });
+    }
+    // サイト訪問直後は情報が多いため、最初のPRは14秒後まで待つ
+    setTimeout(showAd, 14000);
+  })();
+
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
   // tomori_speak.mp4（トーク用）・tomori_wave.mp4（楽曲）を除いた5本を、
   // 各動画が終わりに近づくたびに自動でクロスフェード切り替え。
@@ -1615,6 +1761,8 @@
       if (subjectLine) subjectLine.innerHTML = 'SUBJECT // ヨミ-YOMI-<br><span class="ok">● STATUS: DIVINING</span>';
       const channelLine = document.getElementById('heroChannelLine');
       if (channelLine) channelLine.textContent = 'CH-02 · LIVE';
+      const bezelLabel = document.getElementById('heroBezelLabel');
+      if (bezelLabel) bezelLabel.textContent = 'YOMI-CAM // CH-02 LIVE';
     };
 
     // ヨミの動画を再生する。loop=trueならendedのたびに頭から再生し続け、
@@ -1686,6 +1834,8 @@
       if (subjectLine) subjectLine.innerHTML = 'SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span>';
       const channelLine = document.getElementById('heroChannelLine');
       if (channelLine) channelLine.textContent = 'CH-01 · LIVE';
+      const bezelLabel = document.getElementById('heroBezelLabel');
+      if (bezelLabel) bezelLabel.textContent = 'TOMORI-CAM // CH-01 LIVE';
       crossfadeTo(pickIdle());
     };
 
@@ -2827,7 +2977,22 @@
     const panel = ensureYomiControlPanel();
     if (mode === 'start') {
       panel.innerHTML =
-        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStep2()">占いを始める</button>' +
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowComingSoon()">占いを始める</button>' +
+        '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+    }
+  }
+
+  // 決済連携が整うまでの間、本格鑑定はまだ受け付けられないことを
+  // ヨミの言葉として丁寧に伝える。ボタン自体は隠さず、押した先で案内する形にする。
+  function yomiFlowComingSoon(){
+    if (window.heroTextboxShowYomi) {
+      window.heroTextboxShowYomi('すまないね、まだ準備が整ってないんだ。もう少し待っておくれ。');
+    }
+    const panel = document.getElementById('yomiControlPanel');
+    if (panel) {
+      panel.innerHTML =
+        '<div class="mono" style="font-size:10px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:8px;text-align:center;">// COMING SOON</div>' +
+        '<div style="font-size:12px;color:var(--ink-soft);line-height:1.7;text-align:center;margin-bottom:14px;">本格鑑定は、現在準備中だよ。<br>もう少しだけ、待っていておくれ。</div>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     }
   }
