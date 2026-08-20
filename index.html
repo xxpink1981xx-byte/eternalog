@@ -250,6 +250,18 @@
     display:flex; align-items:center; gap:5px; padding:6px 8px 2px;
     font-family:'Courier New',monospace; font-size:7px; letter-spacing:1px; color:rgba(70,90,110,0.65);
   }
+  /* SOUL WAVEFORMの波形だけを、LED行の右側に添える（ラベル文字は省略し、
+     視覚的なアクセントとして機能させる） */
+  .hero-bezel-wave{
+    display:flex; align-items:center; gap:1.5px; height:9px;
+    margin-left:auto;
+  }
+  .hero-bezel-wave i{
+    width:2px; background:var(--accent); border-radius:1px; height:30%;
+    animation:wv 1.2s ease-in-out infinite; opacity:.7;
+  }
+  .hero-bezel-wave i:nth-child(odd){ animation-duration:.9s; }
+  .hero-bezel-wave i:nth-child(3n){ animation-delay:.2s; opacity:.4; }
   .hero-bezel-led{
     width:6px; height:6px; border-radius:50%; background:#5affaa;
     box-shadow:0 0 6px rgba(90,255,170,0.85); flex:none;
@@ -263,7 +275,7 @@
      作り直したもの。モニタが燈モードかヨミモードかで、アクセントカラーを
      --c-tomori / --c-yomi に自動で切り替える。 */
   .ad-trans{
-    position:absolute; left:6%; right:6%; bottom:44px; z-index:6;
+    position:absolute; left:6%; right:6%; bottom:16px; z-index:6;
     display:block; text-decoration:none;
     background:rgba(10,20,35,0.82); backdrop-filter:blur(3px);
     border:1px solid rgba(0,225,255,0.55);
@@ -369,37 +381,17 @@
   .mon-label-row .r{ text-align:right; }
   .mon-label-row .ok{ color:#5affaa; font-size:7px; text-shadow:0 0 4px rgba(90,255,170,.6); }
   .mon-label-row .rec{ color:#ff6b7a; font-size:7px; text-shadow:0 0 4px rgba(255,90,110,.6); }
-  .mon-wave-row{
-    position:absolute; bottom:8px; left:8px; right:8px; z-index:4;
-    pointer-events:none;
-  }
-  .mon-wave-row .mon-wave-label{
-    text-align:center; font-family:'Orbitron',sans-serif; font-size:7px; letter-spacing:1.2px;
-    color:rgba(120,220,255,.8); text-shadow:0 0 4px rgba(0,180,230,.5); margin-bottom:4px;
-  }
-  .mon-wave-row .mon-wave-bars{ display:flex; align-items:center; justify-content:center; gap:2px; height:10px; }
-  .mon-wave-row .mon-wave-bars i{
-    flex:1; max-width:14px; background:rgba(120,220,255,.75); border-radius:1px; height:30%;
-    animation:wv 1.2s ease-in-out infinite; box-shadow:0 0 3px rgba(0,180,230,.4);
-  }
-  .mon-wave-row .mon-wave-bars i:nth-child(odd){ animation-duration:.9s; }
-  .mon-wave-row .mon-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.5; }
-  /* ヨミモード中は、シアンではなく紫の配色に統一する */
   .hero-video-frame.yomi-mode .mon-label-row .l,
-  .hero-video-frame.yomi-mode .mon-label-row .r,
-  .hero-video-frame.yomi-mode .mon-wave-row .mon-wave-label{
+  .hero-video-frame.yomi-mode .mon-label-row .r{
     color:rgba(200,170,255,.85); text-shadow:0 0 4px rgba(124,58,237,.5);
-  }
-  .hero-video-frame.yomi-mode .mon-wave-row .mon-wave-bars i{
-    background:rgba(200,170,255,.75); box-shadow:0 0 3px rgba(124,58,237,.4);
   }
 
   /* ===== 試験実装：モニター内メニュー（cmdウィンドウ風） ===== */
   /* 浮遊ターミナル(.bg-terminal)と文法は揃えつつ、常駐＆操作可能なナビとして区別する */
   /* 配色は燈の目周りHUD（彩度の高いシアングロー・透過ブルー）に寄せる */
   .nav-terminal{
-    position:absolute; top:10px; left:10px; z-index:8;
-    width:min(40%, 148px);
+    position:absolute; top:44px; left:10px; z-index:8;
+    width:min(38%, 138px);
     height:auto;
     background:rgba(10,70,130,0.38);
     border:1px solid rgba(0,225,255,0.7);
@@ -505,11 +497,14 @@
   /* ===== 常駐テキストボックス（モニター下、普段は独白／SIGNAL更新時に切替） ===== */
   .hero-textbox{
     position:relative;
-    background:#0a1420;
+    background:rgba(10,20,32,0.82);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
     border-top:1px solid rgba(0,90,200,.35);
-    border-bottom:1px solid rgba(0,90,200,.2);
     padding:8px 12px;
     min-height:40px;
+    margin-top:8px;
+    border-radius:0 0 10px 10px;
     display:flex; flex-direction:column; gap:3px; justify-content:center;
     overflow:hidden;
   }
@@ -897,24 +892,20 @@
         </div>
         <div class="ad-trans-body" id="adTransBody"></div>
       </a>
-
-      <!-- SOUL WAVEFORM：旧EternaLogと同じく、画面内下部の前景ラベルとして動画に重ねる -->
-      <div class="mon-wave-row">
-        <div class="mon-wave-label mono">SOUL WAVEFORM // DECODING</div>
-        <div class="mon-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
     </div>
 
     <div class="hero-bezel-led-row">
       <span class="hero-bezel-led"></span>
       <span id="heroBezelLabel">TOMORI-CAM // CH-01 LIVE</span>
-    </div>
+      <div class="hero-bezel-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
 
-    <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる -->
+    <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる。
+         シェルの内側に組み込み、モニタと一体のパネルとして見せる。 -->
     <div class="hero-textbox">
       <span class="hero-textbox-tag mono" id="heroTextboxTag">GUIDE</span>
       <span class="hero-textbox-body" id="heroTextboxBody"></span>
+    </div>
     </div>
   </section>
 
