@@ -223,27 +223,6 @@
       0 1px 3px rgba(20,40,70,0.08);
     position:relative;
   }
-  .hero-bezel{
-    background:transparent;
-    padding:8px 6px;
-    position:relative;
-  }
-  .hero-bezel.top{ padding-bottom:10px; }
-  .hero-bezel.bottom{ padding-top:8px; }
-  .hero-hud-row{ display:flex; justify-content:space-between; align-items:flex-start; }
-  .hero-hud-row .l, .hero-hud-row .r{ font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:.5px;line-height:1.7; }
-  .hero-hud-row .l{ color:var(--accent); text-align:left; }
-  .hero-hud-row .r{ color:var(--accent); text-align:right; }
-  .hero-hud-row .ok{ color:var(--ok); font-size:8px; }
-  .hero-hud-row .rec{ color:var(--rec); font-size:8px; }
-
-  .hero-wave-label{
-    text-align:center;font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;
-  }
-  .hero-wave-bars{ display:flex;align-items:center;justify-content:center;gap:2px;height:13px;max-width:280px;margin:0 auto; }
-  .hero-wave-bars i{ flex:1;background:var(--accent);border-radius:1px;height:30%;animation:wv 1.2s ease-in-out infinite; opacity:.75;}
-  .hero-wave-bars i:nth-child(odd){ animation-duration:.9s; }
-  .hero-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.4; }
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
   .hero-video-frame{
@@ -284,7 +263,7 @@
      作り直したもの。モニタが燈モードかヨミモードかで、アクセントカラーを
      --c-tomori / --c-yomi に自動で切り替える。 */
   .ad-trans{
-    position:absolute; left:6%; right:6%; bottom:16px; z-index:6;
+    position:absolute; left:6%; right:6%; bottom:44px; z-index:6;
     display:block; text-decoration:none;
     background:rgba(10,20,35,0.82); backdrop-filter:blur(3px);
     border:1px solid rgba(0,225,255,0.55);
@@ -374,6 +353,45 @@
   .screen-glass{
     position:absolute; inset:0; z-index:2; pointer-events:none;
     background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.05) 100%);
+  }
+  /* モニタ内前景ラベル：SUBJECT/REC/SOUL WAVEFORM。動画の上に直接重ねることで、
+     旧EternaLogと同じ「画面の中に全部収まっている」実在感を出す。
+     背景が動画（暗い映像が多い）想定のため、シアン系の配色で統一する。 */
+  .mon-label-row{
+    position:absolute; top:8px; left:8px; right:8px; z-index:4;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none;
+  }
+  .mon-label-row .l, .mon-label-row .r{
+    font-family:'Orbitron',sans-serif; font-size:8px; letter-spacing:.5px; line-height:1.7;
+    color:rgba(120,220,255,.85); text-shadow:0 0 4px rgba(0,180,230,.5);
+  }
+  .mon-label-row .r{ text-align:right; }
+  .mon-label-row .ok{ color:#5affaa; font-size:7px; text-shadow:0 0 4px rgba(90,255,170,.6); }
+  .mon-label-row .rec{ color:#ff6b7a; font-size:7px; text-shadow:0 0 4px rgba(255,90,110,.6); }
+  .mon-wave-row{
+    position:absolute; bottom:8px; left:8px; right:8px; z-index:4;
+    pointer-events:none;
+  }
+  .mon-wave-row .mon-wave-label{
+    text-align:center; font-family:'Orbitron',sans-serif; font-size:7px; letter-spacing:1.2px;
+    color:rgba(120,220,255,.8); text-shadow:0 0 4px rgba(0,180,230,.5); margin-bottom:4px;
+  }
+  .mon-wave-row .mon-wave-bars{ display:flex; align-items:center; justify-content:center; gap:2px; height:10px; }
+  .mon-wave-row .mon-wave-bars i{
+    flex:1; max-width:14px; background:rgba(120,220,255,.75); border-radius:1px; height:30%;
+    animation:wv 1.2s ease-in-out infinite; box-shadow:0 0 3px rgba(0,180,230,.4);
+  }
+  .mon-wave-row .mon-wave-bars i:nth-child(odd){ animation-duration:.9s; }
+  .mon-wave-row .mon-wave-bars i:nth-child(3n){ animation-delay:.2s; opacity:.5; }
+  /* ヨミモード中は、シアンではなく紫の配色に統一する */
+  .hero-video-frame.yomi-mode .mon-label-row .l,
+  .hero-video-frame.yomi-mode .mon-label-row .r,
+  .hero-video-frame.yomi-mode .mon-wave-row .mon-wave-label{
+    color:rgba(200,170,255,.85); text-shadow:0 0 4px rgba(124,58,237,.5);
+  }
+  .hero-video-frame.yomi-mode .mon-wave-row .mon-wave-bars i{
+    background:rgba(200,170,255,.75); box-shadow:0 0 3px rgba(124,58,237,.4);
   }
 
   /* ===== 試験実装：モニター内メニュー（cmdウィンドウ風） ===== */
@@ -812,12 +830,6 @@
   <!-- HERO -->
   <section class="hero">
     <div class="hero-monitor-shell">
-    <div class="hero-bezel top">
-      <div class="hero-hud-row mono">
-        <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
-        <span class="r"><span class="rec">REC ●</span><br><span id="heroChannelLine">CH-01 · LIVE</span></span>
-      </div>
-    </div>
 
     <div class="hero-video-frame">
       <!-- BOOT SEQUENCE（起動演出。sessionStorageでタブ再訪時のみ表示。燈の映る画面内に限定） -->
@@ -848,6 +860,13 @@
         <div class="mon-sweep"></div>
         <div class="mon-ticks"></div>
       </div>
+
+      <!-- SUBJECT/REC：旧EternaLogと同じく、画面内前景ラベルとして動画に重ねる -->
+      <div class="mon-label-row mono">
+        <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
+        <span class="r"><span class="rec">REC ●</span><br><span id="heroChannelLine">CH-01 · LIVE</span></span>
+      </div>
+
       <!-- ガラス反射 -->
       <div class="screen-glass"></div>
 
@@ -878,12 +897,14 @@
         </div>
         <div class="ad-trans-body" id="adTransBody"></div>
       </a>
+
+      <!-- SOUL WAVEFORM：旧EternaLogと同じく、画面内下部の前景ラベルとして動画に重ねる -->
+      <div class="mon-wave-row">
+        <div class="mon-wave-label mono">SOUL WAVEFORM // DECODING</div>
+        <div class="mon-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
     </div>
 
-    <div class="hero-bezel bottom">
-      <div class="hero-wave-label mono">SOUL WAVEFORM // DECODING</div>
-      <div class="hero-wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    </div>
     <div class="hero-bezel-led-row">
       <span class="hero-bezel-led"></span>
       <span id="heroBezelLabel">TOMORI-CAM // CH-01 LIVE</span>
