@@ -71,7 +71,7 @@
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;overscroll-behavior:none;}
   body{
-    background:#050806;
+    background:var(--bg);
     font-family:'Noto Sans JP',sans-serif;
     color:var(--ink);
     display:flex;
@@ -83,15 +83,15 @@
      隠れているのが通常状態だが、画面幅が.deviceより広い環境や、
      余白部分でうっすら透けて見えることがある。 */
   .page-dos-layer{
-    position:fixed; inset:0; z-index:-1;
-    background:#050806;
-    color:#2fdb5a;
+    position:absolute; inset:0; z-index:0;
+    background:transparent;
+    color:rgba(0,90,160,0.13);
     font-family:'Courier New',monospace;
-    font-size:9px; line-height:1.6;
+    font-size:9px; line-height:1.7;
     padding:10px 14px;
     white-space:pre-wrap;
     overflow:hidden;
-    opacity:.5;
+    pointer-events:none;
   }
 
   /* ===== BOOT SEQUENCE（起動演出） ===== */
@@ -850,12 +850,11 @@
 </head>
 <body class="scan">
 
-<!-- ページ全体の最背面：常時裏で処理が走っているDOS風コード表示。
-     通常のコンテンツ（白背景の.device）に完全に隠れているが、
-     ページの余白や、スクロール時にうっすら透けて見えることがある。 -->
-<div id="pageDosLayer" class="page-dos-layer mono"></div>
-
 <div class="device">
+
+  <!-- ページ全体の最背面：常時裏で処理が走っているDOS風コード表示。
+       .device自体の白背景を通して、コンテンツの隙間・背後にうっすら見える。 -->
+  <div id="pageDosLayer" class="page-dos-layer mono"></div>
 
   <!-- HEADER -->
   <header>
@@ -1656,7 +1655,18 @@
     ];
 
     let buffer = [];
-    const MAX_LINES = 22;
+    // 22行では画面上部のごく一部（300px程度）しか埋まらず、
+    // ページ全体（数千px）のほとんどが空白のままになってしまっていた。
+    // ページ全体をカバーできる行数まで増やす。
+    const MAX_LINES = 280;
+
+    // 初期化時、タイピングを待たず一気に行を埋めておく。
+    // こうしないと、ページ下部（アーカイブ等）に文字が到達するまで
+    // 何十秒も待つことになってしまうため。
+    for (let i = 0; i < MAX_LINES; i++) {
+      buffer.push(DOS_LINES[Math.floor(Math.random() * DOS_LINES.length)]);
+    }
+    el.textContent = buffer.join('\n');
 
     function typeNextLine(){
       const line = DOS_LINES[Math.floor(Math.random() * DOS_LINES.length)];
