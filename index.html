@@ -226,7 +226,7 @@
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
   .hero-video-frame{
-    width:100%; aspect-ratio:9/8; overflow:hidden; background:#000; position:relative;
+    width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative;
     border-radius:12px;
     box-shadow:
       inset 0 0 0 1.5px rgba(0,180,230,0.35),
@@ -238,7 +238,7 @@
     /* transformでの位置調整は、黒帯を埋めるために大きな拡大が必要になり、
        全動画が過度にアップになってしまうため使わない。
        object-positionだけで、拡大を伴わずに「切り取る位置」を調整する。 */
-    object-position:35% center;
+    object-position:0% center;
     display:block;
     transition:object-position .6s ease;
   }
@@ -376,22 +376,21 @@
   }
   /* モニタ内前景ラベル：SUBJECT/REC/SOUL WAVEFORM。動画の上に直接重ねることで、
      旧EternaLogと同じ「画面の中に全部収まっている」実在感を出す。
-     背景が動画（暗い映像が多い）想定のため、シアン系の配色で統一する。 */
-  .mon-label-row{
-    position:absolute; top:8px; left:8px; right:8px; z-index:4;
+     背景が動画（暗い映像が多い）想定のため、シアン系の配色で統一する。
+     ※SUBJECT/RECは動画の縦横比を圧迫しないよう、後に外側の独立した帯
+     （hero-label-bar）に変更したため、ここでは主にNAV_TERMINAL等が対象。 */
+  .hero-label-bar{
     display:flex; justify-content:space-between; align-items:flex-start;
-    pointer-events:none;
-  }
-  .mon-label-row .l, .mon-label-row .r{
+    padding:6px 8px 4px;
     font-family:'Orbitron',sans-serif; font-size:8px; letter-spacing:.5px; line-height:1.7;
-    color:rgba(120,220,255,.85); text-shadow:0 0 4px rgba(0,180,230,.5);
   }
-  .mon-label-row .r{ text-align:right; }
-  .mon-label-row .ok{ color:#5affaa; font-size:7px; text-shadow:0 0 4px rgba(90,255,170,.6); }
-  .mon-label-row .rec{ color:#ff6b7a; font-size:7px; text-shadow:0 0 4px rgba(255,90,110,.6); }
-  .hero-video-frame.yomi-mode .mon-label-row .l,
-  .hero-video-frame.yomi-mode .mon-label-row .r{
-    color:rgba(200,170,255,.85); text-shadow:0 0 4px rgba(124,58,237,.5);
+  .hero-label-bar .l{ color:var(--accent); text-align:left; }
+  .hero-label-bar .r{ color:var(--accent); text-align:right; }
+  .hero-label-bar .ok{ color:var(--ok); font-size:7px; }
+  .hero-label-bar .rec{ color:var(--rec); font-size:7px; }
+  .hero-monitor-shell.yomi-mode .hero-label-bar .l,
+  .hero-monitor-shell.yomi-mode .hero-label-bar .r{
+    color:var(--c-yomi);
   }
 
   /* ===== 試験実装：モニター内メニュー（cmdウィンドウ風） ===== */
@@ -848,6 +847,13 @@
   <section class="hero">
     <div class="hero-monitor-shell">
 
+    <!-- SUBJECT/REC：動画エリアの外、独立した帯として表示。動画自体の縦横比を
+         狭めないよう、ここで表示面積を確保する。 -->
+    <div class="hero-label-bar mono">
+      <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
+      <span class="r"><span class="rec">REC ●</span><br><span id="heroChannelLine">CH-01 · LIVE</span></span>
+    </div>
+
     <div class="hero-video-frame">
       <!-- BOOT SEQUENCE（起動演出。sessionStorageでタブ再訪時のみ表示。燈の映る画面内に限定） -->
       <div id="boot-overlay">
@@ -876,12 +882,6 @@
         <span class="mon-corner bl"></span><span class="mon-corner br"></span>
         <div class="mon-sweep"></div>
         <div class="mon-ticks"></div>
-      </div>
-
-      <!-- SUBJECT/REC：旧EternaLogと同じく、画面内前景ラベルとして動画に重ねる -->
-      <div class="mon-label-row mono">
-        <span class="l" id="heroSubjectLine">SUBJECT // 燈-TOMORI-<br><span class="ok">● STATUS: ACTIVE</span></span>
-        <span class="r"><span class="rec">REC ●</span><br><span id="heroChannelLine">CH-01 · LIVE</span></span>
       </div>
 
       <!-- ガラス反射 -->
@@ -1790,6 +1790,8 @@
       // 中央に据える（燈のために空けていた左側の余白が不要になるため）。
       const frame = document.querySelector('.hero-video-frame');
       if (frame) frame.classList.add('yomi-mode');
+      const shell = document.querySelector('.hero-monitor-shell');
+      if (shell) shell.classList.add('yomi-mode');
       const navTerminal = document.getElementById('navTerminal');
       if (navTerminal) navTerminal.style.display = 'none';
       const subjectLine = document.getElementById('heroSubjectLine');
@@ -1863,6 +1865,8 @@
       heroB.muted = true;
       const frame = document.querySelector('.hero-video-frame');
       if (frame) frame.classList.remove('yomi-mode');
+      const shell = document.querySelector('.hero-monitor-shell');
+      if (shell) shell.classList.remove('yomi-mode');
       const navTerminal = document.getElementById('navTerminal');
       if (navTerminal) navTerminal.style.display = '';
       const subjectLine = document.getElementById('heroSubjectLine');
