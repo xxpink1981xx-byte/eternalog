@@ -234,9 +234,13 @@
       0 1px 2px rgba(0,0,0,0.25);
   }
   .hero-video-frame video{
-    position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block;
-    transform:translateX(-12%) scale(1.36);
-    transition:transform .6s ease;
+    position:absolute; inset:0; width:100%;height:100%;object-fit:cover;
+    /* transformでの位置調整は、黒帯を埋めるために大きな拡大が必要になり、
+       全動画が過度にアップになってしまうため使わない。
+       object-positionだけで、拡大を伴わずに「切り取る位置」を調整する。 */
+    object-position:35% center;
+    display:block;
+    transition:object-position .6s ease;
   }
   /* ヨミモード中はNAV_TERMINALを隠すため、燈のために空けていた左側の余白が不要になる。
      中央配置に切り替える。あわせて、ヨミは少しアップ（拡大）にする。 */
