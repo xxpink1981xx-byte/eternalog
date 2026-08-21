@@ -71,13 +71,28 @@
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;overscroll-behavior:none;}
   body{
-    background:var(--bg);
+    background:#050806;
     font-family:'Noto Sans JP',sans-serif;
     color:var(--ink);
     display:flex;
     justify-content:center;
   }
   .mono{ font-family:'Orbitron',sans-serif; }
+
+  /* ページ全体の最背面DOS風コード表示。.device（白背景の本体コンテナ）に
+     隠れているのが通常状態だが、画面幅が.deviceより広い環境や、
+     余白部分でうっすら透けて見えることがある。 */
+  .page-dos-layer{
+    position:fixed; inset:0; z-index:-1;
+    background:#050806;
+    color:#2fdb5a;
+    font-family:'Courier New',monospace;
+    font-size:9px; line-height:1.6;
+    padding:10px 14px;
+    white-space:pre-wrap;
+    overflow:hidden;
+    opacity:.5;
+  }
 
   /* ===== BOOT SEQUENCE（起動演出） ===== */
   #boot-overlay{
@@ -512,19 +527,21 @@
   /* ===== 常駐テキストボックス（モニター下、普段は独白／SIGNAL更新時に切替） ===== */
   .hero-textbox{
     position:relative;
-    background:rgba(10,20,32,0.82);
-    backdrop-filter:blur(4px);
-    -webkit-backdrop-filter:blur(4px);
-    border-top:1px solid rgba(0,90,200,.35);
+    background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(224,242,254,0.85));
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    border-top:1px solid rgba(0,90,200,.25);
     padding:8px 12px;
     min-height:40px;
     margin-top:8px;
     border-radius:0 0 10px 10px;
     display:flex; flex-direction:column; gap:3px; justify-content:center;
-    overflow:hidden;
-    /* Glass Morphism的な外側の淡い光。既存のコーナーブラケット・monPulseと
-       同程度の控えめな強さに抑え、サイト全体の淡い発光トーンに揃える。 */
-    box-shadow:0 2px 10px rgba(0,140,200,0.12);
+    overflow:visible;
+    /* サイト全体のドミナントカラー（白・水色）に合わせ、モニタ暗色一辺倒から
+       離れて、GUIDE欄はページ本体と地続きの明るいトーンにする。
+       白背景になったことで、以前の淡い影では認識しづらくなったため、
+       立体感が出る程度にはっきりした影に調整。 */
+    box-shadow:0 4px 14px rgba(20,60,110,0.18), 0 1px 3px rgba(20,60,110,0.12);
   }
   /* GUIDE欄の縁飾り：モニタ内のコーナーブラケットと同じデザイン言語を踏襲し、
      モニタとGUIDE欄が「同じ装置」であることを縁でも示す。
@@ -536,19 +553,20 @@
   }
   .guide-corner.tl{ top:5px; left:5px; border-right:none; border-bottom:none; }
   .guide-corner.tr{ top:5px; right:5px; border-left:none; border-bottom:none; }
-  .hero-textbox.yomi-mode .guide-corner{ border-color:rgba(124,58,237,.55); }
+  .hero-monitor-shell.yomi-mode .guide-corner{ border-color:rgba(124,58,237,.55); }
+  .hero-monitor-shell.yomi-mode .hero-textbox-tag{ color:var(--c-yomi); }
   .hero-textbox-tag{
-    font-size:8px; letter-spacing:1.5px; color:#5fd4ff; opacity:.8;
+    font-size:8px; letter-spacing:1.5px; color:var(--accent); opacity:.85;
     transition:color .3s ease;
   }
-  .hero-textbox-tag.signal-mode{ color:#ffcf5f; }
+  .hero-textbox-tag.signal-mode{ color:#e08a00; }
   .hero-textbox-body{
     display:block; font-family:'Noto Sans JP',sans-serif; font-size:11.5px; line-height:1.6;
-    color:#eaf4ff; min-height:2.9em;
+    color:#0a1420; min-height:2.9em;
   }
   .hero-textbox-body .cmd-line{
     display:block; font-family:'Courier New',monospace; font-size:9.5px; letter-spacing:.3px;
-    color:#5fd4ff; opacity:.85;
+    color:var(--accent-bright); opacity:.85;
   }
   .hero-textbox-body .say-line{
     display:block; margin-top:2px;
@@ -831,6 +849,11 @@
 </style>
 </head>
 <body class="scan">
+
+<!-- ページ全体の最背面：常時裏で処理が走っているDOS風コード表示。
+     通常のコンテンツ（白背景の.device）に完全に隠れているが、
+     ページの余白や、スクロール時にうっすら透けて見えることがある。 -->
+<div id="pageDosLayer" class="page-dos-layer mono"></div>
 
 <div class="device">
 
@@ -1605,6 +1628,55 @@
     }
 
     loadActivityFeed();
+  })();
+
+  // ===== 最背面DOS風コード表示：ページ全体の裏で常時処理が走っている雰囲気を出す =====
+  // .deviceコンテナ（白背景の本体）に完全に隠れているため通常は見えないが、
+  // 余白部分でうっすら透けて見えることがある。
+  (function initPageDosLayer(){
+    const el = document.getElementById('pageDosLayer');
+    if (!el) return;
+
+    const DOS_LINES = [
+      'eternalog_core.exe --daemon',
+      'mounting /dev/soul0... OK',
+      'loading character_profile[tomori]... OK',
+      'loading character_profile[yomi]... OK',
+      'checksum verify: 0x4A2F0000 PASS',
+      'polling earth_signal relay...',
+      'thread[render] priority=HIGH',
+      'thread[render] status=RUNNING',
+      'gc: freed 128 fragments',
+      'cache hit ratio: 94.2%',
+      'sync ok. latency 12ms',
+      'watchdog: alive',
+      'idle_pool[tomori]: 5 clips loaded',
+      'idle_pool[yomi]: 2 clips loaded',
+      '> waiting for input...',
+    ];
+
+    let buffer = [];
+    const MAX_LINES = 22;
+
+    function typeNextLine(){
+      const line = DOS_LINES[Math.floor(Math.random() * DOS_LINES.length)];
+      let i = 0;
+      function step(){
+        const partial = line.substring(0, i);
+        const display = buffer.concat([partial]).join('\n');
+        el.textContent = display;
+        i++;
+        if (i <= line.length) {
+          setTimeout(step, 22 + Math.random() * 30);
+        } else {
+          buffer.push(line);
+          if (buffer.length > MAX_LINES) buffer.shift();
+          setTimeout(typeNextLine, 400 + Math.random() * 900);
+        }
+      }
+      step();
+    }
+    typeNextLine();
   })();
 
   // ===== 着信トランスミッション（PR広告）：スライドイン・自動退場・自動ローテーション =====
