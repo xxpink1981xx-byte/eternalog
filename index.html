@@ -226,17 +226,21 @@
   @keyframes wv{ 0%,100%{height:20%} 50%{height:95%} }
 
   .hero-video-frame{
-    width:100%; aspect-ratio:4/3; overflow:hidden; background:#000; position:relative;
+    width:100%; aspect-ratio:6/5; overflow:hidden; background:#000; position:relative;
     border-radius:12px;
     box-shadow:
       inset 0 0 0 1.5px rgba(0,180,230,0.35),
       inset 0 0 16px rgba(0,140,200,0.15),
       0 1px 2px rgba(0,0,0,0.25);
   }
-  .hero-video-frame video{ position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block; }
+  .hero-video-frame video{
+    position:absolute; inset:0; width:100%;height:100%;object-fit:cover;object-position:0% center;display:block;
+    transform:scale(0.9);
+    transition:transform .6s ease;
+  }
   /* ヨミモード中はNAV_TERMINALを隠すため、燈のために空けていた左側の余白が不要になる。
-     中央配置に切り替える。 */
-  .hero-video-frame.yomi-mode video{ object-position:center center; }
+     中央配置に切り替える。あわせて、ヨミは少しアップ（拡大）にする。 */
+  .hero-video-frame.yomi-mode video{ object-position:center center; transform:scale(1.08); }
   /* 画面ガラスの反射：上から下へ薄いハイライトが抜けるレイヤー。旧EternaLogの
      screen-glassを踏襲し、「画面越しに見ている」という実在感を出す。 */
   .hero-video-frame::after{
@@ -508,6 +512,17 @@
     display:flex; flex-direction:column; gap:3px; justify-content:center;
     overflow:hidden;
   }
+  /* GUIDE欄の縁飾り：モニタ内のコーナーブラケットと同じデザイン言語を踏襲し、
+     モニタとGUIDE欄が「同じ装置」であることを縁でも示す。
+     下端は角丸(border-radius)と干渉するため、上2隅のみに留める。 */
+  .guide-corner{
+    position:absolute; width:10px; height:10px; z-index:2;
+    border:1px solid rgba(0,180,230,.55); pointer-events:none;
+    animation:monPulse 3s ease-in-out infinite;
+  }
+  .guide-corner.tl{ top:5px; left:5px; border-right:none; border-bottom:none; }
+  .guide-corner.tr{ top:5px; right:5px; border-left:none; border-bottom:none; }
+  .hero-textbox.yomi-mode .guide-corner{ border-color:rgba(124,58,237,.55); }
   .hero-textbox-tag{
     font-size:8px; letter-spacing:1.5px; color:#5fd4ff; opacity:.8;
     transition:color .3s ease;
@@ -903,6 +918,7 @@
     <!-- 常駐テキストボックス：普段は独白、SIGNAL更新時はその内容にすり替わる。
          シェルの内側に組み込み、モニタと一体のパネルとして見せる。 -->
     <div class="hero-textbox">
+      <span class="guide-corner tl"></span><span class="guide-corner tr"></span>
       <span class="hero-textbox-tag mono" id="heroTextboxTag">GUIDE</span>
       <span class="hero-textbox-body" id="heroTextboxBody"></span>
     </div>
