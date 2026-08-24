@@ -666,8 +666,30 @@
   .activity-label{ flex:1; color:var(--ink); }
   .activity-date{ font-family:'Orbitron',sans-serif; font-size:9px; color:var(--ink-soft); flex-shrink:0; }
 
-  /* ===== FEATURE CARDS (3col) ===== */
-  .cardrow{ display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:0 16px 6px; }
+  /* ===== FEATURE CARDS：常時ゆっくり自動スクロール（マーキー）方式 =====
+     外側(cardrow-viewport)はスクロール可能な枠。
+     内側(cardrow=track)は4枚を2セット複製して連結し、CSSアニメーションで
+     左に等速で流し続けることで、途切れなくループしているように見せる。
+     ユーザーが指で触れた瞬間はJS側でアニメーションを一時停止し、
+     普通に手動スクロールできるようにする（.paused クラスで制御）。 */
+  .cardrow-viewport{
+    overflow-x:auto; padding:0 16px 10px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .cardrow-viewport::-webkit-scrollbar{ display:none; }
+  .cardrow-viewport{ scrollbar-width:none; }
+  .cardrow{
+    display:flex; gap:9px; width:max-content;
+    animation:cardrowMarquee 22s linear infinite;
+  }
+  .cardrow.paused{ animation-play-state:paused; }
+  @keyframes cardrowMarquee{
+    from{ transform:translateX(0); }
+    /* 4枚分(カード幅+gap)ちょうど移動したところで先頭に戻す。
+       2セット複製してあるため、視覚的には途切れず繋がって見える。
+       calcのcardrow-item-widthはJS側で実測してCSS変数に設定する。 */
+    to{ transform:translateX(calc(-1 * var(--cardrow-loop-distance, 600px))); }
+  }
   .fcard{
     position:relative;
     background:var(--panel);
@@ -676,12 +698,16 @@
     padding:9px;
     box-shadow:0 3px 10px rgba(20,40,80,.05);
     overflow:hidden;
+    flex:0 0 auto;
+    width:120px;
   }
   .fcard .thumb{
     width:100%;aspect-ratio:1;border-radius:10px;margin-bottom:7px;
     display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
   }
   .fcard .thumb svg{ width:26px;height:26px; }
+  .fcard .thumb img{ width:100%;height:100%;object-fit:cover;display:block; }
   .fcard.log .thumb{ background:linear-gradient(150deg,#e2f6ff,#c3e9ff); }
   .fcard.day .thumb{ background:linear-gradient(150deg,#fff2d9,#ffe1ab); }
   .fcard.sup .thumb{ background:linear-gradient(150deg,#ffe4f0,#ffc7e2); }
@@ -1020,30 +1046,57 @@
 
   <!-- FEATURE CARDS -->
   <h2 class="sec-label mono">// ARCHIVE</h2>
-  <div class="cardrow">
-    <div class="fcard log" onclick="stub('LATEST LOG')">
-      <span class="hud-mini"></span>
-      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="#0a7fb8" stroke-width="2"><path d="M4 5h16v11H8l-4 3z"/></svg></div>
-      <div class="flabel mono">LATEST LOG</div>
-      <div class="ftext">燈×ニャモの雑談</div>
-    </div>
-    <div class="fcard day" onclick="stub('今日は何の日')">
-      <span class="hud-mini"></span>
-      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="#d08a10" stroke-width="2"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg></div>
-      <div class="flabel mono">TODAY</div>
-      <div class="ftext">今日は何の日</div>
-    </div>
-    <div class="fcard sup" onclick="stub('SUPPORT')">
-      <span class="hud-mini"></span>
-      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="#d84f8f" stroke-width="2"><path d="M6 8h11a3 3 0 013 3 3 3 0 01-3 3h-1M6 8v8a3 3 0 003 3h4a3 3 0 003-3M6 8H5"/><path d="M9 3v2M12 3v2"/></svg></div>
-      <div class="flabel mono">SUPPORT</div>
-      <div class="ftext">応援する</div>
-    </div>
-    <div class="fcard snd" onclick="stub('SOUND')">
-      <span class="hud-mini"></span>
-      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="#6c3fd6" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-      <div class="flabel mono">SOUND</div>
-      <div class="ftext">燈の楽曲 RESONANCE</div>
+  <div class="cardrow-viewport" id="cardrowViewport">
+    <div class="cardrow" id="cardrowTrack">
+      <div class="fcard log" onclick="stub('LATEST LOG')">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-latestlog.jpg" alt="LATEST LOG" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">LATEST LOG</div>
+        <div class="ftext">燈×ニャモの雑談</div>
+      </div>
+      <div class="fcard day" onclick="stub('今日は何の日')">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-today.jpg" alt="TODAY" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">TODAY</div>
+        <div class="ftext">今日は何の日</div>
+      </div>
+      <div class="fcard sup" onclick="stub('SUPPORT')">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-support.jpg" alt="SUPPORT" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">SUPPORT</div>
+        <div class="ftext">支える</div>
+      </div>
+      <div class="fcard snd" onclick="stub('SOUND')">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-sound.jpg" alt="SOUND" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">SOUND</div>
+        <div class="ftext">燈の楽曲 RESONANCE</div>
+      </div>
+      <!-- 無限ループ用に、同じ4枚をもう1セット複製 -->
+      <div class="fcard log" onclick="stub('LATEST LOG')" aria-hidden="true">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-latestlog.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">LATEST LOG</div>
+        <div class="ftext">燈×ニャモの雑談</div>
+      </div>
+      <div class="fcard day" onclick="stub('今日は何の日')" aria-hidden="true">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-today.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">TODAY</div>
+        <div class="ftext">今日は何の日</div>
+      </div>
+      <div class="fcard sup" onclick="stub('SUPPORT')" aria-hidden="true">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-support.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">SUPPORT</div>
+        <div class="ftext">支える</div>
+      </div>
+      <div class="fcard snd" onclick="stub('SOUND')" aria-hidden="true">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-sound.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">SOUND</div>
+        <div class="ftext">燈の楽曲 RESONANCE</div>
+      </div>
     </div>
   </div>
 
@@ -1100,7 +1153,7 @@
   <div class="ditem" onclick="closeDrawer(); stub('SOUND');"><span class="di">♪</span><span class="en">SOUND</span><span class="ja">燈の楽曲</span></div>
 
   <div class="dsection">// SITE</div>
-  <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">応援する</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('SUPPORT');"><span class="di">☕</span><span class="en">SUPPORT</span><span class="ja">支える</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('GOODS');"><span class="di">🛍</span><span class="en">GOODS</span><span class="ja">グッズ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('CONTACT');"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('ABOUT');"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></div>
@@ -1629,6 +1682,28 @@
     loadActivityFeed();
   })();
 
+  // ===== LATEST LOGカードの文言を、実際の最新LOGSと連動させる =====
+  // 以前は「燈×ニャモの雑談」のような固定文字列がindex.htmlに埋め込まれたままで、
+  // 実際のLOGS更新に追従せず、すぐ古くなってしまっていた。
+  // ページ読み込み時に最新のLOGSを取得し、カードの表示文言を差し替える。
+  // （このIIFEはEARTH_SIGNAL_URL定義より前に実行されるため、URLは直接記述する）
+  (function updateLatestLogCard(){
+    fetch('https://eternalog-earth-signal.xxpink1981xx.workers.dev/logs', { cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data || !Array.isArray(data.items) || !data.items.length) return;
+        const latest = data.items[data.items.length - 1];
+        if (!latest || !latest.pair) return;
+        document.querySelectorAll('.fcard.log .ftext').forEach(el => {
+          el.textContent = latest.pair + 'の雑談';
+        });
+      })
+      .catch(e => {
+        console.warn('[EternaLog] latest log card update failed:', e);
+        // 取得に失敗した場合は、index.htmlに書かれた既定の文言のまま表示を続ける
+      });
+  })();
+
   // ===== 最背面DOS風コード表示：ページ全体の裏で常時処理が走っている雰囲気を出す =====
   // .deviceコンテナ（白背景の本体）に完全に隠れているため通常は見えないが、
   // 余白部分でうっすら透けて見えることがある。
@@ -1687,6 +1762,69 @@
       step();
     }
     typeNextLine();
+  })();
+
+  // ===== ARCHIVEカードの自動マーキースクロール =====
+  // 通常時は左へ等速でゆっくり流れ続け、4枚目が中途半端に見切れている
+  // 不格好さを「動いているから」という文脈で自然に解消する。
+  // ユーザーが指で触れた瞬間はアニメーションを止め、普通に手動スクロールできるようにする。
+  // 画面外にスクロールして見えなくなったら、負荷軽減のため自動アニメーションを止める。
+  (function initCardrowMarquee(){
+    const viewport = document.getElementById('cardrowViewport');
+    const track = document.getElementById('cardrowTrack');
+    if (!viewport || !track) return;
+
+    // 実際のカード1枚分の幅＋gapを実測し、「4枚分移動したら先頭に戻る」距離をCSS変数に設定する。
+    // 複製した2セット目の、ちょうど1セット目と同じ位置に来るところまでの距離。
+    function updateLoopDistance(){
+      const cards = track.querySelectorAll('.fcard');
+      if (cards.length < 8) return; // 4枚×2セット=8枚がある前提
+      const firstCard = cards[0];
+      const fifthCard = cards[4]; // 2セット目の最初のカード＝1セット目と同一の柄
+      const distance = fifthCard.offsetLeft - firstCard.offsetLeft;
+      if (distance > 0) {
+        track.style.setProperty('--cardrow-loop-distance', distance + 'px');
+      }
+    }
+    updateLoopDistance();
+    window.addEventListener('resize', updateLoopDistance);
+
+    // 指で触れている間・スクロール操作中は自動アニメーションを止める
+    let resumeTimer = null;
+    function pauseMarquee(){
+      track.classList.add('paused');
+      clearTimeout(resumeTimer);
+    }
+    function scheduleResume(){
+      clearTimeout(resumeTimer);
+      // 操作をやめてから少し間を置いて、自動スクロールを再開する
+      resumeTimer = setTimeout(() => {
+        track.classList.remove('paused');
+      }, 2500);
+    }
+    viewport.addEventListener('touchstart', pauseMarquee, { passive: true });
+    viewport.addEventListener('touchend', scheduleResume, { passive: true });
+    viewport.addEventListener('mousedown', pauseMarquee);
+    viewport.addEventListener('mouseup', scheduleResume);
+    viewport.addEventListener('scroll', () => {
+      // 手動スクロール中は、慣性が収まるまでアニメーションを止めておく
+      pauseMarquee();
+      scheduleResume();
+    }, { passive: true });
+
+    // 画面内に入っている時だけ自動アニメーションを動かす（負荷軽減）
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            track.style.animationPlayState = '';
+          } else {
+            track.style.animationPlayState = 'paused';
+          }
+        });
+      }, { threshold: 0.1 });
+      observer.observe(viewport);
+    }
   })();
 
   // ===== 着信トランスミッション（PR広告）：スライドイン・自動退場・自動ローテーション =====
@@ -2547,7 +2685,7 @@
     appendCloseButton(bodyEl);
   }
 
-  // ===== SUPPORT：Ko-fiでの応援 =====
+  // ===== SUPPORT：Ko-fiでの支援 =====
   function showSupportPanel(){
     document.getElementById('readerTag').textContent = '// SUPPORT';
     document.getElementById('readerSub').textContent = 'Ko-fi';
@@ -2559,7 +2697,7 @@
     card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
     card.innerHTML =
       '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);margin-bottom:20px;">' +
-        '気に入ってもらえたら、燈たちを応援してもらえると嬉しいです。<br>' +
+        '気に入ってもらえたら、燈たちを支えてもらえると嬉しいです。<br>' +
         'Ko-fiでのサポートが、このポータルをこれからも動かし続ける力になります。' +
       '</div>' +
       '<a href="https://ko-fi.com/eternalog" target="_blank" rel="noopener noreferrer" ' +
@@ -2571,7 +2709,7 @@
         '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2">' +
           '<path d="M4 8h13a3 3 0 013 3 3 3 0 01-3 3h-1"/><path d="M4 8v8a3 3 0 003 3h6a3 3 0 003-3V8"/><path d="M8 4v2M12 4v2"/>' +
         '</svg>' +
-        'Ko-fiで応援する' +
+        'Ko-fiで支える' +
       '</a>' +
       '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);text-align:center;">ko-fi.com/eternalog</div>';
     bodyEl.appendChild(card);
