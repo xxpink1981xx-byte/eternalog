@@ -462,6 +462,11 @@
   }
   .nav-terminal.nt-expanded .nt-article-body{ display:block; }
   .nav-terminal.nt-expanded .nt-body{ display:none; }
+  .nt-article-source{
+    margin-top:10px; padding-top:6px; border-top:1px dashed rgba(0,225,255,0.3);
+    font-family:'Courier New',monospace; font-size:8px; letter-spacing:.3px;
+    color:rgba(150,220,255,.6);
+  }
   .nt-article-title{
     font-size:10.5px; font-weight:700; color:#fff; margin-bottom:8px; line-height:1.5;
   }
@@ -1596,9 +1601,16 @@
       const articleEl = document.getElementById('ntArticleBody');
       nav.classList.add('nt-expanded');
 
-      articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span>';
+      // NAV_TERMINAL展開中はPR広告（着信トランスミッション）と表示エリアが重なるため、
+      // 展開している間は広告演出を止める（z-index衝突でボックスが欠けて見える問題の対策）。
+      window.eternalogNavTerminalExpanded = true;
+      const adEl = document.getElementById('adTransmission');
+      if (adEl) adEl.classList.remove('show');
+
+      articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span><div class="nt-article-source"></div>';
       const titleEl = articleEl.querySelector('.nt-article-title');
       const bodyTextEl = articleEl.querySelector('.nt-article-body-text');
+      const sourceEl = articleEl.querySelector('.nt-article-source');
       titleEl.textContent = item.title || '';
 
       // 燈のコメントは下のガイド欄（heroTextboxShowSignal）に表示するため、
@@ -1612,6 +1624,11 @@
         if (i <= bodyOnly.length) {
           typingTimer = setTimeout(step, 16);
         } else {
+          // 出典表示：データに source（媒体名）があれば、タイピング完了後に表示する。
+          // まだearth-signal側でsourceを返していない場合は何も出さない。
+          if (sourceEl && item.source) {
+            sourceEl.textContent = '出典: ' + item.source;
+          }
           if (window.heroTextboxShowSignal && item.comment) {
             window.heroTextboxShowSignal(item.comment);
           }
@@ -1626,6 +1643,7 @@
       clearTimeout(typingTimer);
       const nav = document.getElementById('navTerminal');
       nav.classList.remove('nt-expanded');
+      window.eternalogNavTerminalExpanded = false;
       if (window.heroTextboxReset) window.heroTextboxReset();
     }
 
@@ -1844,6 +1862,11 @@
     function showAd(){
       const el = document.getElementById('adTransmission');
       if (!el) return;
+      // NAV_TERMINAL展開中は表示エリアが重なるため、この回はスキップして次回に回す
+      if (window.eternalogNavTerminalExpanded) {
+        adTimer = setTimeout(showAd, 5000);
+        return;
+      }
       const ad = AD_CREATIVES[adIdx % AD_CREATIVES.length];
       adIdx++;
       const titleEl = document.getElementById('adTransTitle');
