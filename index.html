@@ -476,6 +476,12 @@
     animation:ntCursorBlink 1s steps(1) infinite;
     vertical-align:middle; margin-left:1px;
   }
+  /* 吹き出し内タイピング用カーソル：色は各キャラのボーダー色をcurrentColorで継承 */
+  .bubble-type-cursor{
+    display:inline-block; width:2px; height:12px; background:currentColor;
+    animation:ntCursorBlink 1s steps(1) infinite;
+    vertical-align:middle; margin-left:1px; opacity:.8;
+  }
   .nt-titlebar{
     display:flex; align-items:center; gap:4px;
     padding:3px 6px;
@@ -4134,16 +4140,21 @@
     bodyEl.appendChild(backLink);
 
     // ラジオ番組としての体裁。LOGS（ただのチャット画面）と一目で区別できるよう、
-    // オンエア表示と、その回の結論（格言）を大きく掲げる。
+    // ブースのイラストを固定アスペクト比の独立した窓として掲げる
+    // （プロフィールカードの立ち絵窓と同じ考え方：会話本文の可読性を守るため、
+    // 画像は背景に敷かず、専用の枠に閉じ込める）。
+    // 画像自体に「ETERNARADIO / NETHER FM 666.6MHz」「ON AIR」の文字が
+    // 描き込まれているため、コード側のON AIRバッジ・テキストラベルは持たない。
     const onAir = document.createElement('div');
-    onAir.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;border-radius:8px;background:linear-gradient(135deg,rgba(225,29,72,.10),rgba(225,29,72,.02));border:1px solid rgba(225,29,72,.25);';
+    onAir.style.cssText = 'position:relative;aspect-ratio:3/2;background:#0a0812;border-radius:10px;overflow:hidden;margin-bottom:14px;border:1px solid rgba(225,29,72,.25);';
     onAir.innerHTML =
-      '<span style="width:7px;height:7px;border-radius:50%;background:var(--c-rururu);box-shadow:0 0 8px rgba(225,29,72,.7);flex-shrink:0;"></span>' +
-      '<span class="mono" style="font-size:9px;letter-spacing:2px;color:var(--c-rururu);font-weight:700;flex-shrink:0;">ON AIR</span>' +
-      '<span style="margin-left:auto;text-align:right;line-height:1.4;">' +
-        '<span class="mono" style="display:block;font-size:10px;letter-spacing:1.5px;color:var(--ink);font-weight:700;">ETERNARADIO</span>' +
-        '<span style="display:block;font-size:8.5px;color:var(--ink-soft);letter-spacing:.3px;">ルルルさまの暇つぶし</span>' +
-      '</span>';
+      '<img src="eternaradio-booth.jpg" alt="ETERNARADIO NETHER FM 666.6MHz" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;" onerror="this.style.display=\'none\'">' +
+      '<div class="mon-hud">' +
+        '<div class="mon-corner tl" style="border-color:var(--c-rururu);"></div>' +
+        '<div class="mon-corner tr" style="border-color:var(--c-rururu);"></div>' +
+        '<div class="mon-corner bl" style="border-color:var(--c-rururu);"></div>' +
+        '<div class="mon-corner br" style="border-color:var(--c-rururu);"></div>' +
+      '</div>';
     bodyEl.appendChild(onAir);
 
     if (col.aphorism) {
@@ -4164,31 +4175,11 @@
     });
     function isLeftSpeaker(speaker){ return speaker === speakerOrder[0]; }
 
-    function getTypingDuration(str){
-      const base = 400, perChar = 35, max = 2600;
-      return Math.min(base + str.length * perChar, max);
-    }
-
-    function showTypingIndicator(speaker){
-      const meta = bubbleMeta[speaker] || bubbleMeta.rururu;
-      const flexDir = isLeftSpeaker(speaker) ? 'row' : 'row-reverse';
-      const row = document.createElement('div');
-      row.id = 'rururuTypingIndicator';
-      row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
-      row.innerHTML =
-        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
-        '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;">' +
-          '<span style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:' + meta.nameColor + ';">RECEIVING</span>' +
-          '<span style="display:flex;align-items:flex-end;gap:2px;height:11px;">' +
-            [0,1,2,3].map(i => '<span style="width:3px;height:' + [5,9,11,7][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 1s ease-in-out infinite;animation-delay:' + (i*0.15) + 's;"></span>').join('') +
-          '</span>' +
-        '</div>';
-      convWrap.appendChild(row);
-      requestAnimationFrame(() => { row.style.opacity = '1'; });
-    }
-    function removeTypingIndicator(){
-      const el = document.getElementById('rururuTypingIndicator');
-      if (el) el.remove();
+    // 1文字ずつタイピングして見せる（NAV_TERMINALの見出し展開と同じ考え方）。
+    // 吹き出しの外枠は先に表示し、中身のテキストだけを後から埋めていく。
+    function getTypingSpeed(str){
+      // 短い相槌は少し速く、長い語りはやや遅く、体感の間を調整する
+      return str.length > 40 ? 22 : 30;
     }
 
     let idx = 0;
@@ -4203,25 +4194,43 @@
       const isLeft = isLeftSpeaker(line.speaker);
       const flexDir = isLeft ? 'row' : 'row-reverse';
 
-      showTypingIndicator(line.speaker);
-
-      rururuBubbleTimer = setTimeout(() => {
-        removeTypingIndicator();
-
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .4s ease;';
-        row.innerHTML =
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.innerHTML =
         '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
         '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (isLeft?'flex-start':'flex-end') + ';">' +
-          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:3px;">' + meta.name + '</div>' +
-          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + escapeHtml(line.text) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;' + (isLeft?'':'flex-direction:row-reverse;') + '">' +
+            '<span style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:' + meta.nameColor + ';font-weight:700;">' + meta.name + '</span>' +
+            '<span class="rururu-eq" style="display:inline-flex;align-items:flex-end;gap:2px;height:9px;">' +
+              [0,1,2,3].map(i => '<span style="width:2.5px;height:' + [4,7,9,6][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 0.9s ease-in-out infinite;animation-delay:' + (i*0.12) + 's;"></span>').join('') +
+            '</span>' +
+          '</div>' +
+          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;min-height:1.7em;">' +
+            '<span class="rururu-type-text"></span><span class="bubble-type-cursor" style="color:' + meta.border + ';"></span>' +
+          '</div>' +
         '</div>';
-        convWrap.appendChild(row);
-        requestAnimationFrame(() => { row.style.opacity = '1'; });
+      convWrap.appendChild(row);
+      requestAnimationFrame(() => { row.style.opacity = '1'; });
 
-        idx++;
-        rururuBubbleTimer = setTimeout(showNext, 500);
-      }, getTypingDuration(line.text));
+      const textEl = row.querySelector('.rururu-type-text');
+      const cursorEl = row.querySelector('.bubble-type-cursor');
+      const eqEl = row.querySelector('.rururu-eq');
+      const fullText = line.text;
+      const speed = getTypingSpeed(fullText);
+      let i = 0;
+      function typeStep(){
+        textEl.textContent = fullText.substring(0, i);
+        i++;
+        if (i <= fullText.length) {
+          rururuBubbleTimer = setTimeout(typeStep, speed);
+        } else {
+          if (cursorEl) cursorEl.remove();
+          if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
+          idx++;
+          rururuBubbleTimer = setTimeout(showNext, 350);
+        }
+      }
+      typeStep();
     }
     showNext();
   }
