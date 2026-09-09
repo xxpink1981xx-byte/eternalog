@@ -11,6 +11,23 @@
   gtag('js', new Date());
   gtag('config', 'G-93TCS02FVC');
 </script>
+<script>
+  // iOS Safari（およびWebKitを使う全ブラウザ）で、アドレスバーの伸縮に
+  // dvhの再計算が追従せず、画面下に白い余白が残るバグへの対策。
+  // window.innerHeightを実測してCSS変数--app-heightに反映し続ける。
+  (function setAppHeight(){
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  })();
+  window.addEventListener('resize', function(){
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  });
+  window.addEventListener('orientationchange', function(){
+    // 回転直後は値がまだ古いことがあるため、少し待ってから再計測する
+    setTimeout(function(){
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }, 150);
+  });
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>EternaLog</title>
@@ -167,7 +184,8 @@
     position:relative;
     width:100%;
     max-width:430px;
-    min-height:100dvh;
+    min-height:100dvh; /* --app-heightが未設定の場合のフォールバック */
+    min-height:var(--app-height, 100dvh);
     background:var(--bg);
     overflow-x:hidden;
     box-shadow:0 0 60px rgba(20,40,80,.08);
@@ -652,6 +670,20 @@
     transition:background .3s;
   }
   .charnav-status.online{ background:#22c55e; box-shadow:0 0 5px rgba(34,197,94,.7), 0 1px 3px rgba(20,40,80,.2); }
+  /* オンライン中のキャラが時々つぶやく、小さな吹き出し */
+  .charnav-bubble{
+    position:absolute; bottom:100%; left:50%; margin-bottom:8px;
+    transform:translate(-50%, 4px); opacity:0; transition:opacity .3s ease, transform .3s ease;
+    background:#fff; color:#0a1420; font-size:10px; line-height:1.4;
+    padding:6px 10px; border-radius:10px; max-width:140px; width:max-content;
+    white-space:normal; word-break:break-word; text-align:center;
+    box-shadow:0 3px 10px rgba(20,40,80,.18); border:1px solid rgba(0,90,200,.15);
+    z-index:5; pointer-events:none;
+  }
+  .charnav-bubble::after{
+    content:''; position:absolute; top:100%; left:50%; margin-left:-4px;
+    border:4px solid transparent; border-top-color:#fff;
+  }
 
   .charnav-label{ font-size:9.5px; font-weight:700; letter-spacing:.3px; }
   .charnav-icon-wrap.tomori{ background:linear-gradient(150deg,#e2f6ff,#b8ecf7); }
@@ -1559,10 +1591,10 @@
     // worker.js側のCHARACTER_ACTIVE_HOURSと同じ内容（表示専用の複製）。
     // [開始時, 終了時]・JST。開始>終了は日をまたぐ範囲。nullは常時（気まぐれ）。
     const ACTIVE_HOURS = {
-      tomori: [23, 3],
-      nyamo: [19, 22],
-      yomi: [21, 1],
-      shat: [10, 16],
+      tomori: [20, 7],
+      nyamo: [15, 0],
+      yomi: [19, 3],
+      shat: [7, 20],
       rururu: null,
     };
 
@@ -1588,6 +1620,94 @@
 
     update();
     setInterval(update, 5 * 60 * 1000); // 5分おきに再判定（時間の境界をまたいだ時のため）
+
+    // ===== オンライン中のキャラが、一定時間おきに一言つぶやく吹き出し演出 =====
+    // AI生成ではなく、あらかじめ用意した短い一言セリフからランダムに選ぶだけの
+    // 完全にクライアント側の演出（追加コストなし）。
+    const MINI_LINES = {
+      tomori: [
+        '今日はどんな一日だったのかな', '静かな夜だね', '見ているだけで十分なんだよ',
+        'あたたかい飲み物、飲みたい気分', '誰かの笑い声が聞こえた気がする', '今日も世界は動いているみたい',
+        'こういう時間、嫌いじゃないよ', '少し肌寒くなってきたね', '遠くから見ていると、いろいろ見えてくるんだよ',
+        '争いごとは、やっぱり苦手', '星が綺麗に見える夜だね', 'ゆっくりでいいんだよ',
+        '誰かが泣いていないといいな', '今日も見ているからね', 'のんびりした時間が好きなんだよ',
+        '人間の営みって、飽きないな', 'あたたかい光が見える', '焦らなくていいんだよ、きっと',
+        '虫だけは、ちょっと苦手なんだよ', 'こんな時間も悪くないよ',
+      ],
+      nyamo: [
+        '見張り中ニャ🐾', '暇ニャ〜', 'チョコ食べたいニャ🍫',
+        '燈、無茶するなよニャ', '昼寝したいニャ😼', '今日も平和ニャ',
+        '鉄火巻食べたいニャ', 'またそれかニャ', '別に心配してないニャ',
+        'にゃあ', '静かな夜ニャ🐾', '相棒はどこニャ',
+        'まあ、いいニャ', '今日は機嫌がいいニャ😼', '退屈しのぎ募集中ニャ',
+        'たまには褒めてほしいニャ', '行動が全てニャ', '見てるだけで満足ニャ🐾',
+        'またチョコの話ニャ？', 'オレは元気ニャ',
+      ],
+      yomi: [
+        '占い日和だね', '嘘は見えるのさ', '月が綺麗な夜だ',
+        '今夜は静かでいいね', 'インチキ野郎には容赦しないよ', '星の巡りが妙な夜さ',
+        '騒がしいのは好かないね', '水晶玉が疼くのさ', '運命ってのは、ただの因果さ',
+        '今夜も一件、占ってやるか', '幽霊の話はよしとくれ', '夜更けが一番落ち着くのさ',
+        '誠実さだけは曲げないよ', 'たまには当たるだけの占いもいいさ', '静かな夜更けが好きなのさ',
+        'あたしは見たままを言うだけさ', '今夜の星回り、悪くないね', 'インチキ占いは許さないよ',
+        '月夜に一杯、やりたい気分さ', 'さて、今夜は誰の番だい',
+      ],
+      rururu: [
+        '退屈じゃのう', 'わらわは見ておるぞ', '暇つぶしが足りぬ',
+        '紅茶が飲みたい気分じゃ', 'くだらぬ話でも構わぬ、寄越すがよい', 'ふん、退屈しのぎにもならぬわ',
+        'わらわを楽しませてみよ', 'ニャモめ、どこへ行った', '今宵も暇じゃのう',
+        '人間界はいつも騒がしいのう', 'ピーマンだけは許さぬぞ', 'わらわの機嫌は良くも悪くもないぞ',
+        'さっさと退屈を埋めよ', '魔界も今宵は静かじゃ', '見下ろすのは嫌いではないぞ',
+        'くだらぬトレンドを見せよ', 'わらわに刃向かう者などおらぬ', '紅茶のおかわりが欲しいのう',
+        '暇な夜こそ、わらわの本領じゃ', 'さあ、退屈を吹き飛ばすがよい',
+      ],
+      shat: [
+        'いいこと思いついたんだな', '今日も作るんだな', 'ネットサーフィン中なんだな',
+        '洗濯物、また溜まってるんだな', '星空、綺麗なんだな', 'Wifi切れたら死んじゃうんだな',
+        '失敗すら面白いんだな', '掃除は苦手なんだな', '思いつきが止まらないんだな',
+        'こういう発想、わたしくらいなんだな', '新しいアイデア、閃いたんだな', '今夜は徹夜になりそうなんだな',
+        '料理はやっぱり無理なんだな', '誰かに驚かれるの好きなんだな', '明日は何を作ろうかな、なんだな',
+        'ワーハは今日も静かなんだな', '発明って楽しいんだな', 'コードが動いた、嬉しいんだな',
+        'また変なもの思いついたんだな', '今日も一人で満喫してるんだな',
+      ],
+    };
+
+    let bubbleTimer = null;
+    function showRandomBubble(){
+      const hour = getJSTHourNow();
+      const onlineIds = Object.keys(ACTIVE_HOURS).filter((id) => isOnline(id, hour));
+      if (!onlineIds.length) return;
+
+      const id = onlineIds[Math.floor(Math.random() * onlineIds.length)];
+      const wrap = document.querySelector('.charnav-item[onclick*="' + id + '"] .charnav-icon-wrap');
+      if (!wrap) return;
+
+      // 既に吹き出しが出ている場合は重ねない
+      if (wrap.querySelector('.charnav-bubble')) return;
+
+      const lines = MINI_LINES[id] || [];
+      if (!lines.length) return;
+      const text = lines[Math.floor(Math.random() * lines.length)];
+
+      const bubble = document.createElement('div');
+      bubble.className = 'charnav-bubble';
+      bubble.textContent = text;
+      wrap.appendChild(bubble);
+
+      requestAnimationFrame(() => { bubble.style.opacity = '1'; bubble.style.transform = 'translate(-50%, 0)'; });
+      setTimeout(() => {
+        bubble.style.opacity = '0';
+        bubble.style.transform = 'translate(-50%, 4px)';
+        setTimeout(() => bubble.remove(), 300);
+      }, 3200);
+    }
+
+    function scheduleNextBubble(){
+      // 25〜50秒おきに、ランダムなタイミングで発生させる
+      const delay = 25000 + Math.random() * 25000;
+      bubbleTimer = setTimeout(() => { showRandomBubble(); scheduleNextBubble(); }, delay);
+    }
+    scheduleNextBubble();
   })();
 
   // ===== NAV_TERMINAL：SIGNAL最新5件の見出し一覧＋タップ展開ビューア =====
@@ -2869,6 +2989,9 @@
   // ===== SHAT LAB：一覧・詳細・いいね =====
   let shatlabDataCache = [];
   let shatlabFetched = false;
+  let shatlabListOffset = 0;
+  let shatlabListHasMore = true;
+  const SHATLAB_PAGE_SIZE = 20;
   const SHATLAB_LIKE_THRESHOLD = 10000;
 
   async function showShatLabPanel(){
@@ -2880,13 +3003,18 @@
     if (!shatlabFetched) {
       bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING...</div>';
       try {
-        const res = await fetch(EARTH_SIGNAL_URL + 'shatlab', { cache: 'no-store' });
+        const res = await fetch(EARTH_SIGNAL_URL + 'shatlab?limit=' + SHATLAB_PAGE_SIZE + '&offset=0', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data && Array.isArray(data.items)) shatlabDataCache = data.items;
+          if (data && Array.isArray(data.items)) {
+            shatlabDataCache = data.items;
+            shatlabListOffset = data.items.length;
+            shatlabListHasMore = !!data.hasMore;
+          }
         }
       } catch (e) {
         console.warn('[EternaLog] shatlab fetch failed:', e);
+        shatlabListHasMore = false;
       }
       shatlabFetched = true;
     }
@@ -2897,7 +3025,7 @@
 
     const intro = document.createElement('div');
     intro.style.cssText = 'font-size:12.5px;line-height:1.8;color:var(--ink);margin-bottom:16px;';
-    intro.textContent = 'わたし、ネットサーフィンしてて思いついたアイデアを、7日間かけて実際に形にしていくんだな。うまくいくかは分からないけど、失敗したらそれもネタにするから安心してほしいんだな。';
+    intro.textContent = 'わたし、ネットサーフィンしてて思いついたアイデアを、4日間かけて実際に形にしていくんだな。うまくいくかは分からないけど、失敗したらそれもネタにするから安心してほしいんだな。';
     bodyEl.appendChild(intro);
 
     if (!shatlabDataCache.length) {
@@ -2913,7 +3041,7 @@
     [...shatlabDataCache].reverse().forEach((p, idx) => {
       const progress = p.status === 'completed'
         ? (p.failed ? '開発失敗…' : '完成！')
-        : (p.days.length) + '/7日目';
+        : (p.days.length) + '/4日目';
       const card = document.createElement('div');
       card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
       card.innerHTML =
@@ -2925,12 +3053,60 @@
       setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
     });
     bodyEl.appendChild(listWrap);
+
+    if (shatlabListHasMore) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'reader-close-bottom mono';
+      moreBtn.style.cssText = 'margin:8px auto 0;display:block;';
+      moreBtn.textContent = 'もっと見る';
+      moreBtn.onclick = async () => {
+        moreBtn.textContent = '読み込み中...';
+        moreBtn.disabled = true;
+        try {
+          const res = await fetch(
+            EARTH_SIGNAL_URL + 'shatlab?limit=' + SHATLAB_PAGE_SIZE + '&offset=' + shatlabListOffset,
+            { cache: 'no-store' }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.items) && data.items.length) {
+              shatlabDataCache = [...data.items, ...shatlabDataCache];
+              shatlabListOffset += data.items.length;
+              shatlabListHasMore = !!data.hasMore;
+            } else {
+              shatlabListHasMore = false;
+            }
+          }
+        } catch (e) {
+          console.warn('[EternaLog] load more shatlab failed:', e);
+        }
+        showShatLabPanel();
+      };
+      bodyEl.appendChild(moreBtn);
+    }
+
     appendCloseButton(bodyEl, showShatLabPanel);
   }
 
-  function showShatLabDetail(projectId){
-    const p = shatlabDataCache.find(x => x.id === projectId);
+  // 一覧では通信量削減のためappHTMLを含めていないので、
+  // 詳細を開くときに、その1件だけ本体を取りに行く。
+  async function showShatLabDetail(projectId){
+    let p = shatlabDataCache.find(x => x.id === projectId);
     if (!p) return;
+
+    if (p.hasApp && !p.appHTML) {
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'shatlab?id=' + encodeURIComponent(projectId), { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.item) {
+            Object.assign(p, data.item);
+          }
+        }
+      } catch (e) {
+        console.warn('[EternaLog] shatlab detail fetch failed:', e);
+      }
+    }
 
     document.getElementById('readerTag').textContent = '// SHAT LAB';
     document.getElementById('readerSub').textContent = 'SHATLAB_' + p.id + ' ・ ' + p.title;
@@ -3017,7 +3193,7 @@
     } else {
       const inProgress = document.createElement('div');
       inProgress.className = 'reader-placeholder mono';
-      inProgress.textContent = '// まだ開発中です（' + p.days.length + '/7日目）';
+      inProgress.textContent = '// まだ開発中です（' + p.days.length + '/4日目）';
       bodyEl.appendChild(inProgress);
     }
 
