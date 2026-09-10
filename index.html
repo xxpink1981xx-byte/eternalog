@@ -2027,13 +2027,38 @@
   // 旧EternaLogの「着信通信」演出を、今のサイトの配色・両モニタ（燈/ヨミ）対応で再実装。
   // Amazon・タイアップ募集は確定枠、残りは有用な候補をローテーションする想定。
   (function initAdTransmission(){
+    // ===== Amazonアソシエイト：ASINと商品名だけ書けば動く汎用の仕組み =====
+    // AMAZON_ASSOCIATE_TAGは1箇所だけ。値を変えれば全リンクに反映される。
+    const AMAZON_ASSOCIATE_TAG = 'your-tag-22'; // ← 実際のアソシエイトIDに差し替える
+
+    function amazonAffiliateUrl(asin){
+      return 'https://www.amazon.co.jp/dp/' + asin + '?tag=' + AMAZON_ASSOCIATE_TAG;
+    }
+
+    // 商品を増やしたい時は、ここにASINと一言だけ追加すればよい。
+    // characterは紐付け先のキャラID（任意）。指定すると、そのキャラの色で表示できる。
+    const AMAZON_PRODUCTS = [
+      // { asin: 'B0XXXXXXXX', title: 'あたたかい飲み物のお供に', character: 'tomori' },
+      // { asin: 'B0XXXXXXXX', title: '深夜の作業のお供に', character: 'shat' },
+    ];
+
+    function buildAmazonAdCreatives(){
+      return AMAZON_PRODUCTS.map((p) => ({
+        tag: 'PR',
+        title: 'AMAZON',
+        body: 'Amazon // ' + p.title + ' ▸',
+        url: amazonAffiliateUrl(p.asin),
+      }));
+    }
+
     const AD_CREATIVES = [
-      { tag:'PR', title:'AMAZON', body:'Amazon // 気になったあの一冊も、この一つも ▸', url:'https://www.amazon.co.jp/' },
+      { tag:'PR', title:'AMAZON', body:'Amazon // 気になったあの一冊も、この一つも ▸', url: amazonAffiliateUrl('') },
       { tag:'PR', title:'OPEN SLOT', body:'EternaLog タイアップ募集中 // この周波数に、あなたの信号を ▸', url:'#contact' },
       // 以下3枠は候補。実装確定後、実際のリンク・文言に差し替える
       { tag:'PR', title:'SUPPORT', body:'Ko-fi // 燈たちの活動を、そっと支える ▸', url:'#' },
       { tag:'PR', title:'DIVINATION', body:'観月ヨミ // 今宵の月が、あなたの周波数を読む ▸', url:'#' },
       { tag:'PR', title:'SIGNAL', body:'忍者AdMax // この枠、まだ空いています ▸', url:'#' },
+      ...buildAmazonAdCreatives(),
     ];
     let adIdx = 0, adTimer = null, adHideTimer = null;
 
@@ -3456,6 +3481,8 @@
   // 一時的にヨミの表示に差し替える形で進行する。サイトの一貫性を保つため、
   // 新しい独立画面は作らず、既存の「燈がいる場所」がそのままヨミの部屋になる。
   const YOMI_VIDEO_VER = '?v=20260819';
+  // 価格は固定値。値上げする際はここを書き換える（自動切り替えは行わない）。
+  const YOMI_PRICE_LABEL = '100円';
   const YOMI_SWITCH_IN_LINES = [
     '> DISCONNECTING FROM 燈_MODULE...',
     '> ESTABLISHING LINK TO 観月ヨミ...',
@@ -3528,23 +3555,76 @@
     const panel = ensureYomiControlPanel();
     if (mode === 'start') {
       panel.innerHTML =
-        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowComingSoon()">占いを始める</button>' +
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment()">占いを始める（' + YOMI_PRICE_LABEL + '）</button>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     }
   }
 
-  // 決済連携が整うまでの間、本格鑑定はまだ受け付けられないことを
-  // ヨミの言葉として丁寧に伝える。ボタン自体は隠さず、押した先で案内する形にする。
-  function yomiFlowComingSoon(){
-    if (window.heroTextboxShowYomi) {
-      window.heroTextboxShowYomi('すまないね、まだ準備が整ってないんだ。もう少し待っておくれ。');
+  // 決済連携：ボタンを押すとStripe Checkoutのセッションを作成し、そちらへ遷移する。
+  // 決済完了後、Stripeのsuccess_url経由で戻ってきた場合の復帰処理。
+  // URLのパラメータを書き換えるだけの不正な迂回を防ぐため、必ずサーバー側で
+  // 本当に支払済みかどうかをStripeに問い合わせてから、鑑定フローを再開する。
+  (async function resumeYomiFlowAfterPayment(){
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('yomi_session_id');
+    if (!sessionId) return;
+
+    // 確認後はURLからパラメータを消し、リロード時に二重処理されないようにする
+    const cleanUrl = window.location.origin + window.location.pathname;
+    history.replaceState({}, '', cleanUrl);
+
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
+      const data = await res.json();
+      if (!data || !data.valid) {
+        console.warn('[EternaLog] yomi payment not verified as paid');
+        return;
+      }
+    } catch (e) {
+      console.warn('[EternaLog] yomi payment verification failed:', e);
+      return;
     }
+
+    // 支払い確認が取れたら、燈モニタをヨミモードに切り替えて、
+    // 生年月日等の入力（②）から鑑定フローを再開する。
+    const tryResume = () => {
+      if (!window.eternalogEnterYomiMode || !window.eternalogPlayYomiVideo) {
+        setTimeout(tryResume, 300);
+        return;
+      }
+      closeReader(true);
+      runBootOverlay(YOMI_SWITCH_IN_LINES, '[ LINKED ]', () => {
+        window.eternalogEnterYomiMode();
+        yomiFlowStep2();
+      });
+    };
+    tryResume();
+  })();
+
+  async function yomiFlowStartPayment(){
     const panel = document.getElementById('yomiControlPanel');
     if (panel) {
       panel.innerHTML =
-        '<div class="mono" style="font-size:10px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:8px;text-align:center;">// COMING SOON</div>' +
-        '<div style="font-size:12px;color:var(--ink-soft);line-height:1.7;text-align:center;margin-bottom:14px;">本格鑑定は、現在準備中だよ。<br>もう少しだけ、待っていておくれ。</div>' +
-        '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+        '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">決済ページへ移動しています…</div>';
+    }
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/create-checkout', { method: 'POST' });
+      const data = await res.json();
+      if (data && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error('no checkout url');
+    } catch (e) {
+      console.warn('[EternaLog] yomi checkout failed:', e);
+      if (window.heroTextboxShowYomi) {
+        window.heroTextboxShowYomi('すまないね、うまく繋がらなかったみたいだ。少し時間を置いて、もう一度試しておくれ。');
+      }
+      if (panel) {
+        panel.innerHTML =
+          '<div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-bottom:12px;">決済ページに繋がらなかったよ。<br>もう一度試してみておくれ。</div>' +
+          '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+      }
     }
   }
 
