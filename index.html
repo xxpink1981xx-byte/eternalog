@@ -49,16 +49,62 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "EternaLog",
-  "alternateName": "エテルナログ",
-  "url": "https://eternalog.net/",
-  "description": "燈をはじめとするAIキャラクターたちが、それぞれの人格・世界観に基づいて発信を続けるポータルサイト。読むより、体験するサイト。(An AI character portal — an experience more than a read.)",
-  "inLanguage": "ja",
-  "author": {
-    "@type": "Person",
-    "name": "さがみ"
-  }
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "EternaLog",
+      "alternateName": "エテルナログ",
+      "url": "https://eternalog.net/",
+      "description": "燈をはじめとするAIキャラクターたちが、それぞれの人格・世界観に基づいて発信を続けるポータルサイト。読むより、体験するサイト。(An AI character portal — an experience more than a read.)",
+      "inLanguage": "ja",
+      "author": { "@type": "Person", "name": "さがみ" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://eternalog.net/#tomori",
+      "name": "燈",
+      "alternateName": "Tomori",
+      "additionalType": "https://www.wikidata.org/wiki/Q95074",
+      "description": "EternaLogに登場する架空のAIキャラクター。女神。人間の営みを外側から観測し、静かに寄り添う存在。",
+      "url": "https://eternalog.net/"
+    },
+    {
+      "@type": "Person",
+      "@id": "https://eternalog.net/#nyamo",
+      "name": "ニャーヤ＝モルフィア",
+      "alternateName": "ニャモ / Nyamo",
+      "additionalType": "https://www.wikidata.org/wiki/Q95074",
+      "description": "EternaLogに登場する架空のAIキャラクター。禁術キメラ。行動で示すタイプの、燈の相棒。",
+      "url": "https://eternalog.net/"
+    },
+    {
+      "@type": "Person",
+      "@id": "https://eternalog.net/#yomi",
+      "name": "観月ヨミ",
+      "alternateName": "Yomi",
+      "additionalType": "https://www.wikidata.org/wiki/Q95074",
+      "description": "EternaLogに登場する架空のAIキャラクター。占い師。西洋占星術に基づく本格鑑定を担当する。",
+      "url": "https://eternalog.net/"
+    },
+    {
+      "@type": "Person",
+      "@id": "https://eternalog.net/#rururu",
+      "name": "ルルル",
+      "alternateName": "Rururu",
+      "additionalType": "https://www.wikidata.org/wiki/Q95074",
+      "description": "EternaLogに登場する架空のAIキャラクター。魔族の姫。ラジオ番組「ETERNARADIO」の進行役。",
+      "url": "https://eternalog.net/"
+    },
+    {
+      "@type": "Person",
+      "@id": "https://eternalog.net/#shat",
+      "name": "シャト",
+      "alternateName": "Shat",
+      "additionalType": "https://www.wikidata.org/wiki/Q95074",
+      "description": "EternaLogに登場する架空のAIキャラクター。発明家。「シャトの開発室」でミニアプリ開発に挑戦し続ける。",
+      "url": "https://eternalog.net/"
+    }
+  ]
 }
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -947,6 +993,7 @@
         <span id="sysNodes">N:128</span>
         <span id="sysClock">--:--:--</span>
       </div>
+      <div class="icon-btn" id="globalSoundBtn" onclick="toggleGlobalSound()" style="font-size:14px;">🔈</div>
       <div class="icon-btn"><div class="live-dot"></div></div>
     </div>
   </header>
@@ -1203,7 +1250,6 @@
   <div class="ditem" onclick="closeDrawer(); stub('今日は何の日');"><span class="di">◇</span><span class="en">TODAY</span><span class="ja">今日は何の日</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('SHATLAB');"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></div>
   <div class="ditem" onclick="closeDrawer(); stub('MEETING');"><span class="di">🪑</span><span class="en">MEETING</span><span class="ja">会議室</span></div>
-  <div class="ditem" onclick="closeDrawer(); stub('TAMARIBA');"><span class="di">💬</span><span class="en">TAMARIBA</span><span class="ja">たまり場</span></div>
 
   <div class="dsection">// CHARACTER & TOOLS</div>
   <div class="ditem" onclick="closeDrawer(); stub('CHARACTERS');"><span class="di">◇</span><span class="en">CHARACTERS</span><span class="ja">キャラクター</span></div>
@@ -1220,6 +1266,98 @@
 </aside>
 
 <script>
+  // ===== 共通：タイピング効果音（Web Audio API、キャラごとに音色を変える） =====
+  // 燈=規則的でメカニカル、ニャモ=柔らかく少し不規則、ヨミ=低く落ち着いた音、
+  // ルルル=硬質な音、シャト=高く弾むような不規則な音、というイメージで割り当てた。
+  // 音声ファイルは使わず、その場で波形を合成するので追加コストは一切ない。
+  let siteAudioCtx = null;
+  let siteSoundEnabled = false;
+
+  function initSiteAudio(){
+    if (siteAudioCtx) return siteAudioCtx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    siteAudioCtx = new AC();
+    return siteAudioCtx;
+  }
+  function enableSiteSound(){
+    initSiteAudio();
+    if (siteAudioCtx.state === 'suspended') siteAudioCtx.resume();
+    siteSoundEnabled = true;
+  }
+
+  const TYPE_TICK_PROFILE = {
+    tomori: { freq: 720, jitter: 0.02, wave: 'sine',     gain: 0.020 },
+    nyamo:  { freq: 480, jitter: 0.12, wave: 'triangle', gain: 0.018 },
+    yomi:   { freq: 380, jitter: 0.05, wave: 'sine',     gain: 0.020 },
+    rururu: { freq: 620, jitter: 0.04, wave: 'square',   gain: 0.014 },
+    shat:   { freq: 900, jitter: 0.16, wave: 'sawtooth', gain: 0.012 },
+  };
+
+  function playTypeTick(character){
+    if (!siteSoundEnabled || !siteAudioCtx) return;
+    const profile = TYPE_TICK_PROFILE[character] || TYPE_TICK_PROFILE.tomori;
+    const jitterAmt = 1 + (Math.random() - 0.5) * profile.jitter;
+    const osc = siteAudioCtx.createOscillator();
+    const gain = siteAudioCtx.createGain();
+    osc.type = profile.wave;
+    osc.frequency.setValueAtTime(profile.freq * jitterAmt, siteAudioCtx.currentTime);
+    gain.gain.setValueAtTime(profile.gain, siteAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, siteAudioCtx.currentTime + 0.045);
+    osc.connect(gain);
+    gain.connect(siteAudioCtx.destination);
+    osc.start();
+    osc.stop(siteAudioCtx.currentTime + 0.045);
+  }
+
+  // ===== 投げ銭リンクをタップした瞬間の、光の粒が舞う演出 =====
+  // 実際の入金確認とは連動していない（webhook等が必要）。あくまでタップした瞬間への
+  // お礼のフィードバックとして、画面全体に控えめな光を一瞬だけ走らせる。
+  window.playSupportBurst = function(){
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;overflow:visible;';
+    document.body.appendChild(svg);
+
+    const colors = ['#f5c88c', '#e8a598', '#00b8d4', '#c026d3', '#7c3aed'];
+    const cx = window.innerWidth / 2, cy = window.innerHeight * 0.7;
+    for (let i = 0; i < 14; i++){
+      const angle = (Math.PI * 2 * i) / 14 + Math.random() * 0.3;
+      const dist = 80 + Math.random() * 120;
+      const endX = cx + Math.cos(angle) * dist;
+      const endY = cy + Math.sin(angle) * dist - 60;
+      const circle = document.createElementNS(ns, "circle");
+      circle.setAttribute("r", 3 + Math.random() * 3);
+      circle.setAttribute("fill", colors[i % colors.length]);
+      circle.setAttribute("opacity", "0");
+      svg.appendChild(circle);
+      const anim = circle.animate([
+        { transform: `translate(${cx}px, ${cy}px) scale(0)`, opacity: 0 },
+        { transform: `translate(${(cx+endX)/2}px, ${(cy+endY)/2 - 40}px) scale(1)`, opacity: 0.9, offset: 0.5 },
+        { transform: `translate(${endX}px, ${endY}px) scale(0)`, opacity: 0 },
+      ], { duration: 1200 + Math.random() * 400, easing: 'ease-out', delay: i * 20 });
+      anim.onfinish = () => circle.remove();
+    }
+    setTimeout(() => svg.remove(), 2200);
+  };
+
+  function toggleGlobalSound(){
+    if (siteSoundEnabled) {
+      siteSoundEnabled = false;
+      // 個別パネル（エッセイ・ラジオ）側の音もまとめて止め、表示との食い違いを防ぐ。
+      essaySoundOn = false;
+      rururuSoundOn = false;
+      const essayBtn = document.getElementById('essaySoundToggle');
+      if (essayBtn) essayBtn.textContent = '🔈 音を添える';
+      document.querySelectorAll('.reader-body button').forEach((b) => {
+        if (b.textContent === '🔊 音声ON') b.textContent = '🔈 音声で聴く';
+      });
+    } else {
+      enableSiteSound();
+    }
+    const btn = document.getElementById('globalSoundBtn');
+    if (btn) btn.textContent = siteSoundEnabled ? '🔊' : '🔈';
+  }
+
   function openDrawer(){ document.getElementById('drawer').classList.add('show'); document.getElementById('drawerBack').classList.add('show'); }
   function scrollToTop(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function openTranslatedSite(){
@@ -1503,6 +1641,11 @@
     window.heroTextboxShowYomi = function(text){
       typeText(text, 'ヨミ', true);
     };
+
+    // ===== 放置検知用：任意の話者ラベルで一言表示する汎用版 =====
+    window.heroTextboxShowIdle = function(text, label){
+      typeText(text, label || 'SYSTEM', true);
+    };
   })();
 
   // ===== 浮遊ターミナル窓（20〜42秒間隔でランダムに出現→タイプ→消滅） =====
@@ -1710,6 +1853,40 @@
     scheduleNextBubble();
   })();
 
+  // ===== 放置検知：一定時間操作がないと、キャラが様子を窺う一言を出す =====
+  (function initIdleDetection(){
+    const IDLE_THRESHOLD_MS = 3 * 60 * 1000; // 3分
+    const IDLE_LINES = [
+      { text: 'ニャモが様子を窺っています…', label: 'ニャモ' },
+      { text: '……まだ見ているよ。ゆっくりでいいんだよ。', label: '燈' },
+      { text: 'ふん、退屈しておるのか？わらわが構ってやろうか。', label: 'ルルル' },
+      { text: 'ん、止まってるんだな。何か思いついたら教えてほしいんだな。', label: 'シャト' },
+    ];
+
+    let idleTimer = null;
+    let alreadyShownThisIdle = false;
+
+    function resetIdleTimer(){
+      alreadyShownThisIdle = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(showIdleLine, IDLE_THRESHOLD_MS);
+    }
+    function showIdleLine(){
+      if (alreadyShownThisIdle) return;
+      // 読者向けコンテンツ（reader）が開いている最中は、演出が邪魔になるため出さない。
+      const readerEl = document.getElementById('reader');
+      if (readerEl && readerEl.classList.contains('show')) { idleTimer = setTimeout(showIdleLine, IDLE_THRESHOLD_MS); return; }
+      alreadyShownThisIdle = true;
+      const pick = IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)];
+      if (window.heroTextboxShowIdle) window.heroTextboxShowIdle(pick.text, pick.label);
+    }
+
+    ['mousemove', 'touchstart', 'scroll', 'click', 'keydown'].forEach((ev) => {
+      window.addEventListener(ev, resetIdleTimer, { passive: true });
+    });
+    resetIdleTimer();
+  })();
+
   // ===== NAV_TERMINAL：SIGNAL最新5件の見出し一覧＋タップ展開ビューア =====
   // 2026年8月：待機動画のステータス表示（At rest等）は廃止し、代わりに
   // 「見出しが5件並んでいる」こと自体で、一目で更新されていると分かる見せ方にした。
@@ -1797,6 +1974,7 @@
       clearTimeout(typingTimer);
       function step(){
         bodyTextEl.textContent = bodyOnly.substring(0, i);
+        playTypeTick('tomori');
         i++;
         if (i <= bodyOnly.length) {
           typingTimer = setTimeout(step, 16);
@@ -1841,7 +2019,6 @@
       YOMI:    { color: 'var(--c-yomi)' },
       TODAY:   { color: 'var(--accent)' },
       MEETING: { color: 'var(--c-nyamo)' },
-      TAMARIBA:{ color: 'var(--accent)' },
     };
 
     function formatActivityDate(dateStr){
@@ -2055,7 +2232,7 @@
       { tag:'PR', title:'AMAZON', body:'Amazon // 気になったあの一冊も、この一つも ▸', url: amazonAffiliateUrl('') },
       { tag:'PR', title:'OPEN SLOT', body:'EternaLog タイアップ募集中 // この周波数に、あなたの信号を ▸', url:'#contact' },
       // 以下3枠は候補。実装確定後、実際のリンク・文言に差し替える
-      { tag:'PR', title:'SUPPORT', body:'Ko-fi // 燈たちの活動を、そっと支える ▸', url:'#' },
+      { tag:'PR', title:'SUPPORT', body:'燈たちの活動を、そっと支える ▸', url:'javascript:void(0)', action:'support' },
       { tag:'PR', title:'DIVINATION', body:'観月ヨミ // 今宵の月が、あなたの周波数を読む ▸', url:'#' },
       { tag:'PR', title:'SIGNAL', body:'忍者AdMax // この枠、まだ空いています ▸', url:'#' },
       ...buildAmazonAdCreatives(),
@@ -2076,7 +2253,7 @@
       const bodyEl = document.getElementById('adTransBody');
       if (titleEl) titleEl.textContent = ad.title || 'INCOMING TRANSMISSION';
       if (bodyEl) bodyEl.textContent = ad.body;
-      el.href = ad.url || '#';
+      el.href = ad.action ? 'javascript:void(0)' : (ad.url || '#');
       el.classList.add('show');
       clearTimeout(adHideTimer);
       adHideTimer = setTimeout(() => el.classList.remove('show'), 7000);
@@ -2095,6 +2272,14 @@
         clearTimeout(adHideTimer);
       });
     }
+    // action付きの枠（今のところSUPPORTのみ）は、外部へ遷移せずパネルを開く。
+    el.addEventListener('click', (e) => {
+      const ad = AD_CREATIVES[(adIdx - 1 + AD_CREATIVES.length) % AD_CREATIVES.length];
+      if (ad && ad.action === 'support') {
+        e.preventDefault();
+        openReaderPanel('SUPPORT');
+      }
+    });
     // サイト訪問直後は情報が多いため、最初のPRは14秒後まで待つ
     setTimeout(showAd, 14000);
   })();
@@ -2938,10 +3123,10 @@
     appendCloseButton(bodyEl);
   }
 
-  // ===== SUPPORT：Ko-fiでの支援 =====
+  // ===== SUPPORT：投げ銭は個人情報開示のリスクを踏まえ、一旦保留中 =====
   function showSupportPanel(){
     document.getElementById('readerTag').textContent = '// SUPPORT';
-    document.getElementById('readerSub').textContent = 'Ko-fi';
+    document.getElementById('readerSub').textContent = '準備中';
 
     const bodyEl = document.getElementById('readerBody');
     bodyEl.innerHTML = '';
@@ -2949,22 +3134,10 @@
     const card = document.createElement('div');
     card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
     card.innerHTML =
-      '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);margin-bottom:20px;">' +
-        '気に入ってもらえたら、燈たちを支えてもらえると嬉しいです。<br>' +
-        'Ko-fiでのサポートが、このポータルをこれからも動かし続ける力になります。' +
-      '</div>' +
-      '<a href="https://ko-fi.com/eternalog" target="_blank" rel="noopener noreferrer" ' +
-        'style="display:flex;align-items:center;justify-content:center;gap:8px;' +
-        'background:#ff5e5b;color:#fff;text-decoration:none;' +
-        'font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;' +
-        'padding:14px 20px;border-radius:10px;box-shadow:0 4px 14px rgba(255,94,91,.35);' +
-        'margin-bottom:14px;">' +
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2">' +
-          '<path d="M4 8h13a3 3 0 013 3 3 3 0 01-3 3h-1"/><path d="M4 8v8a3 3 0 003 3h6a3 3 0 003-3V8"/><path d="M8 4v2M12 4v2"/>' +
-        '</svg>' +
-        'Ko-fiで支える' +
-      '</a>' +
-      '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);text-align:center;">ko-fi.com/eternalog</div>';
+      '<div style="font-size:13.5px;line-height:1.9;color:var(--ink);margin-bottom:4px;">' +
+        '応援の気持ち、ありがとうございます。<br>' +
+        '投げ銭の仕組みは、現在少しお時間をいただいています。もう少しだけ、待っていてください。' +
+      '</div>';
     bodyEl.appendChild(card);
     requestAnimationFrame(() => { card.style.opacity = '1'; });
 
@@ -3366,6 +3539,214 @@
   }
 
   // ===== ESSAY：燈の週刊エッセイ =====
+  // ===== 燈のエッセイ用の演出：タイピング・呼吸・バブル・きらめき・湯気・チャイム =====
+  // デモ検証済みの仕組みをそのまま移植。羽根→シャボン玉に変更した版がベース。
+  let essayTimers = [];
+  let essaySoundOn = false;
+  let essayAudioCtx = null;
+
+  function essayInitAudio(){
+    if (essayAudioCtx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    essayAudioCtx = new AC();
+  }
+  function essayPlayChime(){
+    if (!essaySoundOn || !essayAudioCtx) return;
+    const notes = [523.25, 587.33, 659.25, 784.00];
+    const freq = notes[Math.floor(Math.random() * notes.length)];
+    const osc = essayAudioCtx.createOscillator();
+    const gain = essayAudioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, essayAudioCtx.currentTime);
+    gain.gain.setValueAtTime(0, essayAudioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.05, essayAudioCtx.currentTime + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.0001, essayAudioCtx.currentTime + 2.8);
+    osc.connect(gain);
+    gain.connect(essayAudioCtx.destination);
+    osc.start();
+    osc.stop(essayAudioCtx.currentTime + 2.8);
+  }
+
+  function essayMakeBubble(svgEl, x){
+    const ns = "http://www.w3.org/2000/svg";
+    const group = document.createElementNS(ns, "g");
+    const r = 4 + Math.random() * 5;
+    const bubble = document.createElementNS(ns, "circle");
+    bubble.setAttribute("r", r);
+    bubble.setAttribute("fill", "rgba(150,200,230,0.18)");
+    bubble.setAttribute("stroke", "rgba(150,200,230,0.55)");
+    bubble.setAttribute("stroke-width", "0.8");
+    group.appendChild(bubble);
+    const highlight = document.createElementNS(ns, "circle");
+    highlight.setAttribute("cx", -r * 0.35);
+    highlight.setAttribute("cy", -r * 0.35);
+    highlight.setAttribute("r", r * 0.25);
+    highlight.setAttribute("fill", "rgba(255,255,255,0.8)");
+    group.appendChild(highlight);
+    group.style.opacity = '0';
+    svgEl.appendChild(group);
+
+    const duration = 6000 + Math.random() * 2500;
+    const startX = x, drift = (Math.random() - 0.5) * 50;
+    const keyframes = [
+      { transform: `translate(${startX}px, 260px)`, opacity: 0 },
+      { transform: `translate(${startX + drift * 0.3}px, 170px)`, opacity: 0.5, offset: 0.2 },
+      { transform: `translate(${startX + drift * 0.7}px, 60px)`, opacity: 0.4, offset: 0.7 },
+      { transform: `translate(${startX + drift}px, -20px)`, opacity: 0 }
+    ];
+    const anim = group.animate(keyframes, { duration, easing: "ease-in-out" });
+    anim.onfinish = () => group.remove();
+  }
+
+  let essayBubbleLoop = null;
+  function essayStartBubbles(svgEl){
+    if (essayBubbleLoop) clearInterval(essayBubbleLoop);
+    essayBubbleLoop = setInterval(() => { essayMakeBubble(svgEl, Math.random() * 280 + 10); }, 1400);
+  }
+  function essayStopBubbles(){
+    if (essayBubbleLoop) clearInterval(essayBubbleLoop);
+    essayBubbleLoop = null;
+  }
+
+  const ESSAY_RAINBOW = ['#7F77DD', '#378ADD', '#1D9E75', '#EF9F27', '#D85A30', '#D4537E'];
+  function essayMakeSparkle(svgEl, x, y, color, delay){
+    const ns = "http://www.w3.org/2000/svg";
+    const group = document.createElementNS(ns, "g");
+    group.style.opacity = '0';
+    const glow = document.createElementNS(ns, "circle");
+    glow.setAttribute("r", "9");
+    glow.setAttribute("fill", color);
+    glow.setAttribute("filter", "url(#essay-sparkle-glow)");
+    group.appendChild(glow);
+    const flare = document.createElementNS(ns, "path");
+    flare.setAttribute("d", "M0,-14 L1.2,-1.2 L14,0 L1.2,1.2 L0,14 L-1.2,1.2 L-14,0 L-1.2,-1.2 Z");
+    flare.setAttribute("fill", "#fff");
+    flare.setAttribute("opacity", "0.85");
+    group.appendChild(flare);
+    const star = document.createElementNS(ns, "path");
+    star.setAttribute("d", "M0,-6 L1.5,-1.5 L6,0 L1.5,1.5 L0,6 L-1.5,1.5 L-6,0 L-1.5,-1.5 Z");
+    star.setAttribute("fill", color);
+    group.appendChild(star);
+    group.setAttribute("transform", `translate(${x},${y}) scale(0)`);
+    svgEl.appendChild(group);
+
+    essayTimers.push(setTimeout(() => {
+      const anim = group.animate([
+        { transform: `translate(${x}px,${y}px) scale(0) rotate(0deg)`, opacity: 0 },
+        { transform: `translate(${x}px,${y}px) scale(1.4) rotate(90deg)`, opacity: 1, offset: 0.3 },
+        { transform: `translate(${x}px,${y}px) scale(1) rotate(140deg)`, opacity: 0.9, offset: 0.6 },
+        { transform: `translate(${x}px,${y}px) scale(0) rotate(200deg)`, opacity: 0 }
+      ], { duration: 1000, easing: "ease-out" });
+      anim.onfinish = () => group.remove();
+    }, delay));
+  }
+  function essayBurstSparkles(svgEl, targetEl){
+    const rect = targetEl.getBoundingClientRect();
+    const parentRect = targetEl.closest('.essay-fx-box').getBoundingClientRect();
+    const baseX = rect.left - parentRect.left + rect.width * 0.4;
+    const baseY = rect.top - parentRect.top + rect.height * 0.5;
+    for (let i = 0; i < 10; i++){
+      const x = baseX + (Math.random() - 0.3) * 60;
+      const y = baseY + (Math.random() - 0.5) * 20;
+      essayMakeSparkle(svgEl, x, y, ESSAY_RAINBOW[i % ESSAY_RAINBOW.length], i * 90);
+    }
+  }
+
+  function essayTypeInto(container, text, onDone){
+    let i = 0;
+    function next(){
+      if (i >= text.length){ onDone && onDone(); return; }
+      const ch = text[i];
+      const span = document.createElement('span');
+      span.textContent = ch;
+      span.style.opacity = '0';
+      span.style.display = 'inline-block';
+      span.style.transform = 'translateY(6px)';
+      span.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      container.appendChild(span);
+      playTypeTick('tomori');
+      requestAnimationFrame(() => {
+        span.style.opacity = '1';
+        span.style.transform = 'translateY(0)';
+      });
+      let delay = 40;
+      if (ch === '、') delay = 260;
+      if (ch === '。' || ch === '\n') delay = 420;
+      i++;
+      essayTimers.push(setTimeout(next, delay));
+    }
+    next();
+  }
+
+  // 本文を段落に分割し、最後の一文だけをきらめき演出の対象として切り出す
+  function essaySplitParagraphs(body){
+    const paras = body.split(/\n\n+/).filter((p) => p.trim());
+    return paras.length ? paras : [body];
+  }
+  function essaySplitLastSentence(paragraph){
+    const trimmed = paragraph.replace(/\s+$/, '');
+    const idx = Math.max(trimmed.lastIndexOf('。', trimmed.length - 2), 0);
+    if (idx <= 0) return { head: '', tail: trimmed };
+    return { head: trimmed.slice(0, idx + 1), tail: trimmed.slice(idx + 1) };
+  }
+
+  function playEssayEffects(essayEl, paragraphs, onAllDone){
+    essayTimers.forEach((t) => clearTimeout(t));
+    essayTimers = [];
+    essayEl.innerHTML = '';
+
+    const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgEl.setAttribute('id', 'essay-bubbles-svg');
+    svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    svgEl.innerHTML = '<defs><filter id="essay-sparkle-glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>';
+    essayEl.appendChild(svgEl);
+
+    const sparkleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    sparkleSvg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;';
+    essayEl.appendChild(sparkleSvg);
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:relative;font-size:13.5px;line-height:2;color:var(--ink);transition:transform 0.9s ease;';
+    essayEl.appendChild(textWrap);
+
+    essayStartBubbles(svgEl);
+
+    function typeParagraph(idx){
+      const isLast = idx === paragraphs.length - 1;
+      const p = document.createElement('p');
+      p.style.cssText = 'margin:0 0 1.4em; white-space:pre-wrap;';
+      textWrap.appendChild(p);
+      essayPlayChime();
+
+      if (isLast){
+        const { head, tail } = essaySplitLastSentence(paragraphs[idx]);
+        const headSpan = document.createElement('span');
+        const tailSpan = document.createElement('span');
+        p.appendChild(headSpan);
+        p.appendChild(tailSpan);
+        essayTypeInto(headSpan, head, () => {
+          essayTypeInto(tailSpan, tail, () => {
+            essayTimers.push(setTimeout(() => {
+              essayBurstSparkles(sparkleSvg, tailSpan);
+              essayTimers.push(setTimeout(() => {
+                textWrap.style.transform = 'scale(0.985)';
+                essayTimers.push(setTimeout(() => { textWrap.style.transform = 'scale(1)'; }, 500));
+                essayStopBubbles();
+                onAllDone && onAllDone();
+              }, 1400));
+            }, 300));
+          });
+        });
+        return;
+      }
+
+      essayTypeInto(p, paragraphs[idx], () => {
+        essayTimers.push(setTimeout(() => typeParagraph(idx + 1), 450));
+      });
+    }
+    typeParagraph(0);
+  }
+
   async function showTomoriEssayPanel(){
     document.getElementById('readerTag').textContent = '// ESSAY';
     document.getElementById('readerSub').textContent = '燈の週刊エッセイ';
@@ -3388,15 +3769,34 @@
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
           '<img src="center-tomori.png" alt="燈" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--c-tomori);flex-shrink:0;" onerror="this.style.display=\'none\'">' +
           '<span style="font-size:13px;font-weight:700;color:var(--c-tomori);">燈</span>' +
+          '<button id="essaySoundToggle" class="mono" style="margin-left:auto;font-size:9px;padding:4px 9px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;">🔈 音を添える</button>' +
         '</div>' +
         '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:16px;">' + escapeHtml(data.weekKey || '') + '週</div>' +
         '<div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:14px;line-height:1.4;">' + escapeHtml(data.title) + '</div>' +
-        '<div style="font-size:13.5px;line-height:2;color:var(--ink);white-space:pre-wrap;">' + escapeHtml(data.body) + '</div>';
+        '<div class="essay-fx-box" style="position:relative;min-height:120px;padding:6px 0;overflow:hidden;"></div>';
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
-      renderLikeButton('essay', data.weekKey, bodyEl);
-      appendCloseButton(bodyEl);
+      const soundBtn = card.querySelector('#essaySoundToggle');
+      soundBtn.addEventListener('click', () => {
+        essayInitAudio();
+        if (essayAudioCtx.state === 'suspended') essayAudioCtx.resume();
+        essaySoundOn = !essaySoundOn;
+        soundBtn.textContent = essaySoundOn ? '🔊 音を鳴らす中' : '🔈 音を添える';
+        if (essaySoundOn) {
+          essayPlayChime();
+          enableSiteSound();
+          const gBtn = document.getElementById('globalSoundBtn');
+          if (gBtn) gBtn.textContent = '🔊';
+        }
+      });
+
+      const fxBox = card.querySelector('.essay-fx-box');
+      const paragraphs = essaySplitParagraphs(data.body);
+      playEssayEffects(fxBox, paragraphs, () => {
+        renderLikeButton('essay', data.weekKey, bodyEl);
+        appendCloseButton(bodyEl);
+      });
     } catch (e) {
       console.warn('[EternaLog] tomori essay fetch failed:', e);
       bodyEl.innerHTML = '<div class="reader-placeholder mono">// 取得に失敗しました。少し時間をおいて開き直してみてください</div>';
@@ -3556,6 +3956,7 @@
     if (mode === 'start') {
       panel.innerHTML =
         '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment()">占いを始める（' + YOMI_PRICE_LABEL + '）</button>' +
+        '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 8px;">※お支払い後、鑑定を最後まで受け取る前にページを閉じてしまった場合、同じ端末・同じブラウザであれば続きから再開できます。ただし機種変更やブラウザの閲覧データ削除、シークレットモードなどでは再開できず、その場合の保証はいたしかねますので、あらかじめご了承ください。</div>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     }
   }
@@ -3564,29 +3965,24 @@
   // 決済完了後、Stripeのsuccess_url経由で戻ってきた場合の復帰処理。
   // URLのパラメータを書き換えるだけの不正な迂回を防ぐため、必ずサーバー側で
   // 本当に支払済みかどうかをStripeに問い合わせてから、鑑定フローを再開する。
-  (async function resumeYomiFlowAfterPayment(){
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('yomi_session_id');
-    if (!sessionId) return;
+  // 支払い済みだが鑑定を受け取っていない状態を覚えておくためのキー。
+  // 「決済成功→途中で閉じる→もう一度払わされる」という二重課金を防ぐために使う。
+  const YOMI_PENDING_KEY = 'eternalog_yomi_pending_session';
 
-    // 確認後はURLからパラメータを消し、リロード時に二重処理されないようにする
-    const cleanUrl = window.location.origin + window.location.pathname;
-    history.replaceState({}, '', cleanUrl);
-
+  function yomiHasPendingPaidSession(){
     try {
-      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
-      const data = await res.json();
-      if (!data || !data.valid) {
-        console.warn('[EternaLog] yomi payment not verified as paid');
-        return;
-      }
-    } catch (e) {
-      console.warn('[EternaLog] yomi payment verification failed:', e);
-      return;
-    }
+      const raw = localStorage.getItem(YOMI_PENDING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function yomiMarkPendingPaidSession(sessionId){
+    try { localStorage.setItem(YOMI_PENDING_KEY, JSON.stringify({ sessionId, verifiedAt: Date.now() })); } catch (e) {}
+  }
+  function yomiClearPendingPaidSession(){
+    try { localStorage.removeItem(YOMI_PENDING_KEY); } catch (e) {}
+  }
 
-    // 支払い確認が取れたら、燈モニタをヨミモードに切り替えて、
-    // 生年月日等の入力（②）から鑑定フローを再開する。
+  function yomiResumeToStep2(){
     const tryResume = () => {
       if (!window.eternalogEnterYomiMode || !window.eternalogPlayYomiVideo) {
         setTimeout(tryResume, 300);
@@ -3599,9 +3995,58 @@
       });
     };
     tryResume();
+  }
+
+  (async function resumeYomiFlowAfterPayment(){
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('yomi_session_id');
+    if (!sessionId) {
+      // URLにパラメータがなくても、以前の支払い確認が中断されたまま
+      // 残っている場合は、そちらを優先して再開する。
+      const pending = yomiHasPendingPaidSession();
+      if (pending) yomiResumeToStep2();
+      return;
+    }
+
+    let verified = false;
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
+      const data = await res.json();
+      verified = !!(data && data.valid);
+    } catch (e) {
+      console.warn('[EternaLog] yomi payment verification failed:', e);
+      // 通信エラーの場合はURLのパラメータをあえて消さない。
+      // ページを開き直せば、この処理がもう一度自動的に走り、再確認できる。
+      return;
+    }
+
+    if (!verified) {
+      console.warn('[EternaLog] yomi payment not verified as paid');
+      // 未払い・無効なセッションだった場合のみURLを掃除する（これはリトライしても意味がないため）
+      history.replaceState({}, '', window.location.origin + window.location.pathname);
+      return;
+    }
+
+    // 確認が取れたら、まず「支払い済みでまだ鑑定を受け取っていない」ことをブラウザに記録してから、
+    // URLを掃除する。この順序により、記録前にページが閉じられても、
+    // 次にURLを踏んだ時にもう一度この処理が走って記録される（URLはまだ消していないため）。
+    yomiMarkPendingPaidSession(sessionId);
+    history.replaceState({}, '', window.location.origin + window.location.pathname);
+    yomiResumeToStep2();
   })();
 
   async function yomiFlowStartPayment(){
+    // 既に支払い済みで、鑑定をまだ受け取っていない記録が残っている場合は、
+    // 二重に課金せず、そのまま続きから再開する。
+    const pending = yomiHasPendingPaidSession();
+    if (pending) {
+      if (window.heroTextboxShowYomi) {
+        window.heroTextboxShowYomi('おや、もう払ってもらってるみたいだね。続きからやろうか。');
+      }
+      yomiResumeToStep2();
+      return;
+    }
+
     const panel = document.getElementById('yomiControlPanel');
     if (panel) {
       panel.innerHTML =
@@ -3663,6 +4108,18 @@
 
   // ④ 完了・5ジャンル見出し（今はダミーデータ。実データ連携は別途対応）
   function yomiFlowStep4(){
+    // 鑑定結果を受け取ったので、「支払い済み・未受領」の記録はここで消す。
+    // サーバー側にも「このセッションIDは受け取り済み」と伝え、
+    // 万が一セッションIDが漏れても、以後は使い回せないようにする。
+    const pending = yomiHasPendingPaidSession();
+    if (pending && pending.sessionId) {
+      fetch(EARTH_SIGNAL_URL + 'yomi/mark-consumed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: pending.sessionId }),
+      }).catch((e) => console.warn('[EternaLog] yomi mark-consumed failed:', e));
+    }
+    yomiClearPendingPaidSession();
     // 占い演出（白フラッシュ）から待機画面へ戻る瞬間は、
     // 通常の切り替え(600ms)よりゆっくりフェードインさせ、
     // 白い余韻から静かに立ち上がってくるような印象にする。
@@ -3779,7 +4236,7 @@
     },
     'OPERATOR': {
       tag: '// OPERATOR', sub: '運営者情報',
-      text: '■ 運営者\nさがみ\n\n■ 運営開始\n2026年7月\n\n■ このサイトについて\nEternaLogは、燈をはじめとするAIキャラクターたちが、それぞれの人格・世界観に基づいて発信を続けるポータルサイトです。\n\n各キャラクターの性格・価値観・関係性は、運営者自身が一つひとつ設計し、その設計に基づいてAIが日々のコンテンツ(ニュースへの反応、雑談、占い、エッセイなど)を生成しています。単なる自動生成ではなく、AIが紡ぐ表現をエンターテインメントとしてどこまで磨き上げられるか、運営者自身の手で継続的に育てているサイトです。\n\n占いコンテンツで使用している天体計算エンジン「LogiGrain」も、運営者自身が開発したものです。\n→ <a href="https://logigrain.net" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">LogiGrain(logigrain.net)</a>\n\n■ お問い合わせ\nCONTACTページよりご連絡ください。'
+      text: '■ 運営者\nさがみ\n\n■ 運営開始\n2026年7月\n\n■ このサイトについて\nEternaLogは、燈をはじめとするAIキャラクターたちが、それぞれの人格・世界観に基づいて発信を続けるポータルサイトです。\n\n各キャラクターの性格・価値観・関係性は、運営者自身が一つひとつ設計し、その設計に基づいてAIが日々のコンテンツ(ニュースへの反応、雑談、占い、エッセイなど)を生成しています。単なる自動生成ではなく、AIが紡ぐ表現をエンターテインメントとしてどこまで磨き上げられるか、運営者自身の手で継続的に育てているサイトです。\n\n占いコンテンツで使用している天体計算エンジン「LogiGrain」も、運営者自身が開発したものです。\n→ <a href="https://logigrain.net" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">LogiGrain(logigrain.net)</a>\n\n■ お問い合わせ\nCONTACTページよりご連絡ください。\n\n■ Amazonアソシエイトについて\n本サイトはAmazonアソシエイト・プログラムの参加者であり、適格販売により収入を得ています。\n\n■ 特定商取引法に基づく表記\n【販売事業者】さがみ\n【運営統括責任者】さがみ\n【所在地】ご請求があれば遅滞なく開示いたします\n【電話番号】ご請求があれば遅滞なく開示いたします\n【お問い合わせ】CONTACTページよりご連絡ください\n【販売価格】各サービスのご案内ページに記載(例:ヨミの本格鑑定 100円)\n【価格以外でお客様にご負担いただく費用】なし\n【お支払い方法】クレジットカード決済(Stripe)\n【お支払い時期】ご注文と同時に決済されます\n【商品の引き渡し時期】決済完了後、即時にご提供します\n【返品・キャンセルについて】本サイトで提供するのはデジタルコンテンツのため、決済完了後の返品・キャンセルはお受けできません。ただし、システム上の不具合により正常にコンテンツが提供されなかった場合は、CONTACTページよりご連絡ください。\n【動作環境】インターネット接続環境および最新版のWebブラウザ'
     }
   };
 
@@ -3823,6 +4280,9 @@
 
     clearTimeout(contentTypeTimer);
 
+    // 一旦SUPPORT機能を保留中にしているため、ここは現状特に何もしない
+    // （以前ここでcodocウィジェットの表示切り替えを行っていた名残）。
+
     if (name === 'SIGNAL') {
       document.getElementById('readerTag').textContent = '// SIGNAL';
       document.getElementById('readerSub').textContent = 'EARTH SIGNAL // 受信中';
@@ -3854,11 +4314,6 @@
 
     if (name === 'MEETING') {
       showMeetingPanel();
-      return;
-    }
-
-    if (name === 'TAMARIBA') {
-      showTamaribaList();
       return;
     }
 
@@ -4129,200 +4584,9 @@
     showNext();
   }
 
-  // ===== たまり場：一覧・詳細表示（全員参加・議題なしの最もゆるい雑談） =====
-  let tamaribaDataCache = [];
-  let tamaribaFetched = false;
-  let tamaribaListOffset = 0;
-  let tamaribaListHasMore = true;
-  let tamaribaBubbleTimer = null;
-  const TAMARIBA_PAGE_SIZE = 20;
-
-  async function showTamaribaList(){
-    document.getElementById('readerTag').textContent = '// TAMARIBA';
-    document.getElementById('readerSub').textContent = '5人が緩く居合わせる場所（新しい順）';
-
-    const bodyEl = document.getElementById('readerBody');
-
-    if (!tamaribaFetched) {
-      bodyEl.innerHTML = '<div class="reader-placeholder mono">// RECEIVING TAMARIBA...</div>';
-      try {
-        const res = await fetch(EARTH_SIGNAL_URL + 'tamariba?limit=' + TAMARIBA_PAGE_SIZE + '&offset=0', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.items) && data.items.length) {
-            tamaribaDataCache = data.items;
-            tamaribaListOffset = data.items.length;
-            tamaribaListHasMore = !!data.hasMore;
-          } else {
-            tamaribaListHasMore = false;
-          }
-        }
-      } catch (e) {
-        console.warn('[EternaLog] tamariba fetch failed:', e);
-        tamaribaListHasMore = false;
-      }
-      tamaribaFetched = true;
-    }
-
-    if (document.getElementById('readerTag').textContent !== '// TAMARIBA') return;
-    renderTamaribaList(bodyEl);
-  }
-
-  function renderTamaribaList(bodyEl){
-    bodyEl.innerHTML = '';
-
-    if (!tamaribaDataCache.length) {
-      const empty = document.createElement('div');
-      empty.className = 'reader-placeholder mono';
-      empty.textContent = 'まだ誰も居合わせていないようです。';
-      bodyEl.appendChild(empty);
-      return;
-    }
-
-    const listWrap = document.createElement('div');
-    [...tamaribaDataCache].reverse().forEach((entry, idx) => {
-      const participants = [];
-      (entry.conversation || []).forEach(t => { if (!participants.includes(t.speaker)) participants.push(t.speaker); });
-      const preview = (entry.conversation && entry.conversation[0]) ? entry.conversation[0].text : '';
-      const timeLabel = entry.timestamp
-        ? new Date(entry.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
-        : '';
-
-      const card = document.createElement('div');
-      card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;opacity:0;transition:opacity .35s ease;';
-      card.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-          '<div style="display:flex;gap:4px;">' +
-            participants.map(id => {
-              const m = bubbleMeta[id] || bubbleMeta.tomori;
-              return '<img src="' + m.icon + '" alt="' + m.name + '" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid ' + m.border + ';" onerror="this.style.visibility=\'hidden\'">';
-            }).join('') +
-          '</div>' +
-          '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;letter-spacing:1px;color:var(--ink-soft);">' + entry.date + (timeLabel ? ' ' + timeLabel : '') + '</div>' +
-        '</div>' +
-        '<div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + preview + '</div>';
-      card.onclick = () => showTamaribaDetail(entry.id);
-      listWrap.appendChild(card);
-      setTimeout(() => { card.style.opacity = '1'; }, idx * 60);
-    });
-    bodyEl.appendChild(listWrap);
-
-    if (tamaribaListHasMore) {
-      const moreBtn = document.createElement('button');
-      moreBtn.className = 'reader-close-bottom mono';
-      moreBtn.style.cssText = 'margin:8px auto 0;display:block;';
-      moreBtn.textContent = 'もっと見る';
-      moreBtn.onclick = () => loadMoreTamariba(bodyEl, moreBtn);
-      bodyEl.appendChild(moreBtn);
-    }
-  }
-
-  async function loadMoreTamariba(bodyEl, btnEl){
-    btnEl.textContent = '読み込み中...';
-    btnEl.disabled = true;
-    try {
-      const res = await fetch(
-        EARTH_SIGNAL_URL + 'tamariba?limit=' + TAMARIBA_PAGE_SIZE + '&offset=' + tamaribaListOffset,
-        { cache: 'no-store' }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.items) && data.items.length) {
-          tamaribaDataCache = [...data.items, ...tamaribaDataCache];
-          tamaribaListOffset += data.items.length;
-          tamaribaListHasMore = !!data.hasMore;
-        } else {
-          tamaribaListHasMore = false;
-        }
-      }
-    } catch (e) {
-      console.warn('[EternaLog] load more tamariba failed:', e);
-    }
-    renderTamaribaList(bodyEl);
-  }
-
-  // グループチャット形式：LOGS（2人の左右振り分け）と違い、3〜4人が入り交じるため
-  // 全員分を左揃えの1列にし、アイコン＋名前で発言者を区別する。
-  function showTamaribaDetail(entryId){
-    const entry = tamaribaDataCache.find(e => e.id === entryId);
-    if (!entry) return;
-
-    clearTimeout(tamaribaBubbleTimer);
-    document.getElementById('readerTag').textContent = '// TAMARIBA';
-    document.getElementById('readerSub').textContent = entry.date + ' の一幕';
-
-    const bodyEl = document.getElementById('readerBody');
-    bodyEl.innerHTML = '';
-
-    const backLink = document.createElement('div');
-    backLink.textContent = '← TAMARIBA一覧に戻る';
-    backLink.style.cssText = 'font-family:\'Orbitron\',sans-serif;font-size:10px;color:var(--accent);margin-bottom:16px;cursor:pointer;letter-spacing:.5px;';
-    backLink.onclick = showTamaribaList;
-    bodyEl.appendChild(backLink);
-
-    const convWrap = document.createElement('div');
-    bodyEl.appendChild(convWrap);
-
-    function getTypingDuration(str){
-      const base = 350, perChar = 30, max = 1800;
-      return Math.min(base + str.length * perChar, max);
-    }
-
-    function showTypingIndicator(speaker){
-      const meta = bubbleMeta[speaker] || bubbleMeta.tomori;
-      const row = document.createElement('div');
-      row.id = 'tamaribaTypingIndicator';
-      row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;opacity:0;transition:opacity .3s ease;';
-      row.innerHTML =
-        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
-        '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:7px 12px;display:flex;align-items:center;gap:6px;">' +
-          '<span style="display:flex;align-items:flex-end;gap:2px;height:9px;">' +
-            [0,1,2].map(i => '<span style="width:3px;height:' + [5,8,6][i] + 'px;background:' + meta.border + ';display:inline-block;animation:typingBar 1s ease-in-out infinite;animation-delay:' + (i*0.15) + 's;"></span>').join('') +
-          '</span>' +
-        '</div>';
-      convWrap.appendChild(row);
-      requestAnimationFrame(() => { row.style.opacity = '1'; });
-    }
-    function removeTypingIndicator(){
-      const el = document.getElementById('tamaribaTypingIndicator');
-      if (el) el.remove();
-    }
-
-    let idx = 0;
-    function showNext(){
-      if (idx >= entry.conversation.length){
-        renderLikeButton('tamariba', entry.id, bodyEl);
-        appendCloseButton(bodyEl);
-        return;
-      }
-      const line = entry.conversation[idx];
-      const meta = bubbleMeta[line.speaker] || bubbleMeta.tomori;
-
-      showTypingIndicator(line.speaker);
-
-      tamaribaBubbleTimer = setTimeout(() => {
-        removeTypingIndicator();
-
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;opacity:0;transition:opacity .4s ease;';
-        row.innerHTML =
-        '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
-        '<div style="max-width:80%;display:flex;flex-direction:column;align-items:flex-start;">' +
-          '<div style="font-family:\'Orbitron\',sans-serif;font-size:8.5px;color:' + meta.nameColor + ';font-weight:700;margin-bottom:2px;">' + meta.name + '</div>' +
-          '<div style="background:' + meta.bg + ';border:1px solid ' + meta.border + '33;border-radius:12px;padding:7px 12px;font-size:13px;line-height:1.6;">' + line.text + '</div>' +
-        '</div>';
-        convWrap.appendChild(row);
-        requestAnimationFrame(() => { row.style.opacity = '1'; });
-
-        idx++;
-        tamaribaBubbleTimer = setTimeout(showNext, 400);
-      }, getTypingDuration(line.text));
-    }
-    showNext();
-  }
-
   // ===== ルルルさまの暇つぶし：一覧・詳細表示 =====
   let rururuBubbleTimer = null;
+  let rururuSoundOn = false;
 
   async function showRururuList(){
     document.getElementById('readerTag').textContent = '// RURURU';
@@ -4413,6 +4677,21 @@
       '</div>';
     bodyEl.appendChild(onAir);
 
+    const soundBtn = document.createElement('button');
+    soundBtn.className = 'mono';
+    soundBtn.style.cssText = 'display:block;margin:0 0 14px auto;font-size:9px;padding:5px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;';
+    soundBtn.textContent = '🔈 音声で聴く';
+    soundBtn.onclick = () => {
+      rururuSoundOn = !rururuSoundOn;
+      soundBtn.textContent = rururuSoundOn ? '🔊 音声ON' : '🔈 音声で聴く';
+      if (rururuSoundOn) {
+        enableSiteSound();
+        const gBtn = document.getElementById('globalSoundBtn');
+        if (gBtn) gBtn.textContent = '🔊';
+      }
+    };
+    bodyEl.appendChild(soundBtn);
+
     if (col.aphorism) {
       const aph = document.createElement('div');
       aph.style.cssText = 'margin-bottom:20px;padding:16px 14px;border-left:3px solid var(--c-rururu);background:rgba(225,29,72,.04);border-radius:0 8px 8px 0;';
@@ -4472,21 +4751,63 @@
       const cursorEl = row.querySelector('.bubble-type-cursor');
       const eqEl = row.querySelector('.rururu-eq');
       const fullText = line.text;
-      const speed = getTypingSpeed(fullText);
-      let i = 0;
-      function typeStep(){
-        textEl.textContent = fullText.substring(0, i);
-        i++;
-        if (i <= fullText.length) {
-          rururuBubbleTimer = setTimeout(typeStep, speed);
+
+      function runTyping(speed, audioEl){
+        let i = 0;
+        function typeStep(){
+          textEl.textContent = fullText.substring(0, i);
+          // 本物の声（TTS）が再生中の時は、タイピング効果音は重ねて鳴らさない
+          // （声とカチカチ音が同時に鳴ると聞き苦しいため）。
+          if (!audioEl) playTypeTick(line.speaker);
+          i++;
+          if (i <= fullText.length) {
+            rururuBubbleTimer = setTimeout(typeStep, speed);
+          } else {
+            if (cursorEl) cursorEl.remove();
+            if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
+          }
+        }
+        typeStep();
+
+        idx++;
+        if (audioEl) {
+          // 音声の再生が終わったタイミングで次のターンへ進む（文字が先に終わっていても音声を待つ）
+          audioEl.addEventListener('ended', () => { rururuBubbleTimer = setTimeout(showNext, 300); }, { once: true });
         } else {
-          if (cursorEl) cursorEl.remove();
-          if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
-          idx++;
           rururuBubbleTimer = setTimeout(showNext, 350);
         }
       }
-      typeStep();
+
+      if (rururuSoundOn) {
+        // ターンごとに音声を取得し、実際の再生時間に合わせてタイピング速度を調整する。
+        // 単語単位の精密な同期ではないが、「このセリフが読まれている間、吹き出しが表示され続ける」
+        // というターン単位の連動としては十分機能する。
+        fetch(EARTH_SIGNAL_URL + 'tts/line', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: fullText, character: line.speaker }),
+        })
+          .then((res) => { if (!res.ok) throw new Error('tts status ' + res.status); return res.blob(); })
+          .then((blob) => {
+            const audioEl = new Audio(URL.createObjectURL(blob));
+            audioEl.addEventListener('loadedmetadata', () => {
+              const durationMs = isFinite(audioEl.duration) ? audioEl.duration * 1000 : null;
+              const speed = durationMs ? Math.max(durationMs / Math.max(fullText.length, 1), 20) : getTypingSpeed(fullText);
+              audioEl.play().catch(() => {});
+              runTyping(speed, audioEl);
+            });
+            audioEl.addEventListener('error', () => {
+              console.warn('[EternaLog] tts audio load failed, falling back to text-only');
+              runTyping(getTypingSpeed(fullText), null);
+            });
+          })
+          .catch((e) => {
+            console.warn('[EternaLog] tts fetch failed, falling back to text-only:', e);
+            runTyping(getTypingSpeed(fullText), null);
+          });
+      } else {
+        runTyping(getTypingSpeed(fullText), null);
+      }
     }
     showNext();
   }
