@@ -993,7 +993,6 @@
         <span id="sysNodes">N:128</span>
         <span id="sysClock">--:--:--</span>
       </div>
-      <div class="icon-btn" id="globalSoundBtn" onclick="toggleGlobalSound()" style="font-size:14px;">🔈</div>
       <div class="icon-btn"><div class="live-dot"></div></div>
     </div>
   </header>
@@ -1266,49 +1265,6 @@
 </aside>
 
 <script>
-  // ===== 共通：タイピング効果音（Web Audio API、キャラごとに音色を変える） =====
-  // 燈=規則的でメカニカル、ニャモ=柔らかく少し不規則、ヨミ=低く落ち着いた音、
-  // ルルル=硬質な音、シャト=高く弾むような不規則な音、というイメージで割り当てた。
-  // 音声ファイルは使わず、その場で波形を合成するので追加コストは一切ない。
-  let siteAudioCtx = null;
-  let siteSoundEnabled = false;
-
-  function initSiteAudio(){
-    if (siteAudioCtx) return siteAudioCtx;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    siteAudioCtx = new AC();
-    return siteAudioCtx;
-  }
-  function enableSiteSound(){
-    initSiteAudio();
-    if (siteAudioCtx.state === 'suspended') siteAudioCtx.resume();
-    siteSoundEnabled = true;
-  }
-
-  const TYPE_TICK_PROFILE = {
-    tomori: { freq: 720, jitter: 0.02, wave: 'sine',     gain: 0.020 },
-    nyamo:  { freq: 480, jitter: 0.12, wave: 'triangle', gain: 0.018 },
-    yomi:   { freq: 380, jitter: 0.05, wave: 'sine',     gain: 0.020 },
-    rururu: { freq: 620, jitter: 0.04, wave: 'square',   gain: 0.014 },
-    shat:   { freq: 900, jitter: 0.16, wave: 'sawtooth', gain: 0.012 },
-  };
-
-  function playTypeTick(character){
-    if (!siteSoundEnabled || !siteAudioCtx) return;
-    const profile = TYPE_TICK_PROFILE[character] || TYPE_TICK_PROFILE.tomori;
-    const jitterAmt = 1 + (Math.random() - 0.5) * profile.jitter;
-    const osc = siteAudioCtx.createOscillator();
-    const gain = siteAudioCtx.createGain();
-    osc.type = profile.wave;
-    osc.frequency.setValueAtTime(profile.freq * jitterAmt, siteAudioCtx.currentTime);
-    gain.gain.setValueAtTime(profile.gain, siteAudioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, siteAudioCtx.currentTime + 0.045);
-    osc.connect(gain);
-    gain.connect(siteAudioCtx.destination);
-    osc.start();
-    osc.stop(siteAudioCtx.currentTime + 0.045);
-  }
-
   // ===== 投げ銭リンクをタップした瞬間の、光の粒が舞う演出 =====
   // 実際の入金確認とは連動していない（webhook等が必要）。あくまでタップした瞬間への
   // お礼のフィードバックとして、画面全体に控えめな光を一瞬だけ走らせる。
@@ -1339,24 +1295,6 @@
     }
     setTimeout(() => svg.remove(), 2200);
   };
-
-  function toggleGlobalSound(){
-    if (siteSoundEnabled) {
-      siteSoundEnabled = false;
-      // 個別パネル（エッセイ・ラジオ）側の音もまとめて止め、表示との食い違いを防ぐ。
-      essaySoundOn = false;
-      rururuSoundOn = false;
-      const essayBtn = document.getElementById('essaySoundToggle');
-      if (essayBtn) essayBtn.textContent = '🔈 音を添える';
-      document.querySelectorAll('.reader-body button').forEach((b) => {
-        if (b.textContent === '🔊 音声ON') b.textContent = '🔈 音声で聴く';
-      });
-    } else {
-      enableSiteSound();
-    }
-    const btn = document.getElementById('globalSoundBtn');
-    if (btn) btn.textContent = siteSoundEnabled ? '🔊' : '🔈';
-  }
 
   function openDrawer(){ document.getElementById('drawer').classList.add('show'); document.getElementById('drawerBack').classList.add('show'); }
   function scrollToTop(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -1974,7 +1912,6 @@
       clearTimeout(typingTimer);
       function step(){
         bodyTextEl.textContent = bodyOnly.substring(0, i);
-        playTypeTick('tomori');
         i++;
         if (i <= bodyOnly.length) {
           typingTimer = setTimeout(step, 16);
@@ -3664,7 +3601,6 @@
       span.style.transform = 'translateY(6px)';
       span.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
       container.appendChild(span);
-      playTypeTick('tomori');
       requestAnimationFrame(() => {
         span.style.opacity = '1';
         span.style.transform = 'translateY(0)';
@@ -3783,12 +3719,7 @@
         if (essayAudioCtx.state === 'suspended') essayAudioCtx.resume();
         essaySoundOn = !essaySoundOn;
         soundBtn.textContent = essaySoundOn ? '🔊 音を鳴らす中' : '🔈 音を添える';
-        if (essaySoundOn) {
-          essayPlayChime();
-          enableSiteSound();
-          const gBtn = document.getElementById('globalSoundBtn');
-          if (gBtn) gBtn.textContent = '🔊';
-        }
+        if (essaySoundOn) essayPlayChime();
       });
 
       const fxBox = card.querySelector('.essay-fx-box');
@@ -4684,11 +4615,6 @@
     soundBtn.onclick = () => {
       rururuSoundOn = !rururuSoundOn;
       soundBtn.textContent = rururuSoundOn ? '🔊 音声ON' : '🔈 音声で聴く';
-      if (rururuSoundOn) {
-        enableSiteSound();
-        const gBtn = document.getElementById('globalSoundBtn');
-        if (gBtn) gBtn.textContent = '🔊';
-      }
     };
     bodyEl.appendChild(soundBtn);
 
@@ -4751,37 +4677,25 @@
       const cursorEl = row.querySelector('.bubble-type-cursor');
       const eqEl = row.querySelector('.rururu-eq');
       const fullText = line.text;
-
-      function runTyping(speed, audioEl){
-        let i = 0;
-        function typeStep(){
-          textEl.textContent = fullText.substring(0, i);
-          // 本物の声（TTS）が再生中の時は、タイピング効果音は重ねて鳴らさない
-          // （声とカチカチ音が同時に鳴ると聞き苦しいため）。
-          if (!audioEl) playTypeTick(line.speaker);
-          i++;
-          if (i <= fullText.length) {
-            rururuBubbleTimer = setTimeout(typeStep, speed);
-          } else {
-            if (cursorEl) cursorEl.remove();
-            if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
-          }
-        }
-        typeStep();
-
-        idx++;
-        if (audioEl) {
-          // 音声の再生が終わったタイミングで次のターンへ進む（文字が先に終わっていても音声を待つ）
-          audioEl.addEventListener('ended', () => { rururuBubbleTimer = setTimeout(showNext, 300); }, { once: true });
+      const speed = getTypingSpeed(fullText);
+      let i = 0;
+      function typeStep(){
+        textEl.textContent = fullText.substring(0, i);
+        i++;
+        if (i <= fullText.length) {
+          rururuBubbleTimer = setTimeout(typeStep, speed);
         } else {
+          if (cursorEl) cursorEl.remove();
+          if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
+          idx++;
           rururuBubbleTimer = setTimeout(showNext, 350);
         }
       }
+      typeStep();
 
+      // 音声（TTS）は、タイピングの間合いとは連動させず、取得できたら鳴らすだけの
+      // 別レイヤーとして扱う（文字の出方はテキストだけで完結させる）。
       if (rururuSoundOn) {
-        // ターンごとに音声を取得し、実際の再生時間に合わせてタイピング速度を調整する。
-        // 単語単位の精密な同期ではないが、「このセリフが読まれている間、吹き出しが表示され続ける」
-        // というターン単位の連動としては十分機能する。
         fetch(EARTH_SIGNAL_URL + 'tts/line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4790,23 +4704,11 @@
           .then((res) => { if (!res.ok) throw new Error('tts status ' + res.status); return res.blob(); })
           .then((blob) => {
             const audioEl = new Audio(URL.createObjectURL(blob));
-            audioEl.addEventListener('loadedmetadata', () => {
-              const durationMs = isFinite(audioEl.duration) ? audioEl.duration * 1000 : null;
-              const speed = durationMs ? Math.max(durationMs / Math.max(fullText.length, 1), 20) : getTypingSpeed(fullText);
-              audioEl.play().catch(() => {});
-              runTyping(speed, audioEl);
-            });
-            audioEl.addEventListener('error', () => {
-              console.warn('[EternaLog] tts audio load failed, falling back to text-only');
-              runTyping(getTypingSpeed(fullText), null);
-            });
+            audioEl.play().catch(() => {});
           })
           .catch((e) => {
-            console.warn('[EternaLog] tts fetch failed, falling back to text-only:', e);
-            runTyping(getTypingSpeed(fullText), null);
+            console.warn('[EternaLog] tts fetch failed:', e);
           });
-      } else {
-        runTyping(getTypingSpeed(fullText), null);
       }
     }
     showNext();
