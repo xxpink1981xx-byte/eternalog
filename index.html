@@ -4704,7 +4704,7 @@
           .then((res) => { if (!res.ok) throw new Error('tts status ' + res.status); return res.blob(); })
           .then((blob) => {
             const audioEl = new Audio(URL.createObjectURL(blob));
-            audioEl.play().catch(() => {});
+            audioEl.play().catch((e) => console.warn('[EternaLog] tts play blocked:', e));
           })
           .catch((e) => {
             console.warn('[EternaLog] tts fetch failed:', e);
