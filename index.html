@@ -4519,6 +4519,51 @@
   let rururuBubbleTimer = null;
   let rururuSoundOn = false;
 
+  // ===== 音声の再生キュー =====
+  // 文字のタイピングは一定のテンポで進むため、音声をその都度すぐ鳴らすと
+  // 前のセリフが終わる前に次が重なってしまう。セリフの順番通りに席を確保し、
+  // 先頭の席に音声が届いたら1つずつ鳴らすことで、会話として聞き取れる形に保つ。
+  let rururuAudioQueue = [];
+  let rururuAudioPlaying = false;
+
+  function rururuResetAudioQueue(){
+    rururuAudioQueue.forEach((slot) => { if (slot.audio) { slot.audio.pause(); } });
+    rururuAudioQueue = [];
+    rururuAudioPlaying = false;
+  }
+
+  // セリフが表示されたタイミングで席だけ先に確保する（音声はまだ届いていなくてよい）
+  function rururuReserveAudioSlot(){
+    const slot = { audio: null, ready: false };
+    rururuAudioQueue.push(slot);
+    return slot;
+  }
+
+  // 音声が届いたら、確保してあった席に収める（失敗時はnullで、その席は飛ばす）
+  function rururuFillAudioSlot(slot, audioEl){
+    slot.audio = audioEl;
+    slot.ready = true;
+    if (!rururuAudioPlaying) rururuPlayNextAudio();
+  }
+
+  function rururuPlayNextAudio(){
+    // 先頭の席がまだ届いていなければ、届くまで待つ（順番を飛ばさない）
+    if (!rururuAudioQueue.length || !rururuAudioQueue[0].ready){
+      rururuAudioPlaying = false;
+      return;
+    }
+    rururuAudioPlaying = true;
+    const slot = rururuAudioQueue.shift();
+    const goNext = () => { rururuPlayNextAudio(); };
+    if (!slot.audio){ goNext(); return; } // 取得に失敗した席は飛ばす
+    slot.audio.addEventListener('ended', goNext, { once: true });
+    slot.audio.addEventListener('error', goNext, { once: true });
+    slot.audio.play().catch((e) => {
+      console.warn('[EternaLog] tts play blocked:', e);
+      goNext();
+    });
+  }
+
   async function showRururuList(){
     document.getElementById('readerTag').textContent = '// RURURU';
     document.getElementById('readerSub').textContent = 'ETERNARADIO ・ 放送アーカイブ';
@@ -4578,6 +4623,7 @@
     if (!col) return;
 
     clearTimeout(rururuBubbleTimer);
+    rururuResetAudioQueue();
     document.getElementById('readerTag').textContent = '// RURURU';
     document.getElementById('readerSub').textContent = '第' + parseInt(col.id, 10) + '回 ・ ' + col.date;
 
@@ -4693,9 +4739,12 @@
       }
       typeStep();
 
-      // 音声（TTS）は、タイピングの間合いとは連動させず、取得できたら鳴らすだけの
-      // 別レイヤーとして扱う（文字の出方はテキストだけで完結させる）。
+      // 音声（TTS）は、タイピングの間合いとは連動させず、取得でき次第
+      // 再生キューに積む（キューが順番に1つずつ鳴らすので、声は重ならない）。
+      // 通信の速さで順番が入れ替わらないよう、リクエストを出した時点で
+      // キュー内の席（スロット）を確保しておき、届いたらそこへ収める。
       if (rururuSoundOn) {
+        const slot = rururuReserveAudioSlot();
         fetch(EARTH_SIGNAL_URL + 'tts/line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4703,11 +4752,11 @@
         })
           .then((res) => { if (!res.ok) throw new Error('tts status ' + res.status); return res.blob(); })
           .then((blob) => {
-            const audioEl = new Audio(URL.createObjectURL(blob));
-            audioEl.play().catch((e) => console.warn('[EternaLog] tts play blocked:', e));
+            rururuFillAudioSlot(slot, new Audio(URL.createObjectURL(blob)));
           })
           .catch((e) => {
             console.warn('[EternaLog] tts fetch failed:', e);
+            rururuFillAudioSlot(slot, null); // 失敗した席は飛ばして次へ進む
           });
       }
     }
@@ -4720,6 +4769,7 @@
     clearTimeout(contentTypeTimer);
     clearTimeout(logBubbleTimer);
     clearTimeout(rururuBubbleTimer);
+    rururuResetAudioQueue();
     // ヨミモードへ移行する場合は、燈の待機動画やGUIDE文言に戻す必要がない。
     // むしろ戻す処理が走ると、直後に差し込むヨミの動画と競合してしまう。
     if (!skipTomoriRestore) {
