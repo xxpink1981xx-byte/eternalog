@@ -2839,6 +2839,7 @@
     } catch (e) { /* 取得失敗時は0のまま表示 */ }
 
     const wrap = document.createElement('div');
+    wrap.className = 'reader-like-wrap';
     wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:16px;';
     wrap.innerHTML =
       '<button class="like-btn" style="padding:8px 16px;border-radius:20px;border:1px solid var(--accent);' +
@@ -4525,8 +4526,10 @@
   // 先頭の席に音声が届いたら1つずつ鳴らすことで、会話として聞き取れる形に保つ。
   let rururuAudioQueue = [];
   let rururuAudioPlaying = false;
+  let rururuAudioTimer = null; // 音声どうしの間合い用（タイピング用タイマーとは別にする）
 
   function rururuResetAudioQueue(){
+    clearTimeout(rururuAudioTimer);
     rururuAudioQueue.forEach((slot) => { if (slot.audio) { slot.audio.pause(); } });
     rururuAudioQueue = [];
     rururuAudioPlaying = false;
@@ -4554,7 +4557,11 @@
     }
     rururuAudioPlaying = true;
     const slot = rururuAudioQueue.shift();
-    const goNext = () => { rururuPlayNextAudio(); };
+    // 声が途切れなく続くと機械的に聞こえるため、セリフの間に自然な呼吸を挟む。
+    // 毎回同じ長さにならないよう揺らしてある。
+    const goNext = () => {
+      rururuAudioTimer = setTimeout(() => rururuPlayNextAudio(), 280 + Math.random() * 420);
+    };
     if (!slot.audio){ goNext(); return; } // 取得に失敗した席は飛ばす
     slot.audio.addEventListener('ended', goNext, { once: true });
     slot.audio.addEventListener('error', goNext, { once: true });
@@ -4659,8 +4666,17 @@
     soundBtn.style.cssText = 'display:block;margin:0 0 14px auto;font-size:9px;padding:5px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;';
     soundBtn.textContent = '🔈 音声で聴く';
     soundBtn.onclick = () => {
-      rururuSoundOn = !rururuSoundOn;
-      soundBtn.textContent = rururuSoundOn ? '🔊 音声ON' : '🔈 音声で聴く';
+      // 音声をONにした時点で台本が途中まで進んでいると、最初の方が聴けないため、
+      // ONにしたら最初から再生し直す。OFFにする時はその場で止めるだけでよい。
+      if (!rururuSoundOn) {
+        rururuSoundOn = true;
+        soundBtn.textContent = '🔊 音声ON';
+        restartConversation();
+      } else {
+        rururuSoundOn = false;
+        soundBtn.textContent = '🔈 音声で聴く';
+        rururuResetAudioQueue();
+      }
     };
     bodyEl.appendChild(soundBtn);
 
@@ -4724,6 +4740,23 @@
       const eqEl = row.querySelector('.rururu-eq');
       const fullText = line.text;
       const speed = getTypingSpeed(fullText);
+
+      // 次のセリフまでの「間」を、内容に応じて変化させる。
+      // 全部を同じ間隔にすると、会話ではなく機械的な順送りに聞こえてしまう。
+      function getPauseAfter(str){
+        let base = 350;
+        // 問いかけの後は、相手が受け取るまでの一拍を置く
+        if (/[？?]$/.test(str)) base = 650;
+        // 言葉に詰まって終わった発言の後は、長めに間を取る
+        else if (/……$|\.\.\.$/.test(str)) base = 850;
+        // 短く鋭い一言の後は、すぐ次へ返してテンポを作る
+        else if (str.length <= 12) base = 240;
+        // 長い語りの後は、少し余韻を残す
+        else if (str.length >= 60) base = 550;
+        // 毎回まったく同じ値にならないよう、わずかに揺らす
+        return base + Math.random() * 180;
+      }
+
       let i = 0;
       function typeStep(){
         textEl.textContent = fullText.substring(0, i);
@@ -4734,7 +4767,7 @@
           if (cursorEl) cursorEl.remove();
           if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
           idx++;
-          rururuBubbleTimer = setTimeout(showNext, 350);
+          rururuBubbleTimer = setTimeout(showNext, getPauseAfter(fullText));
         }
       }
       typeStep();
@@ -4760,6 +4793,19 @@
           });
       }
     }
+    // 音声をONにした時に、台本を最初から流し直すための関数。
+    // 表示済みの吹き出しを一度すべて消し、進行位置とタイマー・音声キューを
+    // リセットしてから、再度先頭から再生する。
+    function restartConversation(){
+      clearTimeout(rururuBubbleTimer);
+      rururuResetAudioQueue();
+      convWrap.innerHTML = '';
+      // 会話が最後まで進んだ後に追加された、いいねボタン・閉じるボタンも取り除く
+      bodyEl.querySelectorAll('.reader-like-wrap, .reader-close-bottom').forEach((el) => el.remove());
+      idx = 0;
+      showNext();
+    }
+
     showNext();
   }
 
