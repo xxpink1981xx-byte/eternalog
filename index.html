@@ -4567,6 +4567,7 @@
   function rururuStopVoice(){
     rururuPlayToken++;
     if (rururuVoiceEl) { rururuVoiceEl.pause(); }
+    rururuStopIntro();
     rururuVoiceUrls.forEach((u) => URL.revokeObjectURL(u));
     rururuVoiceUrls = [];
   }
@@ -4584,22 +4585,37 @@
   const rururuBgm = { ctx: null, gain: null, source: null, buffer: null, loading: null };
 
   // 必ずボタン操作の中で呼ぶ（スマホのブラウザは、操作の直後でないと音を鳴らせないため）
-  function rururuStartBgm(){
+  // 音を鳴らす土台（AudioContext）を用意する。必ずボタン操作の中で呼ぶこと
+  // （スマホのブラウザは、操作の直後でないと音を鳴らす許可を出さないため）。
+  function rururuEnsureAudioCtx(){
     try {
       if (!rururuBgm.ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         rururuBgm.ctx = new AC();
       }
-      const ctx = rururuBgm.ctx;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
+    } catch (e) {
+      console.warn('[EternaLog] audio context failed:', e);
+    }
+    return rururuBgm.ctx;
+  }
+
+  // BGMを流し始める。startAtを渡すと、その時刻（AudioContextの時計で）から始める。
+  // ジングルのキメに合わせてBGMを入れるために使う。
+  function rururuStartBgm(startAt){
+    try {
+      const ctx = rururuEnsureAudioCtx();
+      if (!ctx) return;
       if (rururuBgm.source) return; // すでに流れている
 
       const startWith = (buffer) => {
         // 読み込み中に音声をOFFにされていたら、流さない
         if (!buffer || rururuBgm.source || !rururuSoundOn) return;
+        // 読み込みが予定時刻に間に合わなかった場合は、その場ですぐ始める
+        const t = Math.max(ctx.currentTime, typeof startAt === 'number' ? startAt : 0);
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(RURURU_BGM_VOLUME, ctx.currentTime + 2); // 2秒かけてフェードイン
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(RURURU_BGM_VOLUME, t + 2); // 2秒かけてフェードイン
         gain.connect(ctx.destination);
         const src = ctx.createBufferSource();
         src.buffer = buffer;
@@ -4609,7 +4625,7 @@
         src.loopStart = bounds.start;
         src.loopEnd = bounds.end;
         src.connect(gain);
-        src.start(0, bounds.start);
+        src.start(t, bounds.start);
         rururuBgm.source = src;
         rururuBgm.gain = gain;
       };
@@ -4646,6 +4662,85 @@
     if (bounds.end - bounds.start < 1) { bounds.start = 0; bounds.end = buffer.duration; }
     rururuBgm.bounds = bounds;
     return bounds;
+  }
+
+  // ===== 番組冒頭：ジングル＋ステーションコール =====
+  // ジングルの上にDJの一言を重ね、一言の終わりにジングルのキメが来るように合わせる。
+  // BGMはキメの瞬間から入り、ジングルの余韻と入れ替わるように立ち上がる。
+  const RURURU_JINGLE_SRC = 'eternaradio-jingle.mp3';
+  const RURURU_JINGLE_HIT = 4.83;   // ジングル内の「キメ」の位置（秒）。素材を差し替えたら測り直す
+  const RURURU_JINGLE_GAIN = 0.7;   // ジングルの音量（DJの声が乗るので、やや控えめ）
+  let rururuJingleBuffer = null;
+  let rururuStationIdBuffer = null;
+  let rururuIntroSources = [];
+
+  function rururuLoadBuffer(ctx, url){
+    return fetch(url)
+      .then((r) => { if (!r.ok) throw new Error(url + ' status ' + r.status); return r.arrayBuffer(); })
+      .then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)));
+  }
+
+  function rururuStopIntro(){
+    rururuIntroSources.forEach((src) => { try { src.stop(); } catch (e) {} });
+    rururuIntroSources = [];
+  }
+
+  // 冒頭の演出を鳴らし、ルルルの第一声に入ってよいタイミングまで待つ。
+  // ジングルや一言の読み込みに失敗しても、番組本編は止めない（あるものだけで進める）。
+  async function rururuPlayIntro(token){
+    const ctx = rururuBgm.ctx;
+    if (!ctx) { rururuStartBgm(); return; }
+    const [jingle, voice] = await Promise.all([
+      rururuJingleBuffer ? Promise.resolve(rururuJingleBuffer)
+        : rururuLoadBuffer(ctx, RURURU_JINGLE_SRC).then((b) => (rururuJingleBuffer = b))
+          .catch((e) => { console.warn('[EternaLog] jingle load failed:', e); return null; }),
+      rururuStationIdBuffer ? Promise.resolve(rururuStationIdBuffer)
+        : rururuLoadBuffer(ctx, EARTH_SIGNAL_URL + 'tts/station-id').then((b) => (rururuStationIdBuffer = b))
+          .catch((e) => { console.warn('[EternaLog] station id load failed:', e); return null; }),
+    ]);
+    if (token !== rururuPlayToken) return;
+
+    const t0 = ctx.currentTime + 0.05;
+    let doneAt = t0;
+
+    // ジングル
+    let hitAt = t0; // BGMを入れる時刻（ジングルがなければ即座に）
+    if (jingle) {
+      const src = ctx.createBufferSource();
+      src.buffer = jingle;
+      const g = ctx.createGain(); g.gain.value = RURURU_JINGLE_GAIN;
+      src.connect(g); g.connect(ctx.destination);
+      src.start(t0);
+      rururuIntroSources.push(src);
+      hitAt = t0 + RURURU_JINGLE_HIT;
+      doneAt = Math.max(doneAt, hitAt + 1.2); // キメの余韻が少し残るうちに本編へ
+    }
+
+    // DJの一言（エコー付き）。一言の終わりがキメの少し手前に来るように開始位置を合わせる
+    if (voice) {
+      const voiceAt = jingle ? Math.max(t0 + 0.3, hitAt - voice.duration - 0.15) : t0;
+      const src = ctx.createBufferSource();
+      src.buffer = voice;
+      const dry = ctx.createGain(); dry.gain.value = 1.0;
+      const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.26;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 2600;
+      // 文が長いので、エコーは控えめにして言葉が濁らないようにする
+      const feedback = ctx.createGain(); feedback.gain.value = 0.3;
+      const wet = ctx.createGain(); wet.gain.value = 0.32;
+      src.connect(dry); dry.connect(ctx.destination);
+      src.connect(delay); delay.connect(tone); tone.connect(feedback); feedback.connect(delay);
+      tone.connect(wet); wet.connect(ctx.destination);
+      src.start(voiceAt);
+      rururuIntroSources.push(src);
+      doneAt = Math.max(doneAt, voiceAt + voice.duration + 0.6);
+      setTimeout(() => { try { wet.disconnect(); feedback.disconnect(); } catch (e) {} },
+        (doneAt - ctx.currentTime + 4) * 1000);
+    }
+
+    // BGMはキメの瞬間から入れる
+    rururuStartBgm(hitAt);
+
+    await new Promise((r) => setTimeout(r, Math.max(0, doneAt - ctx.currentTime) * 1000));
   }
 
   // フェードアウトして止める（fadeSecは秒）
@@ -5024,6 +5119,12 @@
       const pending = [];
       const getUrl = (k) => (pending[k] = pending[k] || rururuFetchDialogueAudio(chunks[k].lines));
 
+      // 最初の会話の音声を取りに行きながら、その待ち時間にステーションコールを流す
+      if (chunks.length) getUrl(0);
+      setVoiceStatus('📻 ON AIR');
+      await rururuPlayIntro(token);
+      if (token !== rururuPlayToken) return;
+
       setVoiceStatus('📡 放送を受信中…');
       for (let k = 0; k < chunks.length; k++) {
         const urlPromise = getUrl(k);
@@ -5056,7 +5157,7 @@
         rururuStopVoice();
         rururuUnlockVoice();
         rururuSoundOn = true;
-        rururuStartBgm(); // BGMもボタン操作の中で開始する
+        rururuEnsureAudioCtx(); // 音の土台はボタン操作の中で用意する（BGMはジングルのキメに合わせて後から入る）
         soundBtn.textContent = '🔊 音声ON';
         resetConversationView();
         playWithVoice(rururuPlayToken);
