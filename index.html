@@ -4527,6 +4527,9 @@
   const RURURU_AUDIO_RATE = 1.1;
   // 1回の音声化にまとめる行数。多いほど会話の流れを掴めるが、最初の再生開始までの待ちが長くなる。
   const RURURU_VOICE_CHUNK = 6;
+  // 再生中に、何個先の塊まで先に作っておくか。音声は聴いている最中にその場で作るため、
+  // 生成が遅れた時の余裕として2つ先まで先読みする（増やしすぎるとGoogle側の回数制限に触れやすい）。
+  const RURURU_PREFETCH_AHEAD = 2;
   // 再生の世代番号。止める・やり直す時に増やし、古い再生処理を確実に止めるために使う。
   let rururuPlayToken = 0;
   // スマホのブラウザは「ユーザー操作の直後」以外の再生を拒否するため、
@@ -5260,8 +5263,9 @@
       const pending = [];
       const getUrl = (k) => (pending[k] = pending[k] || rururuFetchDialogueAudio(chunks[k].lines));
 
-      // 最初の会話の音声を取りに行きながら、その待ち時間にステーションコールを流す
+      // 冒頭のジングルとDJの一言が流れている間に、最初の2つの音声を同時に作り始めておく
       if (chunks.length) getUrl(0);
+      if (chunks.length > 1) getUrl(1);
       setVoiceStatus('📻 ON AIR');
       await rururuPlayIntro(token);
       if (token !== rururuPlayToken) return;
@@ -5269,10 +5273,16 @@
       setVoiceStatus('📡 放送を受信中…');
       for (let k = 0; k < chunks.length; k++) {
         const urlPromise = getUrl(k);
-        if (k + 1 < chunks.length) getUrl(k + 1); // 再生中に、次の塊を先読みしておく
+        // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
+        for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
         // お便りコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
         if (k > 0 && chunks[k].start === cornerIdx) await rururuPlaySting(token);
+        // それでも待ちが出た時は、止まったのではないと分かるように表示する
+        const waitNotice = setTimeout(() => {
+          if (token === rururuPlayToken) setVoiceStatus('📡 電波を受信中…');
+        }, 600);
         const url = await urlPromise;
+        clearTimeout(waitNotice);
         if (token !== rururuPlayToken) return;
         setVoiceStatus('');
         if (url) await playChunkSynced(chunks[k], url, token);
