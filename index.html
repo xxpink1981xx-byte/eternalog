@@ -4520,55 +4520,76 @@
   let rururuBubbleTimer = null;
   let rururuSoundOn = false;
 
-  // ===== 音声の再生キュー =====
-  // 文字のタイピングは一定のテンポで進むため、音声をその都度すぐ鳴らすと
-  // 前のセリフが終わる前に次が重なってしまう。セリフの順番通りに席を確保し、
-  // 先頭の席に音声が届いたら1つずつ鳴らすことで、会話として聞き取れる形に保つ。
-  let rururuAudioQueue = [];
-  let rururuAudioPlaying = false;
-  let rururuAudioTimer = null; // 音声どうしの間合い用（タイピング用タイマーとは別にする）
+  // ===== 音声再生（会話まるごと方式） =====
+  // 会話を数行ずつまとめて2人同時に音声化したものを、順番に再生する。
+  // 文字の表示は音声の進行に合わせて出す（音声が主、文字が従）。
+  // 音声の再生速度。1.0が等速。上げすぎると聞き取りにくくなるので、1.0〜1.2の範囲で調整する。
+  const RURURU_AUDIO_RATE = 1.1;
+  // 1回の音声化にまとめる行数。多いほど会話の流れを掴めるが、最初の再生開始までの待ちが長くなる。
+  const RURURU_VOICE_CHUNK = 6;
+  // 再生の世代番号。止める・やり直す時に増やし、古い再生処理を確実に止めるために使う。
+  let rururuPlayToken = 0;
+  // スマホのブラウザは「ユーザー操作の直後」以外の再生を拒否するため、
+  // 1つの音声要素を使い回し、ボタンを押した瞬間に解錠してから以後の再生に使う。
+  let rururuVoiceEl = null;
+  let rururuVoiceUrls = [];
 
-  function rururuResetAudioQueue(){
-    clearTimeout(rururuAudioTimer);
-    rururuAudioQueue.forEach((slot) => { if (slot.audio) { slot.audio.pause(); } });
-    rururuAudioQueue = [];
-    rururuAudioPlaying = false;
-  }
-
-  // セリフが表示されたタイミングで席だけ先に確保する（音声はまだ届いていなくてよい）
-  function rururuReserveAudioSlot(){
-    const slot = { audio: null, ready: false };
-    rururuAudioQueue.push(slot);
-    return slot;
-  }
-
-  // 音声が届いたら、確保してあった席に収める（失敗時はnullで、その席は飛ばす）
-  function rururuFillAudioSlot(slot, audioEl){
-    slot.audio = audioEl;
-    slot.ready = true;
-    if (!rururuAudioPlaying) rururuPlayNextAudio();
-  }
-
-  function rururuPlayNextAudio(){
-    // 先頭の席がまだ届いていなければ、届くまで待つ（順番を飛ばさない）
-    if (!rururuAudioQueue.length || !rururuAudioQueue[0].ready){
-      rururuAudioPlaying = false;
-      return;
+  function rururuGetVoiceEl(){
+    if (!rururuVoiceEl) {
+      rururuVoiceEl = new Audio();
+      rururuVoiceEl.preload = 'auto';
     }
-    rururuAudioPlaying = true;
-    const slot = rururuAudioQueue.shift();
-    // 声が途切れなく続くと機械的に聞こえるため、セリフの間に自然な呼吸を挟む。
-    // 毎回同じ長さにならないよう揺らしてある。
-    const goNext = () => {
-      rururuAudioTimer = setTimeout(() => rururuPlayNextAudio(), 280 + Math.random() * 420);
-    };
-    if (!slot.audio){ goNext(); return; } // 取得に失敗した席は飛ばす
-    slot.audio.addEventListener('ended', goNext, { once: true });
-    slot.audio.addEventListener('error', goNext, { once: true });
-    slot.audio.play().catch((e) => {
-      console.warn('[EternaLog] tts play blocked:', e);
-      goNext();
-    });
+    return rururuVoiceEl;
+  }
+
+  // ごく短い無音のWAVを作る（再生の解錠用）
+  function rururuSilentWavUrl(){
+    const sampleRate = 8000, samples = 80;
+    const buf = new ArrayBuffer(44 + samples * 2);
+    const v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + samples * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, samples * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+
+  // ボタン操作の中で必ず呼ぶ（この時点で再生を許可させておく）
+  function rururuUnlockVoice(){
+    const el = rururuGetVoiceEl();
+    const url = rururuSilentWavUrl();
+    rururuVoiceUrls.push(url);
+    el.src = url;
+    el.play().catch(() => {});
+  }
+
+  function rururuStopVoice(){
+    rururuPlayToken++;
+    if (rururuVoiceEl) { rururuVoiceEl.pause(); }
+    rururuVoiceUrls.forEach((u) => URL.revokeObjectURL(u));
+    rururuVoiceUrls = [];
+  }
+
+  // 以前の関数名で呼ばれている箇所があるため、同じ名前で停止処理を提供する
+  function rururuResetAudioQueue(){ rururuStopVoice(); }
+
+  // 数行ぶんの会話を音声化して取得する（失敗時はnull）
+  async function rururuFetchDialogueAudio(lines){
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'tts/dialogue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines: lines.map((l) => ({ speaker: l.speaker, text: l.text })) }),
+      });
+      if (!res.ok) throw new Error('tts status ' + res.status);
+      const url = URL.createObjectURL(await res.blob());
+      rururuVoiceUrls.push(url);
+      return url;
+    } catch (e) {
+      console.warn('[EternaLog] tts dialogue fetch failed:', e);
+      return null;
+    }
   }
 
   async function showRururuList(){
@@ -4631,6 +4652,7 @@
 
     clearTimeout(rururuBubbleTimer);
     rururuResetAudioQueue();
+    rururuSoundOn = false; // 音声は回ごとにボタンで明示的にONにする（再生の解錠にボタン操作が必要なため）
     document.getElementById('readerTag').textContent = '// RURURU';
     document.getElementById('readerSub').textContent = '第' + parseInt(col.id, 10) + '回 ・ ' + col.date;
 
@@ -4663,22 +4685,16 @@
 
     const soundBtn = document.createElement('button');
     soundBtn.className = 'mono';
-    soundBtn.style.cssText = 'display:block;margin:0 0 14px auto;font-size:9px;padding:5px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;';
+    soundBtn.style.cssText = 'display:block;margin:0 0 6px auto;font-size:9px;padding:5px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;';
     soundBtn.textContent = '🔈 音声で聴く';
-    soundBtn.onclick = () => {
-      // 音声をONにした時点で台本が途中まで進んでいると、最初の方が聴けないため、
-      // ONにしたら最初から再生し直す。OFFにする時はその場で止めるだけでよい。
-      if (!rururuSoundOn) {
-        rururuSoundOn = true;
-        soundBtn.textContent = '🔊 音声ON';
-        restartConversation();
-      } else {
-        rururuSoundOn = false;
-        soundBtn.textContent = '🔈 音声で聴く';
-        rururuResetAudioQueue();
-      }
-    };
     bodyEl.appendChild(soundBtn);
+
+    // 音声の受信状況を小さく示す（最初の音声が届くまで数秒かかるため、無反応に見せない）
+    const voiceStatusEl = document.createElement('div');
+    voiceStatusEl.className = 'mono';
+    voiceStatusEl.style.cssText = 'text-align:right;font-size:9px;color:var(--c-rururu);min-height:12px;margin:0 0 10px;letter-spacing:.5px;';
+    bodyEl.appendChild(voiceStatusEl);
+    function setVoiceStatus(msg){ voiceStatusEl.textContent = msg || ''; }
 
     if (col.aphorism) {
       const aph = document.createElement('div');
@@ -4705,20 +4721,22 @@
       return str.length > 40 ? 30 : 40;
     }
 
-    let idx = 0;
-    function showNext(){
-      if (idx >= col.conversation.length){
-        renderLikeButton('rururu', col.id, bodyEl);
-        appendCloseButton(bodyEl);
-        return;
-      }
-      const line = col.conversation[idx];
+    // 次のセリフまでの「間」を、内容に応じて変化させる（文字だけで流す時に使う）。
+    function getPauseAfter(str){
+      let base = 350;
+      if (/[？?]$/.test(str)) base = 650;
+      else if (/……$|\.\.\.$/.test(str)) base = 850;
+      else if (str.length <= 12) base = 240;
+      else if (str.length >= 60) base = 550;
+      return base + Math.random() * 180;
+    }
+
+    // 吹き出しを1つ作って画面に出す（中身の文字はまだ空）
+    function createBubble(line){
       const meta = bubbleMeta[line.speaker] || bubbleMeta.rururu;
       const isLeft = isLeftSpeaker(line.speaker);
-      const flexDir = isLeft ? 'row' : 'row-reverse';
-
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;flex-direction:' + flexDir + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
+      row.style.cssText = 'display:flex;flex-direction:' + (isLeft ? 'row' : 'row-reverse') + ';align-items:flex-start;gap:8px;margin-bottom:14px;opacity:0;transition:opacity .3s ease;';
       row.innerHTML =
         '<img src="' + meta.icon + '" alt="' + meta.name + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ' + meta.border + ';flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
         '<div style="max-width:78%;display:flex;flex-direction:column;align-items:' + (isLeft?'flex-start':'flex-end') + ';">' +
@@ -4734,77 +4752,234 @@
         '</div>';
       convWrap.appendChild(row);
       requestAnimationFrame(() => { row.style.opacity = '1'; });
+      return {
+        textEl: row.querySelector('.rururu-type-text'),
+        cursorEl: row.querySelector('.bubble-type-cursor'),
+        eqEl: row.querySelector('.rururu-eq'),
+        finished: false,
+      };
+    }
 
-      const textEl = row.querySelector('.rururu-type-text');
-      const cursorEl = row.querySelector('.bubble-type-cursor');
-      const eqEl = row.querySelector('.rururu-eq');
+    // 吹き出しの文字を最後まで出し切り、話し終わった状態にする
+    function finishBubble(b, text){
+      if (!b || b.finished) return;
+      b.finished = true;
+      b.textEl.textContent = text;
+      if (b.cursorEl) b.cursorEl.remove();
+      if (b.eqEl) b.eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
+    }
+
+    // 音声モード用のタイピング（再生の世代番号が変わったら即座に止まる）
+    function typeInto(b, text, speed, token, onDone){
+      let i = 0;
+      const step = () => {
+        if (token !== rururuPlayToken || b.finished) return;
+        b.textEl.textContent = text.substring(0, i);
+        i++;
+        if (i <= text.length) setTimeout(step, speed);
+        else { finishBubble(b, text); if (onDone) onDone(); }
+      };
+      step();
+    }
+
+    let idx = 0;              // 次に表示するセリフの位置
+    let finished = false;     // 最後まで表示し終えたか（いいね・閉じるボタンを二重に出さないため）
+    let currentBubble = null; // 表示途中の吹き出し（音声を止めた時に出し切るため）
+
+    function finishConversation(){
+      if (finished) return;
+      finished = true;
+      setVoiceStatus('');
+      renderLikeButton('rururu', col.id, bodyEl);
+      appendCloseButton(bodyEl);
+    }
+
+    // ===== 文字だけで流すモード（従来通り） =====
+    function showNext(){
+      if (idx >= col.conversation.length){ finishConversation(); return; }
+      const line = col.conversation[idx];
+      const b = createBubble(line);
+      currentBubble = { b, text: line.text };
       const fullText = line.text;
       const speed = getTypingSpeed(fullText);
-
-      // 次のセリフまでの「間」を、内容に応じて変化させる。
-      // 全部を同じ間隔にすると、会話ではなく機械的な順送りに聞こえてしまう。
-      function getPauseAfter(str){
-        let base = 350;
-        // 問いかけの後は、相手が受け取るまでの一拍を置く
-        if (/[？?]$/.test(str)) base = 650;
-        // 言葉に詰まって終わった発言の後は、長めに間を取る
-        else if (/……$|\.\.\.$/.test(str)) base = 850;
-        // 短く鋭い一言の後は、すぐ次へ返してテンポを作る
-        else if (str.length <= 12) base = 240;
-        // 長い語りの後は、少し余韻を残す
-        else if (str.length >= 60) base = 550;
-        // 毎回まったく同じ値にならないよう、わずかに揺らす
-        return base + Math.random() * 180;
-      }
-
       let i = 0;
       function typeStep(){
-        textEl.textContent = fullText.substring(0, i);
+        if (b.finished) return;
+        b.textEl.textContent = fullText.substring(0, i);
         i++;
         if (i <= fullText.length) {
           rururuBubbleTimer = setTimeout(typeStep, speed);
         } else {
-          if (cursorEl) cursorEl.remove();
-          if (eqEl) eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
+          finishBubble(b, fullText);
+          currentBubble = null;
           idx++;
           rururuBubbleTimer = setTimeout(showNext, getPauseAfter(fullText));
         }
       }
       typeStep();
-
-      // 音声（TTS）は、タイピングの間合いとは連動させず、取得でき次第
-      // 再生キューに積む（キューが順番に1つずつ鳴らすので、声は重ならない）。
-      // 通信の速さで順番が入れ替わらないよう、リクエストを出した時点で
-      // キュー内の席（スロット）を確保しておき、届いたらそこへ収める。
-      if (rururuSoundOn) {
-        const slot = rururuReserveAudioSlot();
-        fetch(EARTH_SIGNAL_URL + 'tts/line', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: fullText, character: line.speaker }),
-        })
-          .then((res) => { if (!res.ok) throw new Error('tts status ' + res.status); return res.blob(); })
-          .then((blob) => {
-            rururuFillAudioSlot(slot, new Audio(URL.createObjectURL(blob)));
-          })
-          .catch((e) => {
-            console.warn('[EternaLog] tts fetch failed:', e);
-            rururuFillAudioSlot(slot, null); // 失敗した席は飛ばして次へ進む
-          });
-      }
     }
-    // 音声をONにした時に、台本を最初から流し直すための関数。
-    // 表示済みの吹き出しを一度すべて消し、進行位置とタイマー・音声キューを
-    // リセットしてから、再度先頭から再生する。
-    function restartConversation(){
+
+    // ===== 音声モード =====
+    // 会話を数行ずつまとめて音声化し、音声の進行に合わせて文字を出す。
+    // 数行を1回で音声化することで、モデルが会話の流れを踏まえて掛け合いとして演じられる。
+
+    // 音声が取れなかった塊は、文字だけで流す
+    function typeChunkPlain(chunk, token){
+      return new Promise((resolve) => {
+        let n = 0;
+        const nextLine = () => {
+          if (token !== rururuPlayToken) { resolve(); return; }
+          if (n >= chunk.lines.length) { resolve(); return; }
+          const line = chunk.lines[n];
+          const b = createBubble(line);
+          currentBubble = { b, text: line.text };
+          idx = chunk.start + n + 1;
+          n++;
+          typeInto(b, line.text, getTypingSpeed(line.text), token, () => {
+            currentBubble = null;
+            setTimeout(nextLine, getPauseAfter(line.text));
+          });
+        };
+        nextLine();
+      });
+    }
+
+    // 1つの塊を再生し、音声の進み具合に合わせて吹き出しを出していく。
+    // 行ごとの開始位置は、文字数の比率から推定する（音声側に単語単位の時刻情報がないため）。
+    function playChunkSynced(chunk, url, token){
+      return new Promise((resolve) => {
+        const el = rururuGetVoiceEl();
+        const ac = new AbortController(); // この塊で付けたイベントを、終わったら一括で外す
+        let done = false;
+        let starts = [], lens = [], next = 0;
+
+        const finish = () => {
+          if (done) return;
+          done = true;
+          ac.abort();
+          if (token === rururuPlayToken) {
+            if (currentBubble) { finishBubble(currentBubble.b, currentBubble.text); currentBubble = null; }
+            while (next < chunk.lines.length) {
+              finishBubble(createBubble(chunk.lines[next]), chunk.lines[next].text);
+              next++;
+            }
+            idx = chunk.start + chunk.lines.length;
+          }
+          resolve();
+        };
+
+        const tick = () => {
+          if (done) return;
+          if (token !== rururuPlayToken) { finish(); return; }
+          const t = el.currentTime;
+          while (next < chunk.lines.length && t >= starts[next]) {
+            if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
+            const line = chunk.lines[next];
+            const b = createBubble(line);
+            currentBubble = { b, text: line.text };
+            const wallMs = (lens[next] / RURURU_AUDIO_RATE) * 1000;
+            const speed = Math.max(12, Math.min(60, (wallMs * 0.8) / Math.max(1, line.text.length)));
+            typeInto(b, line.text, speed, token);
+            idx = chunk.start + next + 1;
+            next++;
+          }
+          requestAnimationFrame(tick);
+        };
+
+        const begin = () => {
+          if (token !== rururuPlayToken) { finish(); return; }
+          // 話者の切り替わりにも少し時間がかかるため、各行に少し下駄を履かせて按分する
+          const weights = chunk.lines.map((l) => l.text.length + 6);
+          const total = weights.reduce((a, w) => a + w, 0);
+          const estimated = total * 0.12;
+          const dur = (isFinite(el.duration) && el.duration > 0) ? el.duration : estimated;
+          let acc = 0;
+          starts = weights.map((w) => { const s = (acc / total) * dur; acc += w; return s; });
+          lens = weights.map((w) => (w / total) * dur);
+          el.playbackRate = RURURU_AUDIO_RATE;
+          el.preservesPitch = true;
+          el.play().then(() => requestAnimationFrame(tick)).catch((e) => {
+            // 再生を拒否された場合は、この塊を文字だけで流す
+            console.warn('[EternaLog] tts play blocked:', e);
+            done = true;
+            ac.abort();
+            typeChunkPlain(chunk, token).then(resolve);
+          });
+        };
+
+        el.addEventListener('loadedmetadata', begin, { once: true, signal: ac.signal });
+        el.addEventListener('ended', finish, { signal: ac.signal });
+        el.addEventListener('error', () => {
+          if (done) return;
+          done = true;
+          ac.abort();
+          typeChunkPlain(chunk, token).then(resolve);
+        }, { signal: ac.signal });
+        el.src = url;
+        el.load();
+      });
+    }
+
+    async function playWithVoice(token){
+      const lines = col.conversation;
+      // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
+      const chunks = [];
+      let s = idx;
+      const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
+      while (s < lines.length) {
+        const size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
+        chunks.push({ start: s, lines: lines.slice(s, s + size) });
+        s += size;
+      }
+      const pending = [];
+      const getUrl = (k) => (pending[k] = pending[k] || rururuFetchDialogueAudio(chunks[k].lines));
+
+      setVoiceStatus('📡 放送を受信中…');
+      for (let k = 0; k < chunks.length; k++) {
+        const urlPromise = getUrl(k);
+        if (k + 1 < chunks.length) getUrl(k + 1); // 再生中に、次の塊を先読みしておく
+        const url = await urlPromise;
+        if (token !== rururuPlayToken) return;
+        setVoiceStatus('');
+        if (url) await playChunkSynced(chunks[k], url, token);
+        else await typeChunkPlain(chunks[k], token);
+        if (token !== rururuPlayToken) return;
+      }
+      finishConversation();
+    }
+
+    // 表示をまっさらに戻して、最初からやり直す
+    function resetConversationView(){
       clearTimeout(rururuBubbleTimer);
-      rururuResetAudioQueue();
       convWrap.innerHTML = '';
-      // 会話が最後まで進んだ後に追加された、いいねボタン・閉じるボタンも取り除く
       bodyEl.querySelectorAll('.reader-like-wrap, .reader-close-bottom').forEach((el) => el.remove());
       idx = 0;
-      showNext();
+      finished = false;
+      currentBubble = null;
+      setVoiceStatus('');
     }
+
+    soundBtn.onclick = () => {
+      if (!rururuSoundOn) {
+        // ONにしたら最初から、音声つきで流し直す。
+        // 再生の解錠は、必ずこのボタン操作の中で行う（スマホのブラウザの制限のため）。
+        rururuStopVoice();
+        rururuUnlockVoice();
+        rururuSoundOn = true;
+        soundBtn.textContent = '🔊 音声ON';
+        resetConversationView();
+        playWithVoice(rururuPlayToken);
+      } else {
+        // OFFにしたら、音声だけ止めて、続きは文字だけで流す
+        rururuStopVoice();
+        rururuSoundOn = false;
+        soundBtn.textContent = '🔈 音声で聴く';
+        setVoiceStatus('');
+        if (currentBubble) { finishBubble(currentBubble.b, currentBubble.text); currentBubble = null; }
+        clearTimeout(rururuBubbleTimer);
+        showNext();
+      }
+    };
 
     showNext();
   }
