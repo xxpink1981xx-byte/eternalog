@@ -4580,9 +4580,31 @@
   // Web Audio APIで音源をまるごと読み込み、継ぎ目なくループさせる。
   // ファイルはindex.htmlと同じ場所に置く（ブースのイラストと同じ扱い）。
   const RURURU_BGM_SRC = 'eternaradio-bgm.mp3';
-  // 声の下に敷く音量（0〜1）。声が聞き取りにくければ下げ、BGMが聞こえなければ上げる。
-  const RURURU_BGM_VOLUME = 0.12;
-  const rururuBgm = { ctx: null, gain: null, source: null, buffer: null, loading: null };
+  // BGMの音量（0〜1）。本物のラジオのように、喋っている間は下げ、間やジングルの後は上げる。
+  const RURURU_BGM_VOLUME_TALK = 0.09;  // 声の下に敷く時。声が聞き取りにくければ下げる
+  const RURURU_BGM_VOLUME_IDLE = 0.18;  // 喋っていない時（ジングルのキメの後、会話の切れ目）
+  const rururuBgm = { ctx: null, gain: null, source: null, buffer: null, loading: null, target: RURURU_BGM_VOLUME_IDLE, raiseTimer: null };
+
+  // BGMの音量を、sec秒かけて滑らかに変える
+  function rururuBgmTo(level, sec){
+    rururuBgm.target = level;
+    const { ctx, gain } = rururuBgm;
+    if (!ctx || !gain) return;
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(level, now + (sec || 0.4));
+  }
+  // 喋り始めたら下げる
+  function rururuDuckBgm(){
+    clearTimeout(rururuBgm.raiseTimer);
+    rururuBgmTo(RURURU_BGM_VOLUME_TALK, 0.4);
+  }
+  // 喋りが途切れたら、少し待ってから上げる（すぐ次が始まる時に音量が上下して落ち着かなくなるのを防ぐ）
+  function rururuUnduckBgmSoon(){
+    clearTimeout(rururuBgm.raiseTimer);
+    rururuBgm.raiseTimer = setTimeout(() => rururuBgmTo(RURURU_BGM_VOLUME_IDLE, 1.0), 700);
+  }
 
   // 必ずボタン操作の中で呼ぶ（スマホのブラウザは、操作の直後でないと音を鳴らせないため）
   // 音を鳴らす土台（AudioContext）を用意する。必ずボタン操作の中で呼ぶこと
@@ -4594,10 +4616,32 @@
         rururuBgm.ctx = new AC();
       }
       if (rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
+      // 声を分析器に通して、実際の音量を測れるようにする（名前横のメーターを本物の声に反応させるため）。
+      // この接続は1つの音声要素につき1回しかできないので、初回だけ行う。
+      if (!rururuVoiceAnalyser) {
+        const el = rururuGetVoiceEl();
+        const srcNode = rururuBgm.ctx.createMediaElementSource(el);
+        rururuVoiceAnalyser = rururuBgm.ctx.createAnalyser();
+        rururuVoiceAnalyser.fftSize = 1024;
+        srcNode.connect(rururuBgm.ctx.destination);
+        srcNode.connect(rururuVoiceAnalyser);
+      }
     } catch (e) {
       console.warn('[EternaLog] audio context failed:', e);
     }
     return rururuBgm.ctx;
+  }
+
+  let rururuVoiceAnalyser = null;
+  let rururuMeterBuf = null;
+  // 今の声の大きさ（0〜1）
+  function rururuVoiceLevel(){
+    if (!rururuVoiceAnalyser) return 0;
+    if (!rururuMeterBuf) rururuMeterBuf = new Float32Array(rururuVoiceAnalyser.fftSize);
+    rururuVoiceAnalyser.getFloatTimeDomainData(rururuMeterBuf);
+    let sum = 0;
+    for (let i = 0; i < rururuMeterBuf.length; i++) sum += rururuMeterBuf[i] * rururuMeterBuf[i];
+    return Math.min(1, Math.sqrt(sum / rururuMeterBuf.length) * 5);
   }
 
   // BGMを流し始める。startAtを渡すと、その時刻（AudioContextの時計で）から始める。
@@ -4615,7 +4659,7 @@
         const t = Math.max(ctx.currentTime, typeof startAt === 'number' ? startAt : 0);
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(RURURU_BGM_VOLUME, t + 2); // 2秒かけてフェードイン
+        gain.gain.linearRampToValueAtTime(rururuBgm.target, t + 2); // 2秒かけてフェードイン
         gain.connect(ctx.destination);
         const src = ctx.createBufferSource();
         src.buffer = buffer;
@@ -4670,7 +4714,10 @@
   const RURURU_JINGLE_SRC = 'eternaradio-jingle.mp3';
   const RURURU_JINGLE_HIT = 4.83;   // ジングル内の「キメ」の位置（秒）。素材を差し替えたら測り直す
   const RURURU_JINGLE_GAIN = 0.7;   // ジングルの音量（DJの声が乗るので、やや控えめ）
+  const RURURU_STING_SRC = 'eternaradio-sting.mp3'; // コーナー切り替え用の短いジングル
+  const RURURU_STING_HIT = 0.80;    // その中の「キメ」の位置（秒）
   let rururuJingleBuffer = null;
+  let rururuStingBuffer = null;
   let rururuStationIdBuffer = null;
   let rururuIntroSources = [];
 
@@ -4678,6 +4725,43 @@
     return fetch(url)
       .then((r) => { if (!r.ok) throw new Error(url + ' status ' + r.status); return r.arrayBuffer(); })
       .then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)));
+  }
+
+  // ザザッと周波数が合っていくようなノイズ（0.6秒）。音声ファイルは使わず合成する
+  function rururuPlayTuningNoise(ctx, at){
+    try {
+      const len = 0.6;
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        // ときどき混ざる「パチッ」という雑音で、電波らしさを出す
+        d[i] = (Math.random() * 2 - 1) * (Math.random() < 0.002 ? 3 : 1);
+      }
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const band = ctx.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = 4;
+      band.frequency.setValueAtTime(400, at);
+      band.frequency.exponentialRampToValueAtTime(2600, at + len); // 周波数を探っていく感じ
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(0.12, at + 0.08);
+      g.gain.linearRampToValueAtTime(0, at + len);
+      src.connect(band); band.connect(g); g.connect(ctx.destination);
+      src.start(at);
+      rururuIntroSources.push(src);
+    } catch (e) { /* 鳴らせなくても本編には影響させない */ }
+  }
+
+  // コーナーの切り替わりで短いジングルを鳴らし、キメの余韻が残るうちに次へ進む
+  async function rururuPlaySting(token){
+    const ctx = rururuBgm.ctx;
+    if (!ctx || !rururuStingBuffer || token !== rururuPlayToken) return;
+    const src = ctx.createBufferSource(); src.buffer = rururuStingBuffer;
+    const g = ctx.createGain(); g.gain.value = RURURU_JINGLE_GAIN;
+    src.connect(g); g.connect(ctx.destination);
+    rururuBgmTo(RURURU_BGM_VOLUME_TALK, 0.2); // ジングルを立たせるため、BGMは控えめに
+    src.start(ctx.currentTime + 0.05);
+    rururuIntroSources.push(src);
+    await new Promise((r) => setTimeout(r, (RURURU_STING_HIT + 0.6) * 1000));
   }
 
   function rururuStopIntro(){
@@ -4699,8 +4783,16 @@
           .catch((e) => { console.warn('[EternaLog] station id load failed:', e); return null; }),
     ]);
     if (token !== rururuPlayToken) return;
+    // コーナー切り替え用の短いジングルは、本編の途中で使うので裏で読み込んでおく
+    if (!rururuStingBuffer) {
+      rururuLoadBuffer(ctx, RURURU_STING_SRC).then((b) => (rururuStingBuffer = b))
+        .catch((e) => console.warn('[EternaLog] sting load failed:', e));
+    }
 
-    const t0 = ctx.currentTime + 0.05;
+    // ジングルの前に、周波数を合わせるようなチューニングのノイズを短く鳴らす（音はその場で合成）
+    const tn = ctx.currentTime + 0.05;
+    rururuPlayTuningNoise(ctx, tn);
+    const t0 = tn + 0.5;
     let doneAt = t0;
 
     // ジングル
@@ -4776,6 +4868,15 @@
     }
   }
 
+  // 音声用の演技タグ（[laughs] [sighs] [short pause] 等の半角英字の角括弧）を、表示用に取り除く
+  function rururuStripAudioTags(text){
+    return String(text)
+      .replace(/\s*\[[A-Za-z][A-Za-z ]*\]\s*/g, ' ')
+      .replace(/ {2,}/g, ' ')
+      .replace(/^ | $/g, '')
+      .replace(/ ([、。！？…「」『』])/g, '$1');
+  }
+
   async function showRururuList(){
     document.getElementById('readerTag').textContent = '// RURURU';
     document.getElementById('readerSub').textContent = 'ETERNARADIO ・ 放送アーカイブ';
@@ -4833,6 +4934,13 @@
   function showRururuDetail(colId){
     const col = rururuDataCache.find(c => c.id === colId);
     if (!col) return;
+    // 台本の文字には、音声用の演技タグ（[laughs]等）が含まれることがある。
+    // 音声化にはタグ付きのまま送り、画面にはタグを除いた文字を表示する。
+    col.conversation.forEach((l) => {
+      const tags = String(l.text).match(/\[[A-Za-z][A-Za-z ]*\]/g) || [];
+      l.tagCount = tags.length;
+      l.disp = rururuStripAudioTags(l.text);
+    });
 
     clearTimeout(rururuBubbleTimer);
     rururuResetAudioQueue();
@@ -4953,6 +5061,22 @@
       if (b.eqEl) b.eqEl.style.visibility = 'hidden'; // 喋り終わったら静止（レイアウトは保つ）
     }
 
+    // 吹き出しを音声モード用にする：名前横のメーターを、決まったアニメーションから本物の声の大きさに切り替える
+    function makeVoiceBubble(b){
+      b.voice = true;
+      if (b.eqEl) b.eqEl.querySelectorAll('span').forEach((bar) => { bar.style.animation = 'none'; bar.style.height = '2px'; });
+      return b;
+    }
+    const METER_SHAPE = [0.55, 0.85, 1.0, 0.7]; // 4本のバーの高さの比率
+    function updateMeter(b){
+      if (!b || !b.eqEl || b.finished) return;
+      const level = rururuVoiceLevel();
+      b.eqEl.querySelectorAll('span').forEach((bar, i) => {
+        const h = 2 + level * 7 * METER_SHAPE[i] * (0.8 + Math.random() * 0.4);
+        bar.style.height = h.toFixed(1) + 'px';
+      });
+    }
+
     // 音声モード用のタイピング（再生の世代番号が変わったら即座に止まる）
     function typeInto(b, text, speed, token, onDone){
       let i = 0;
@@ -4961,6 +5085,13 @@
         b.textEl.textContent = text.substring(0, i);
         i++;
         if (i <= text.length) setTimeout(step, speed);
+        else if (b.voice) {
+          // 音声モードでは、文字を打ち終わっても声が続いていることがあるので、
+          // メーターは次のセリフに移る時（finishBubble）まで動かしておく
+          b.textEl.textContent = text;
+          if (b.cursorEl) { b.cursorEl.remove(); b.cursorEl = null; }
+          if (onDone) onDone();
+        }
         else { finishBubble(b, text); if (onDone) onDone(); }
       };
       step();
@@ -4984,8 +5115,8 @@
       if (idx >= col.conversation.length){ finishConversation(); return; }
       const line = col.conversation[idx];
       const b = createBubble(line);
-      currentBubble = { b, text: line.text };
-      const fullText = line.text;
+      currentBubble = { b, text: line.disp };
+      const fullText = line.disp;
       const speed = getTypingSpeed(fullText);
       let i = 0;
       function typeStep(){
@@ -5017,12 +5148,12 @@
           if (n >= chunk.lines.length) { resolve(); return; }
           const line = chunk.lines[n];
           const b = createBubble(line);
-          currentBubble = { b, text: line.text };
+          currentBubble = { b, text: line.disp };
           idx = chunk.start + n + 1;
           n++;
-          typeInto(b, line.text, getTypingSpeed(line.text), token, () => {
+          typeInto(b, line.disp, getTypingSpeed(line.disp), token, () => {
             currentBubble = null;
-            setTimeout(nextLine, getPauseAfter(line.text));
+            setTimeout(nextLine, getPauseAfter(line.disp));
           });
         };
         nextLine();
@@ -5042,10 +5173,11 @@
           if (done) return;
           done = true;
           ac.abort();
+          rururuUnduckBgmSoon(); // 喋りが途切れたらBGMを戻す（すぐ次が始まれば戻さない）
           if (token === rururuPlayToken) {
             if (currentBubble) { finishBubble(currentBubble.b, currentBubble.text); currentBubble = null; }
             while (next < chunk.lines.length) {
-              finishBubble(createBubble(chunk.lines[next]), chunk.lines[next].text);
+              finishBubble(createBubble(chunk.lines[next]), chunk.lines[next].disp);
               next++;
             }
             idx = chunk.start + chunk.lines.length;
@@ -5060,21 +5192,23 @@
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
             const line = chunk.lines[next];
-            const b = createBubble(line);
-            currentBubble = { b, text: line.text };
+            const b = makeVoiceBubble(createBubble(line));
+            currentBubble = { b, text: line.disp };
             const wallMs = (lens[next] / RURURU_AUDIO_RATE) * 1000;
-            const speed = Math.max(12, Math.min(60, (wallMs * 0.8) / Math.max(1, line.text.length)));
-            typeInto(b, line.text, speed, token);
+            const speed = Math.max(12, Math.min(60, (wallMs * 0.8) / Math.max(1, line.disp.length)));
+            typeInto(b, line.disp, speed, token);
             idx = chunk.start + next + 1;
             next++;
           }
+          if (currentBubble) updateMeter(currentBubble.b);
           requestAnimationFrame(tick);
         };
 
         const begin = () => {
           if (token !== rururuPlayToken) { finish(); return; }
           // 話者の切り替わりにも少し時間がかかるため、各行に少し下駄を履かせて按分する
-          const weights = chunk.lines.map((l) => l.text.length + 6);
+          // 笑い・ため息などのタグは、その分だけ時間がかかるので少し重みを足す
+          const weights = chunk.lines.map((l) => l.disp.length + 6 + l.tagCount * 4);
           const total = weights.reduce((a, w) => a + w, 0);
           const estimated = total * 0.12;
           const dur = (isFinite(el.duration) && el.duration > 0) ? el.duration : estimated;
@@ -5083,6 +5217,8 @@
           lens = weights.map((w) => (w / total) * dur);
           el.playbackRate = RURURU_AUDIO_RATE;
           el.preservesPitch = true;
+          if (rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
+          rururuDuckBgm(); // 喋り始めたらBGMを下げる
           el.play().then(() => requestAnimationFrame(tick)).catch((e) => {
             // 再生を拒否された場合は、この塊を文字だけで流す
             console.warn('[EternaLog] tts play blocked:', e);
@@ -5108,11 +5244,16 @@
     async function playWithVoice(token){
       const lines = col.conversation;
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
+      // お便りコーナーの始まり。台本に目印があればそれを、古い回は「お便り」という言葉から推定する
+      let cornerIdx = lines.findIndex((l) => l.corner === 'letter');
+      if (cornerIdx < 0) cornerIdx = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
       const chunks = [];
       let s = idx;
       const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
       while (s < lines.length) {
-        const size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
+        let size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
+        // コーナーの始まりをまたがないように区切る（その切れ目でジングルを鳴らすため）
+        if (cornerIdx > s && s + size > cornerIdx) size = cornerIdx - s;
         chunks.push({ start: s, lines: lines.slice(s, s + size) });
         s += size;
       }
@@ -5129,6 +5270,8 @@
       for (let k = 0; k < chunks.length; k++) {
         const urlPromise = getUrl(k);
         if (k + 1 < chunks.length) getUrl(k + 1); // 再生中に、次の塊を先読みしておく
+        // お便りコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
+        if (k > 0 && chunks[k].start === cornerIdx) await rururuPlaySting(token);
         const url = await urlPromise;
         if (token !== rururuPlayToken) return;
         setVoiceStatus('');
