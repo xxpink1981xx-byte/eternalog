@@ -2909,7 +2909,7 @@
         '<span class="mono" style="font-size:9px;color:var(--ink-soft);letter-spacing:.5px;">が今日を伝えます</span>' +
       '</div>' +
       '<div id="todayComment" style="font-size:13.5px;line-height:1.85;color:var(--ink);border-left:2px solid ' + voice.color + ';padding-left:12px;margin-bottom:18px;">// DECODING...</div>' +
-      '<div class="mono" style="font-size:9px;letter-spacing:1px;color:var(--accent);margin-bottom:6px;">「' + escapeHtml(pickedAnniv) + '」について</div>' +
+      '<div id="todayAnnivLabel" class="mono" style="font-size:9px;letter-spacing:1px;color:var(--accent);margin-bottom:6px;">「' + escapeHtml(pickedAnniv) + '」について</div>' +
       '<div id="todayExplain" style="font-size:12.5px;line-height:1.8;color:var(--ink-soft);margin-bottom:22px;">// DECODING...</div>' +
       '<div class="mono" style="font-size:9px;letter-spacing:1px;color:var(--accent);margin-bottom:8px;">' + dayLabel + 'の記念日一覧</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
@@ -2946,6 +2946,11 @@
       const explainEl = document.getElementById('todayExplain');
       if (commentEl) commentEl.textContent = data.comment;
       if (explainEl) explainEl.textContent = data.explanation;
+      // 日付と記念日はサーバー（日本時間）が決めるので、表示もそれに合わせる
+      // （端末の時計がずれていても、表示と中身が食い違わないように）
+      const annivEl = document.getElementById('todayAnnivLabel');
+      if (annivEl && data.anniv) annivEl.textContent = '「' + data.anniv + '」について';
+      if (data.dayLabel) document.getElementById('readerSub').textContent = data.dayLabel + ' の記念日';
     } catch (e) {
       console.warn('[EternaLog] today content fetch failed:', e);
       const commentEl = document.getElementById('todayComment');
