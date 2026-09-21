@@ -4572,7 +4572,96 @@
   }
 
   // 以前の関数名で呼ばれている箇所があるため、同じ名前で停止処理を提供する
-  function rururuResetAudioQueue(){ rururuStopVoice(); }
+  function rururuResetAudioQueue(){ rururuStopVoice(); rururuStopBgm(0.3); }
+
+  // ===== BGM（ループ再生） =====
+  // 通常の<audio>のloopは、ループの継ぎ目にわずかな無音が入りやすい。
+  // Web Audio APIで音源をまるごと読み込み、継ぎ目なくループさせる。
+  // ファイルはindex.htmlと同じ場所に置く（ブースのイラストと同じ扱い）。
+  const RURURU_BGM_SRC = 'eternaradio-bgm.mp3';
+  // 声の下に敷く音量（0〜1）。声が聞き取りにくければ下げ、BGMが聞こえなければ上げる。
+  const RURURU_BGM_VOLUME = 0.12;
+  const rururuBgm = { ctx: null, gain: null, source: null, buffer: null, loading: null };
+
+  // 必ずボタン操作の中で呼ぶ（スマホのブラウザは、操作の直後でないと音を鳴らせないため）
+  function rururuStartBgm(){
+    try {
+      if (!rururuBgm.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        rururuBgm.ctx = new AC();
+      }
+      const ctx = rururuBgm.ctx;
+      if (ctx.state === 'suspended') ctx.resume();
+      if (rururuBgm.source) return; // すでに流れている
+
+      const startWith = (buffer) => {
+        // 読み込み中に音声をOFFにされていたら、流さない
+        if (!buffer || rururuBgm.source || !rururuSoundOn) return;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(RURURU_BGM_VOLUME, ctx.currentTime + 2); // 2秒かけてフェードイン
+        gain.connect(ctx.destination);
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        // mp3はブラウザによって前後にごく短い無音が付くため、実際に音がある範囲だけをループさせる
+        const bounds = rururuBgmBounds(buffer);
+        src.loopStart = bounds.start;
+        src.loopEnd = bounds.end;
+        src.connect(gain);
+        src.start(0, bounds.start);
+        rururuBgm.source = src;
+        rururuBgm.gain = gain;
+      };
+
+      if (rururuBgm.buffer) { startWith(rururuBgm.buffer); return; }
+      if (!rururuBgm.loading) {
+        rururuBgm.loading = fetch(RURURU_BGM_SRC)
+          .then((r) => { if (!r.ok) throw new Error('bgm status ' + r.status); return r.arrayBuffer(); })
+          .then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+          .then((buf) => { rururuBgm.buffer = buf; return buf; })
+          .catch((e) => { console.warn('[EternaLog] bgm load failed:', e); rururuBgm.loading = null; return null; });
+      }
+      rururuBgm.loading.then(startWith);
+    } catch (e) {
+      console.warn('[EternaLog] bgm start failed:', e);
+    }
+  }
+
+  // 音声データの中で、実際に音が鳴っている範囲（秒）を調べる。
+  // 前後の無音（mp3の符号化で付く詰め物）をループに含めないために使う。
+  function rururuBgmBounds(buffer){
+    if (rururuBgm.bounds && rururuBgm.bounds.buffer === buffer) return rururuBgm.bounds;
+    const th = 0.0015; // 約-56dB。これより小さい音は無音とみなす
+    const chs = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) chs.push(buffer.getChannelData(c));
+    const n = buffer.length;
+    const loud = (i) => chs.some((d) => Math.abs(d[i]) > th);
+    let s = 0;
+    while (s < n - 1 && !loud(s)) s++;
+    let e = n - 1;
+    while (e > s && !loud(e)) e--;
+    const bounds = { buffer, start: s / buffer.sampleRate, end: (e + 1) / buffer.sampleRate };
+    // 万一、ほとんど無音と判定された場合は、ファイル全体をそのままループする
+    if (bounds.end - bounds.start < 1) { bounds.start = 0; bounds.end = buffer.duration; }
+    rururuBgm.bounds = bounds;
+    return bounds;
+  }
+
+  // フェードアウトして止める（fadeSecは秒）
+  function rururuStopBgm(fadeSec){
+    const { ctx, gain, source } = rururuBgm;
+    if (!ctx || !source) return;
+    const f = typeof fadeSec === 'number' ? fadeSec : 0.8;
+    rururuBgm.source = null;
+    rururuBgm.gain = null;
+    try {
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + f);
+      source.stop(ctx.currentTime + f + 0.05);
+    } catch (e) { /* 既に止まっている場合は何もしない */ }
+  }
 
   // 数行ぶんの会話を音声化して取得する（失敗時はnull）
   async function rururuFetchDialogueAudio(lines){
@@ -4790,6 +4879,7 @@
       if (finished) return;
       finished = true;
       setVoiceStatus('');
+      rururuStopBgm(3); // 番組の終わりは、3秒かけてゆっくりフェードアウト
       renderLikeButton('rururu', col.id, bodyEl);
       appendCloseButton(bodyEl);
     }
@@ -4966,12 +5056,14 @@
         rururuStopVoice();
         rururuUnlockVoice();
         rururuSoundOn = true;
+        rururuStartBgm(); // BGMもボタン操作の中で開始する
         soundBtn.textContent = '🔊 音声ON';
         resetConversationView();
         playWithVoice(rururuPlayToken);
       } else {
         // OFFにしたら、音声だけ止めて、続きは文字だけで流す
         rururuStopVoice();
+        rururuStopBgm();
         rururuSoundOn = false;
         soundBtn.textContent = '🔈 音声で聴く';
         setVoiceStatus('');
