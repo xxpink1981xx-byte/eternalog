@@ -4153,9 +4153,7 @@
     const overlay = document.getElementById('yomiCalcOverlay');
     const logEl = document.getElementById('yomiCalcLog');
     const successEl = document.getElementById('yomiCalcSuccess');
-    if (!overlay || !logEl) return;
-    clearInterval(yomiCalcLogTimer);
-    overlay.style.display = '';
+    overlay.style.display = 'block';
     overlay.style.transition = 'none';
     overlay.style.opacity = '1';
     void overlay.offsetWidth; // 上のtransition:noneを確実に反映させてから、次のフェードを効かせるための一手間
