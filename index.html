@@ -321,6 +321,19 @@
     display:block;
     transition:transform .6s ease;
   }
+  /* 占い演出が白く静止した画面に重ねる、LogiGrainの計算ログ風の演出。
+     動画自体が白で終わるため、背景は付けず黒文字だけを乗せる。 */
+  #yomiCalcOverlay{
+    position:absolute; inset:0; z-index:15;
+    display:none; opacity:0; background:transparent; color:var(--ink);
+    padding:16px 14px; overflow:hidden; pointer-events:none;
+  }
+  #yomiCalcLog{ font-size:8.5px; line-height:1.7; white-space:pre-wrap; word-break:break-all; }
+  #yomiCalcSuccess{
+    margin-top:10px; font-size:13px; font-weight:800; letter-spacing:2px; color:var(--ink);
+    opacity:0; transform:translateY(4px); transition:opacity .3s ease, transform .3s ease;
+  }
+  #yomiCalcSuccess.show{ opacity:1; transform:none; }
   /* ヨミモード中はNAV_TERMINALを隠すため、燈のために空けていた左側の余白が不要になる。
      中央配置に切り替える。あわせて、ヨミは少しアップ（拡大）にする。 */
   .hero-video-frame.yomi-mode video{ object-position:center center; transform:scale(1.08); }
@@ -1033,6 +1046,13 @@
 
       <video id="heroVideo" autoplay muted playsinline style="opacity:1;transition:opacity .6s ease;"></video>
       <video id="heroVideoB" muted playsinline style="opacity:0;transition:opacity .6s ease;"></video>
+      <!-- 占い演出が白く静止した瞬間、その上にLogiGrainの計算が走っているような
+           ログを重ねる。鑑定が届いたらSUCCESSを出し、待機動画へのクロスフェードと
+           同時にフェードアウトする。中身は実データではなく、雰囲気重視の固定文言。 -->
+      <div id="yomiCalcOverlay" aria-hidden="true">
+        <div id="yomiCalcLog" class="mono"></div>
+        <div id="yomiCalcSuccess" class="mono">[ SUCCESS ]</div>
+      </div>
       <div id="heroHolo" class="hero-holo"></div>
       <div id="heroGlitchLayer" class="hero-glitch-overlay"></div>
       <div id="heroNoiseLine" class="hero-noise-line"></div>
@@ -3807,6 +3827,14 @@
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
+      if (yomiLoadLastReading()) {
+        const again = document.createElement('div');
+        again.className = 'mono';
+        again.style.cssText = 'margin-top:18px;font-size:10px;color:var(--c-yomi);text-align:center;cursor:pointer;';
+        again.textContent = '// この端末で受け取った前回の鑑定を見る ›';
+        again.onclick = showYomiLastReading;
+        bodyEl.appendChild(again);
+      }
       if (YOMI_PAID_ENABLED) {
       const upsell = document.createElement('div');
       upsell.style.cssText = 'margin-top:22px;padding:16px;border:1px solid var(--c-yomi);border-radius:10px;background:linear-gradient(135deg, rgba(124,58,237,.08), transparent);text-align:center;';
@@ -3862,6 +3890,7 @@
 
   function yomiExitToTomori(){
     if (!window.eternalogExitYomiMode) return;
+    yomiStopCalcOverlay();
     runBootOverlay(YOMI_SWITCH_OUT_LINES, '[ SUCCESS ]', () => {
       window.eternalogExitYomiMode();
       if (window.heroTextboxReset) window.heroTextboxReset();
@@ -4029,43 +4058,220 @@
   }
 
   // ② 生年月日・出生時刻・出生地の入力
-  function yomiFlowStep2(){
-    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('よし。じゃあ、あんたのことを教えてもらおうか。');
+  // 出生地は都道府県単位（アセンダントとハウスの計算に、都道府県庁所在地の緯度・経度を使う）
+  const YOMI_PLACES = [
+    ['hokkaido','北海道'],['aomori','青森県'],['iwate','岩手県'],['miyagi','宮城県'],['akita','秋田県'],['yamagata','山形県'],['fukushima','福島県'],
+    ['ibaraki','茨城県'],['tochigi','栃木県'],['gunma','群馬県'],['saitama','埼玉県'],['chiba','千葉県'],['tokyo','東京都'],['kanagawa','神奈川県'],
+    ['niigata','新潟県'],['toyama','富山県'],['ishikawa','石川県'],['fukui','福井県'],['yamanashi','山梨県'],['nagano','長野県'],
+    ['gifu','岐阜県'],['shizuoka','静岡県'],['aichi','愛知県'],['mie','三重県'],
+    ['shiga','滋賀県'],['kyoto','京都府'],['osaka','大阪府'],['hyogo','兵庫県'],['nara','奈良県'],['wakayama','和歌山県'],
+    ['tottori','鳥取県'],['shimane','島根県'],['okayama','岡山県'],['hiroshima','広島県'],['yamaguchi','山口県'],
+    ['tokushima','徳島県'],['kagawa','香川県'],['ehime','愛媛県'],['kochi','高知県'],
+    ['fukuoka','福岡県'],['saga','佐賀県'],['nagasaki','長崎県'],['kumamoto','熊本県'],['oita','大分県'],['miyazaki','宮崎県'],['kagoshima','鹿児島県'],['okinawa','沖縄県'],
+    ['unknown','海外・分からない'],
+  ];
+  // 入力欄は暗い背景なので、文字は明るい色にする（暗い背景に暗い文字だと、入力した内容がほとんど見えないため）
+  const YOMI_INPUT_STYLE = 'width:100%;padding:9px 10px;background:#0a0515;border:1px solid rgba(124,58,237,.45);border-radius:4px;color:#ece6ff;color-scheme:dark;font-size:14px;';
+  function yomiFlowStep2(message){
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi(message || 'よし。じゃあ、あんたのことを教えてもらおうか。');
     const panel = ensureYomiControlPanel();
     panel.innerHTML =
       '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:10px;">// BIRTH DATA INPUT</div>' +
       '<div style="margin-bottom:10px;">' +
         '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">生年月日</label>' +
-        '<input type="date" id="yomiInputDate" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
+        '<input type="date" id="yomiInputDate" min="1900-01-01" style="' + YOMI_INPUT_STYLE + '">' +
       '</div>' +
       '<div style="margin-bottom:10px;">' +
-        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生時刻（不明な場合は空欄でよい）</label>' +
-        '<input type="time" id="yomiInputTime" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
+        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生時刻（分からない場合は空欄でよい）</label>' +
+        '<input type="time" id="yomiInputTime" style="' + YOMI_INPUT_STYLE + '">' +
       '</div>' +
-      '<div style="margin-bottom:14px;">' +
+      '<div style="margin-bottom:6px;">' +
         '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生地</label>' +
-        '<select id="yomiInputPlace" style="width:100%;padding:9px 10px;background:#0a0515;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:13px;">' +
-          '<option value="tokyo">東京</option>' +
-          '<option value="osaka">大阪</option>' +
+        '<select id="yomiInputPlace" style="' + YOMI_INPUT_STYLE + '">' +
+          YOMI_PLACES.map(([k, n]) => '<option value="' + k + '"' + (k === 'tokyo' ? ' selected' : '') + '>' + n + '</option>').join('') +
         '</select>' +
       '</div>' +
-      '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiFlowStep3()">この内容で占ってもらう</button>';
+      '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 12px;">出生時刻・出生地が分からない場合は、それに左右される部分（アセンダントなど）を使わずに鑑定します。一度鑑定すると、同じお支払いで別の生年月日に変えることはできません。</div>' +
+      '<div id="yomiInputError" style="font-size:11px;color:#e25555;min-height:1em;margin-bottom:6px;"></div>' +
+      '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiSubmitBirthData()">この内容で占ってもらう</button>';
   }
 
-  // ③ 占い演出（音声付き、単発再生）
-  function yomiFlowStep3(){
+  function yomiSubmitBirthData(){
+    const date = (document.getElementById('yomiInputDate') || {}).value || '';
+    const time = (document.getElementById('yomiInputTime') || {}).value || '';
+    const place = (document.getElementById('yomiInputPlace') || {}).value || 'unknown';
+    const errEl = document.getElementById('yomiInputError');
+    if (!date) { if (errEl) errEl.textContent = '生年月日を入れておくれ。'; return; }
+    yomiFlowStep3({ date, time, place });
+  }
+
+  // 鑑定結果をサーバーから受け取る（本当に支払われた決済にだけ、サーバー側で作られる）
+  async function yomiRequestReading(input){
+    const pending = yomiHasPendingPaidSession();
+    if (!pending || !pending.sessionId) return { error: 'no_session' };
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/reading', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: pending.sessionId, date: input.date, time: input.time, place: input.place }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.reading) return { reading: data.reading };
+      return { error: data.error || ('status_' + res.status), message: data.message };
+    } catch (e) {
+      console.warn('[EternaLog] yomi reading request failed:', e);
+      return { error: 'network' };
+    }
+  }
+
+  // ===== 占い演出の白い静止画面に重ねる、LogiGrainの計算ログ風の演出 =====
+  // 実際の応答データではなく、雰囲気重視の固定文言（使い回せるようにするため、
+  // 生年月日等は埋め込まない。実際の計算はこの裏で本当に行われている）。
+  const YOMI_CALC_LINES = [
+    'GET /api/seiyo  lat,lon,date,time',
+    '  ephemeris (Meeus Astronomical Algorithms)... OK',
+    '  solar longitude... OK',
+    '  lunar position (ELP2000-82B ±0.004°)... OK',
+    '  planetary positions (JPL Keplerian)... OK',
+    '  ascendant / MC (sidereal time)... OK',
+    '  house system: whole-sign... OK',
+    '  aspect matrix (orb<=8.00°)... scanning',
+    'GET /api/shichu  date,time',
+    '  sexagenary day count (anchor 2000-01-01=戊午)... OK',
+    '  solar term boundary (NAOJ 暦象年表)... OK',
+    '  four pillars resolved... OK',
+    '  day master identified... OK',
+    'GET /api/kyusei  date',
+    '  honmeisei / getsumeisei lookup... OK',
+    'POST /v1/reading',
+    '  voice profile: yomi... loaded',
+    '  composing narrative (5 genres)... running',
+  ];
+  let yomiCalcLogTimer = null;
+
+  function yomiStartCalcOverlay(){
+    const overlay = document.getElementById('yomiCalcOverlay');
+    const logEl = document.getElementById('yomiCalcLog');
+    const successEl = document.getElementById('yomiCalcSuccess');
+    if (!overlay || !logEl) return;
+    clearInterval(yomiCalcLogTimer);
+    overlay.style.display = '';
+    overlay.style.transition = 'none';
+    overlay.style.opacity = '1';
+    void overlay.offsetWidth; // 上のtransition:noneを確実に反映させてから、次のフェードを効かせるための一手間
+    overlay.style.transition = 'opacity 900ms ease';
+    logEl.innerHTML = '';
+    if (successEl) successEl.classList.remove('show');
+
+    const MAX_LINES = 9; // 表示欄に収まる行数（これを超えたら古い行から消す）
+    let i = 0;
+    yomiCalcLogTimer = setInterval(() => {
+      const line = document.createElement('div');
+      line.textContent = YOMI_CALC_LINES[i % YOMI_CALC_LINES.length];
+      logEl.appendChild(line);
+      while (logEl.children.length > MAX_LINES) logEl.removeChild(logEl.firstChild);
+      i++;
+    }, 220);
+  }
+
+  // ログを止めてSUCCESSを見せ、その後オーバーレイをフェードアウトしながらcbを呼ぶ
+  // （cb側で待機動画へのクロスフェードを始めるため、両方のフェードがほぼ重なって消えていく）
+  function yomiFinishCalcOverlay(cb){
+    clearInterval(yomiCalcLogTimer);
+    const overlay = document.getElementById('yomiCalcOverlay');
+    const successEl = document.getElementById('yomiCalcSuccess');
+    if (successEl) successEl.classList.add('show');
+    setTimeout(() => {
+      if (overlay) overlay.style.opacity = '0';
+      if (cb) cb();
+      setTimeout(() => {
+        if (overlay) overlay.style.display = 'none';
+        if (successEl) successEl.classList.remove('show');
+      }, 900);
+    }, 650);
+  }
+
+  // リーダーを閉じる等、演出の途中で打ち切られた場合の後始末
+  function yomiStopCalcOverlay(){
+    clearInterval(yomiCalcLogTimer);
+    const overlay = document.getElementById('yomiCalcOverlay');
+    const successEl = document.getElementById('yomiCalcSuccess');
+    if (overlay) { overlay.style.display = 'none'; overlay.style.opacity = '0'; }
+    if (successEl) successEl.classList.remove('show');
+  }
+
+  // ③ 占い演出。演出を流している間に、裏で鑑定を作ってもらう
+  function yomiFlowStep3(input){
     removeYomiControlPanel();
     if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('水晶玉に、あんたの生まれた刻を映してる……');
+    const readingPromise = yomiRequestReading(input);
     window.eternalogPlayYomiVideo('yomi_casting.mp4' + YOMI_VIDEO_VER, false, () => {
-      setTimeout(() => { yomiFlowStep4(); }, 400);
+      // 白く静止したその瞬間から、LogiGrainが計算している様子を重ねて見せる。
+      // 鑑定が届くまでは、この演出をそのまま流し続ける。
+      yomiStartCalcOverlay();
+      if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('……もう少しで、はっきり見えてくる。');
+      const panel = ensureYomiControlPanel();
+      panel.innerHTML = '<div class="mono" style="font-size:10px;color:var(--c-yomi);text-align:center;padding:10px 0;">// 命盤を読み解いています…</div>';
+      readingPromise.then((result) => {
+        // ログを止めてSUCCESSを見せてから、待機動画へのクロスフェードと同時に
+        // オーバーレイもフェードアウトさせる（両方のフェードがほぼ重なって消えていく）。
+        yomiFinishCalcOverlay(() => {
+          if (result.reading) yomiFlowStep4(result.reading);
+          else yomiShowReadingError(result, input);
+        });
+      });
     });
   }
 
-  // ④ 完了・5ジャンル見出し（今はダミーデータ。実データ連携は別途対応）
-  function yomiFlowStep4(){
-    // 鑑定結果を受け取ったので、「支払い済み・未受領」の記録はここで消す。
-    // サーバー側にも「このセッションIDは受け取り済み」と伝え、
-    // 万が一セッションIDが漏れても、以後は使い回せないようにする。
+  // 鑑定を受け取れなかった時。支払い済みの記録は消さずに残し、もう一度試せるようにする
+  function yomiShowReadingError(result, input){
+    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
+    if (result.error === 'invalid_input') { yomiFlowStep2(result.message ? result.message + '。もう一度教えておくれ。' : null); return; }
+    const panel = ensureYomiControlPanel();
+    const retry = '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 10px;width:100%;" id="yomiRetryBtn">もう一度占ってもらう</button>';
+    const contact = '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);">何度試しても鑑定が届かない場合は、お手数ですが <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。お支払いの確認のうえ対応します。</div>';
+    if (result.error === 'not_paid' || result.error === 'no_session') {
+      if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、お支払いの記録が見つからないね。');
+      panel.innerHTML = '<div style="font-size:11.5px;line-height:1.7;color:var(--ink);margin-bottom:10px;">お支払いを確認できませんでした。</div>' + contact;
+      return;
+    }
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('すまないね、星の声がうまく届かなかった。もう一度だけ視てみようか。');
+    panel.innerHTML = retry + contact;
+    const btn = document.getElementById('yomiRetryBtn');
+    if (btn) btn.onclick = () => yomiFlowStep3(input);
+  }
+
+  // 鑑定結果の中身を組み立てる（ヨミの部屋でも、あとから見返す時にも同じものを使う）
+  const YOMI_LAST_READING_KEY = 'eternalog_yomi_last_reading';
+  function yomiRenderReading(reading){
+    const esc = escapeHtml;
+    const groups = {};
+    (reading.basis || []).forEach((r) => { (groups[r.group] = groups[r.group] || []).push(r); });
+    const basisHTML = Object.entries(groups).map(([g, rows]) =>
+      '<div class="mono" style="font-size:9px;color:var(--c-yomi);margin:10px 0 4px;">' + esc(g) + '</div>' +
+      rows.map((r) => '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:3px 0;border-bottom:1px dashed rgba(124,58,237,.15);"><span style="color:var(--ink-soft);">' + esc(r.label) + '</span><span style="color:var(--ink);text-align:right;">' + esc(r.value) + '</span></div>').join('')
+    ).join('');
+    const genresHTML = Object.entries(reading.genres || {}).map(([key, g]) =>
+      '<details style="border-bottom:1px solid rgba(124,58,237,.15);padding:2px 0;">' +
+        '<summary style="list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 4px;font-size:13px;color:var(--ink);">' +
+          '<span>' + esc(g.label) + '</span><span class="mono" style="font-size:8px;color:var(--ink-soft);">OPEN ›</span></summary>' +
+        '<div style="font-size:13px;line-height:1.9;color:var(--ink);padding:2px 4px 12px;white-space:pre-wrap;">' + esc(g.text) + '</div>' +
+      '</details>'
+    ).join('');
+    return (
+      '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:6px;">// YOMI READING</div>' +
+      '<div style="font-size:10.5px;color:var(--ink-soft);margin-bottom:10px;">' + esc((reading.profile || {}).birthLabel || '') + ' ・ ' + esc((reading.profile || {}).placeLabel || '') + '</div>' +
+      '<div style="font-size:13px;line-height:1.9;color:var(--ink);border-left:2px solid var(--c-yomi);padding-left:12px;margin-bottom:14px;white-space:pre-wrap;">' + esc(reading.overview || '') + '</div>' +
+      genresHTML +
+      '<details style="margin-top:12px;"><summary class="mono" style="cursor:pointer;font-size:10px;color:var(--c-yomi);">// 計算の根拠（LogiGrainで実際に計算した値）</summary>' + basisHTML + '</details>' +
+      (reading.closing ? '<div style="font-size:12.5px;line-height:1.8;color:var(--ink);margin-top:14px;text-align:center;">「' + esc(reading.closing) + '」</div>' : '') +
+      '<div style="font-size:9.5px;line-height:1.6;color:var(--ink-soft);margin-top:12px;">この鑑定は、実際の天体・暦の計算結果をもとにAIが作成した娯楽としての占いです。最終的な判断はご自身でなさってください。</div>'
+    );
+  }
+
+  // ④ 鑑定結果の表示
+  function yomiFlowStep4(reading){
+    // 鑑定を受け取ったので、「支払い済み・未受領」の記録を消す（サーバー側でも受け取り済みとして記録される）
     const pending = yomiHasPendingPaidSession();
     if (pending && pending.sessionId) {
       fetch(EARTH_SIGNAL_URL + 'yomi/mark-consumed', {
@@ -4075,26 +4281,28 @@
       }).catch((e) => console.warn('[EternaLog] yomi mark-consumed failed:', e));
     }
     yomiClearPendingPaidSession();
-    // 占い演出（白フラッシュ）から待機画面へ戻る瞬間は、
-    // 通常の切り替え(600ms)よりゆっくりフェードインさせ、
-    // 白い余韻から静かに立ち上がってくるような印象にする。
+    // あとから見返せるよう、この端末に鑑定結果を残しておく
+    try { localStorage.setItem(YOMI_LAST_READING_KEY, JSON.stringify(reading)); } catch (e) {}
+    // 占い演出（白フラッシュ）から待機画面へ戻る瞬間は、白い余韻から静かに立ち上がるようにゆっくり切り替える
     window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
-    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから見な。');
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから開きな。');
     const panel = ensureYomiControlPanel();
-    const genres = [
-      { key: 'jikorikai', label: '自己理解', en: 'SELF-UNDERSTANDING' },
-      { key: 'renai', label: '恋愛', en: 'LOVE' },
-      { key: 'shigoto', label: '仕事', en: 'WORK' },
-      { key: 'kinun', label: '金運', en: 'MONEY' },
-      { key: 'ningenkankei', label: '人間関係', en: 'BONDS' },
-    ];
-    panel.innerHTML = genres.map(g =>
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid rgba(124,58,237,.15);cursor:pointer;" onclick="alert(\'' + g.label + 'の詳細表示は次回実装\')">' +
-        '<span style="font-size:13px;color:var(--ink);">' + g.label + '</span>' +
-        '<span class="mono" style="font-size:8px;color:var(--ink-soft);">' + g.en + ' ›</span>' +
-      '</div>'
-    ).join('') +
-    '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;margin-top:12px;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+    panel.innerHTML = yomiRenderReading(reading) +
+      '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;margin-top:16px;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">// 燈のところへ戻る</div>';
+  }
+
+  // この端末で以前受け取った鑑定を、あとから見返す（週間ランキングの画面から開く）
+  function yomiLoadLastReading(){
+    try { const raw = localStorage.getItem(YOMI_LAST_READING_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function showYomiLastReading(){
+    const reading = yomiLoadLastReading();
+    if (!reading) return;
+    document.getElementById('readerTag').textContent = '// YOMI';
+    document.getElementById('readerSub').textContent = '前回の本格鑑定';
+    const bodyEl = document.getElementById('readerBody');
+    bodyEl.innerHTML = '<div style="padding:4px 0;">' + yomiRenderReading(reading) + '</div>';
+    appendCloseButton(bodyEl);
   }
 
   // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
@@ -4187,7 +4395,7 @@
     },
     'PRIVACY': {
       tag: '// PRIVACY', sub: 'プライバシーポリシー',
-      text: '当サイト(EternaLog)における、アクセス情報の取り扱いについて説明します。\n\n【アクセス解析について】\n当サイトは、Cloudflare Analyticsを利用しています。これはCookieを使用せず、個人を特定しない形で、アクセス数やページの閲覧状況などの集計情報のみを取得するものです。\n\nまた、当サイトはGoogle LLCが提供するアクセス解析ツール「Googleアナリティクス」を利用しています。Googleアナリティクスは、トラフィックデータの収集のためにCookieを使用しています。このデータは匿名で収集されており、個人を特定するものではありません。この機能は、ブラウザの設定でCookieを無効にすることで収集を拒否できます。また、Googleアナリティクス オプトアウト アドオン（https://tools.google.com/dlpage/gaoptout?hl=ja）を利用して無効にすることもできます。詳しくは、Googleのポリシーと規約（https://policies.google.com/technologies/partner-sites?hl=ja）をご確認ください。\n\n【広告について】\n当サイトは、第三者配信事業者(Googleを含む)による広告を掲載しています。これらの第三者配信事業者は、Cookieを使用して、ユーザーが当サイトや他のサイトにアクセスした際の情報に基づいて広告を配信することがあります。\n\nGoogleが使用するCookieにより、Googleおよびそのパートナーは、当サイトや他のインターネット上のサイトへのアクセス情報に基づいて広告を配信します。ユーザーは、<a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">Googleの広告設定ページ</a>でパーソナライズ広告を無効にできるほか、<a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">www.aboutads.info</a>にアクセスすることで、第三者配信事業者によるCookieを使用したパーソナライズ広告の配信を無効にすることも可能です。\n\n【お問い合わせフォームについて】\nお問い合わせの際にご入力いただいたお名前・メールアドレス・お問い合わせ内容は、お問い合わせへの回答のためにのみ使用し、それ以外の目的での利用や、第三者への提供は行いません。\n\n【免責事項】\n当サイトのコンテンツは、AIによって生成された文章を含みます。内容の正確性については万全を期していますが、利用によって生じたいかなる損害についても、当サイトは責任を負いかねます。\n\n【お問い合わせ】\n本ポリシーに関するご質問は、CONTACTページよりご連絡ください。\n\n制定日:2026年7月17日(2026年7月28日、2026年9月21日改定)'
+      text: '当サイト(EternaLog)における、アクセス情報の取り扱いについて説明します。\n\n【アクセス解析について】\n当サイトは、Cloudflare Analyticsを利用しています。これはCookieを使用せず、個人を特定しない形で、アクセス数やページの閲覧状況などの集計情報のみを取得するものです。\n\nまた、当サイトはGoogle LLCが提供するアクセス解析ツール「Googleアナリティクス」を利用しています。Googleアナリティクスは、トラフィックデータの収集のためにCookieを使用しています。このデータは匿名で収集されており、個人を特定するものではありません。この機能は、ブラウザの設定でCookieを無効にすることで収集を拒否できます。また、Googleアナリティクス オプトアウト アドオン（https://tools.google.com/dlpage/gaoptout?hl=ja）を利用して無効にすることもできます。詳しくは、Googleのポリシーと規約（https://policies.google.com/technologies/partner-sites?hl=ja）をご確認ください。\n\n【広告について】\n当サイトは、第三者配信事業者(Googleを含む)による広告を掲載しています。これらの第三者配信事業者は、Cookieを使用して、ユーザーが当サイトや他のサイトにアクセスした際の情報に基づいて広告を配信することがあります。\n\nGoogleが使用するCookieにより、Googleおよびそのパートナーは、当サイトや他のインターネット上のサイトへのアクセス情報に基づいて広告を配信します。ユーザーは、<a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">Googleの広告設定ページ</a>でパーソナライズ広告を無効にできるほか、<a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">www.aboutads.info</a>にアクセスすることで、第三者配信事業者によるCookieを使用したパーソナライズ広告の配信を無効にすることも可能です。\n\n【占い（ヨミの本格鑑定）でお預かりする情報について】\n本格鑑定では、生年月日・出生時刻・出生地をご入力いただきます。これらは鑑定の計算と鑑定文の作成のためだけに使用し、他の目的には使用しません。計算には運営者が開発した天体計算エンジン「LogiGrain」を、鑑定文の作成にはGoogleのAIサービス（Gemini API）を利用するため、これらのサービスに入力内容や計算結果を送信します。作成した鑑定結果（生年月日・出生地の表記を含みます）は、お支払いの確認と結果の再表示のため当サイトのサーバーに30日間保存し、その後自動的に削除します。また、同じ端末で結果を見返せるよう、お使いのブラウザ内にも鑑定結果を保存します（ブラウザの閲覧データを削除すると消えます）。お支払いは決済サービス「Stripe」を通じて行われ、クレジットカード情報を当サイトが受け取ったり保存したりすることはありません。\n\n【お問い合わせフォームについて】\nお問い合わせの際にご入力いただいたお名前・メールアドレス・お問い合わせ内容は、お問い合わせへの回答のためにのみ使用し、それ以外の目的での利用や、第三者への提供は行いません。\n\n【免責事項】\n当サイトのコンテンツは、AIによって生成された文章を含みます。内容の正確性については万全を期していますが、利用によって生じたいかなる損害についても、当サイトは責任を負いかねます。\n\n【お問い合わせ】\n本ポリシーに関するご質問は、CONTACTページよりご連絡ください。\n\n制定日:2026年7月17日(2026年7月28日、2026年9月21日改定)'
     },
     'OPERATOR': {
       tag: '// OPERATOR', sub: '運営者情報',
@@ -5368,6 +5576,7 @@
     clearTimeout(logBubbleTimer);
     clearTimeout(rururuBubbleTimer);
     rururuResetAudioQueue();
+    yomiStopCalcOverlay();
     // ヨミモードへ移行する場合は、燈の待機動画やGUIDE文言に戻す必要がない。
     // むしろ戻す処理が走ると、直後に差し込むヨミの動画と競合してしまう。
     if (!skipTomoriRestore) {
