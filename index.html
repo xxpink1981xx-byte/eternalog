@@ -1294,6 +1294,12 @@
 </aside>
 
 <script>
+  // サーバー（Cloudflare Worker）の住所。ページを開いた瞬間に動く処理（決済から戻った時の確認、
+  // 鑑定の専用リンクを開く処理）からも使うため、必ずスクリプトの一番最初で定義しておく。
+  // 以前は後ろの方で定義していたため、開いた瞬間の処理が「定義前には使えない」エラーで止まり、
+  // 決済から戻った時の確認が失敗して、もう一度支払いを求める原因になっていた。
+  const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
+
   // ===== 投げ銭リンクをタップした瞬間の、光の粒が舞う演出 =====
   // 実際の入金確認とは連動していない（webhook等が必要）。あくまでタップした瞬間への
   // お礼のフィードバックとして、画面全体に控えめな光を一瞬だけ走らせる。
@@ -3936,7 +3942,10 @@
     if (mode === 'start') {
       panel.innerHTML =
         '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment()">占いを始める（' + YOMI_PRICE_LABEL + '）</button>' +
-        '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 8px;">※お支払い後、鑑定を最後まで受け取る前にページを閉じてしまった場合、同じ端末・同じブラウザであれば続きから再開できます。ただし機種変更やブラウザの閲覧データ削除、シークレットモードなどでは再開できず、その場合の保証はいたしかねますので、あらかじめご了承ください。</div>' +
+        (yomiLoadLastReading()
+          ? '<button class="reader-close-bottom mono" style="border-color:var(--line);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="showYomiLastReading()">前回の鑑定結果を見る</button>'
+          : '') +
+        '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 8px;">※鑑定結果には、あとで見返せる専用リンクが付きます（30日間有効）。お支払い後、鑑定を受け取る前にページを閉じてしまった場合は、同じ端末・同じブラウザであれば続きから再開できます。</div>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     }
   }
@@ -4372,8 +4381,28 @@
     window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
     if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから開きな。');
     const panel = ensureYomiControlPanel();
-    panel.innerHTML = yomiRenderReading(reading) +
+    panel.innerHTML = yomiRenderReading(reading) + yomiRenderSaveLink(reading) +
       '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;margin-top:16px;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">// 燈のところへ戻る</div>';
+  }
+
+  // あとで見返すための専用リンク（ブラウザを閉じても、別の端末からでも見られる）
+  function yomiReadingLink(reading){
+    return reading && reading.viewToken ? window.location.origin + '/?yomi_reading=' + reading.viewToken : null;
+  }
+  function yomiRenderSaveLink(reading){
+    const link = yomiReadingLink(reading);
+    if (!link) return '';
+    return '<div style="margin-top:16px;padding:10px 12px;border:1px dashed var(--c-yomi);border-radius:8px;">' +
+      '<div style="font-size:11px;line-height:1.7;color:var(--ink);margin-bottom:6px;">この鑑定は、下のリンクからいつでも見返せます（30日間）。ブックマークするか、コピーして保存しておいてください。</div>' +
+      '<div class="mono" style="font-size:9px;word-break:break-all;color:var(--c-yomi);margin-bottom:8px;">' + escapeHtml(link) + '</div>' +
+      '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiCopyReadingLink(this, \'' + link + '\')">リンクをコピー</button>' +
+      '<div style="font-size:9.5px;line-height:1.6;color:var(--ink-soft);margin-top:6px;">このリンクを知っている人は鑑定結果を見られます。他の人には教えないでください。</div>' +
+    '</div>';
+  }
+  function yomiCopyReadingLink(btn, link){
+    const done = () => { btn.textContent = 'コピーしました'; setTimeout(() => { btn.textContent = 'リンクをコピー'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => window.prompt('このリンクをコピーしてください', link));
+    else window.prompt('このリンクをコピーしてください', link);
   }
 
   // この端末で以前受け取った鑑定を、あとから見返す（週間ランキングの画面から開く）
@@ -4386,9 +4415,39 @@
     document.getElementById('readerTag').textContent = '// YOMI';
     document.getElementById('readerSub').textContent = '前回の本格鑑定';
     const bodyEl = document.getElementById('readerBody');
-    bodyEl.innerHTML = '<div style="padding:4px 0;">' + yomiRenderReading(reading) + '</div>';
+    bodyEl.innerHTML = '<div style="padding:4px 0;">' + yomiRenderReading(reading) + yomiRenderSaveLink(reading) + '</div>';
     appendCloseButton(bodyEl);
   }
+
+  // 専用リンク（?yomi_reading=...）から開かれた時は、その鑑定を表示する
+  (async function openYomiReadingFromLink(){
+    const token = new URLSearchParams(window.location.search).get('yomi_reading');
+    if (!token) return;
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/reading-view?token=' + encodeURIComponent(token), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      const tryOpen = () => {
+        if (typeof openReaderPanel !== 'function' || !document.getElementById('readerBody')) { setTimeout(tryOpen, 300); return; }
+        document.getElementById('readerBack').classList.add('show');
+        document.getElementById('reader').classList.add('show');
+        document.getElementById('readerTag').textContent = '// YOMI';
+        const bodyEl = document.getElementById('readerBody');
+        if (data && data.reading) {
+          // この端末でも「前回の鑑定」として見られるように残しておく
+          try { localStorage.setItem(YOMI_LAST_READING_KEY, JSON.stringify(data.reading)); } catch (e) {}
+          document.getElementById('readerSub').textContent = '本格鑑定の結果';
+          bodyEl.innerHTML = '<div style="padding:4px 0;">' + yomiRenderReading(data.reading) + '</div>';
+        } else {
+          document.getElementById('readerSub').textContent = '本格鑑定';
+          bodyEl.innerHTML = '<div style="font-size:12.5px;line-height:1.8;padding:8px 0;">この鑑定結果は見つかりませんでした。保存期間（30日）を過ぎたか、リンクが正しくない可能性があります。お困りの場合は <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> ください。</div>';
+        }
+        appendCloseButton(bodyEl);
+      };
+      tryOpen();
+    } catch (e) {
+      console.warn('[EternaLog] yomi reading link failed:', e);
+    }
+  })();
 
   // ===== CONTACT：お問い合わせフォーム（見た目のみ、送信機能は準備中） =====
   function showContactPanel(){
@@ -4490,7 +4549,6 @@
 
   let contentTypeTimer = null;
 
-  const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
 
   function stub(name){
     if (window.heroTextboxReact) window.heroTextboxReact(name);
