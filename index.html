@@ -3962,57 +3962,118 @@
     try { localStorage.removeItem(YOMI_PENDING_KEY); } catch (e) {}
   }
 
-  function yomiResumeToStep2(){
-    const tryResume = () => {
+  // 決済画面へ飛ぶ直前に、その決済の番号を記録しておく。戻ってきた時にURLの情報が
+  // 失われても、この記録から「本当に払われたか」をStripeに確かめられるようにするため。
+  // これがないと「払ったのに忘れて、もう一度払わせる」二重課金が起こりうる。
+  const YOMI_ATTEMPT_KEY = 'eternalog_yomi_attempt';
+  function yomiGetAttempt(){
+    try { const raw = localStorage.getItem(YOMI_ATTEMPT_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function yomiSetAttempt(sessionId){
+    try { localStorage.setItem(YOMI_ATTEMPT_KEY, JSON.stringify({ sessionId, createdAt: Date.now() })); } catch (e) {}
+  }
+  function yomiClearAttempt(){
+    try { localStorage.removeItem(YOMI_ATTEMPT_KEY); } catch (e) {}
+  }
+
+  // 決済が支払い済みかをサーバー経由でStripeに確かめる。
+  // 戻ってきた直後は、支払いの反映がわずかに遅れることがあるため、retries回まで少し待って確かめ直す。
+  async function yomiVerifySession(sessionId, retries){
+    for (let i = 0; i <= (retries || 0); i++) {
+      try {
+        const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
+        const data = await res.json();
+        if (data && data.valid) return { valid: true };
+        const reason = (data && data.reason) || 'unknown';
+        console.warn('[EternaLog] yomi payment not verified:', reason);
+        // まだ処理中の可能性があるものだけ、待って確かめ直す
+        if (!/^not_paid/.test(reason) || i === (retries || 0)) return { valid: false, reason };
+      } catch (e) {
+        console.warn('[EternaLog] yomi payment verification failed:', e);
+        if (i === (retries || 0)) return { valid: false, reason: 'network', networkError: true };
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return { valid: false, reason: 'unknown' };
+  }
+
+  // ヨミの部屋に切り替えてから then を実行する（切り替えの準備が整うまで待つ）
+  function yomiEnterYomiThen(then){
+    const tryEnter = () => {
       if (!window.eternalogEnterYomiMode || !window.eternalogPlayYomiVideo) {
-        setTimeout(tryResume, 300);
+        setTimeout(tryEnter, 300);
         return;
       }
       closeReader(true);
       runBootOverlay(YOMI_SWITCH_IN_LINES, '[ LINKED ]', () => {
         window.eternalogEnterYomiMode();
-        yomiFlowStep2();
+        then();
       });
     };
-    tryResume();
+    tryEnter();
+  }
+  function yomiResumeToStep2(){ yomiEnterYomiThen(() => yomiFlowStep2()); }
+
+  // 支払いを確認できなかった時は、黙って消さずに、そのことと問い合わせ先を伝える
+  function yomiShowPaymentUnconfirmed(){
+    yomiEnterYomiThen(() => {
+      if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや……お支払いの確認が、まだ取れないね。');
+      const panel = ensureYomiControlPanel();
+      panel.innerHTML =
+        '<div style="font-size:11.5px;line-height:1.8;color:var(--ink);margin-bottom:10px;">お支払いの確認が取れませんでした。お支払いが完了している場合は、少し時間をおいてから、もう一度「占いを始める」を押してください。新たに料金がかかることはありません。</div>' +
+        '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);margin-bottom:10px;">それでも解決しない場合は、お手数ですが <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。</div>' +
+        '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
+    });
   }
 
   (async function resumeYomiFlowAfterPayment(){
     const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('yomi_session_id');
-    if (!sessionId) {
-      // URLにパラメータがなくても、以前の支払い確認が中断されたまま
-      // 残っている場合は、そちらを優先して再開する。
-      const pending = yomiHasPendingPaidSession();
-      if (pending) yomiResumeToStep2();
+    const urlSessionId = params.get('yomi_session_id');
+    const cleanUrl = () => history.replaceState({}, '', window.location.origin + window.location.pathname);
+
+    // 既に「支払い済み・鑑定未受領」が記録されていれば、それを最優先で再開する
+    if (yomiHasPendingPaidSession()) {
+      if (urlSessionId) cleanUrl();
+      yomiResumeToStep2();
       return;
     }
 
-    let verified = false;
-    try {
-      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
-      const data = await res.json();
-      verified = !!(data && data.valid);
-    } catch (e) {
-      console.warn('[EternaLog] yomi payment verification failed:', e);
-      // 通信エラーの場合はURLのパラメータをあえて消さない。
-      // ページを開き直せば、この処理がもう一度自動的に走り、再確認できる。
+    const attempt = yomiGetAttempt();
+    const sessionId = urlSessionId || (attempt && attempt.sessionId);
+    if (!sessionId) return;
+
+    // 決済画面から戻った直後なら、反映の遅れを見越して数回確かめ直す
+    const result = await yomiVerifySession(sessionId, urlSessionId ? 3 : 0);
+
+    if (result.valid) {
+      // 確認が取れたら、まず「支払い済み・鑑定未受領」を記録してからURLを掃除する
+      yomiMarkPendingPaidSession(sessionId);
+      yomiClearAttempt();
+      if (urlSessionId) cleanUrl();
+      yomiResumeToStep2();
+      return;
+    }
+    if (result.networkError) return; // 通信エラーは記録を残したまま。次に開いた時にもう一度確かめる
+
+    if (result.reason === 'consumed') {
+      // 既に鑑定を受け取り済みの決済。記録を片付けるだけ
+      yomiClearAttempt();
+      if (urlSessionId) cleanUrl();
       return;
     }
 
-    if (!verified) {
-      console.warn('[EternaLog] yomi payment not verified as paid');
-      // 未払い・無効なセッションだった場合のみURLを掃除する（これはリトライしても意味がないため）
-      history.replaceState({}, '', window.location.origin + window.location.pathname);
+    // 未払いと判定された場合
+    if (urlSessionId) {
+      // 決済画面から戻ってきたのに確認できない：黙って消さず、伝える。
+      // 決済の記録は残すので、次に「占いを始める」を押した時にもう一度確かめられる（新たな課金はしない）
+      yomiSetAttempt(sessionId);
+      cleanUrl();
+      yomiShowPaymentUnconfirmed();
       return;
     }
-
-    // 確認が取れたら、まず「支払い済みでまだ鑑定を受け取っていない」ことをブラウザに記録してから、
-    // URLを掃除する。この順序により、記録前にページが閉じられても、
-    // 次にURLを踏んだ時にもう一度この処理が走って記録される（URLはまだ消していないため）。
-    yomiMarkPendingPaidSession(sessionId);
-    history.replaceState({}, '', window.location.origin + window.location.pathname);
-    yomiResumeToStep2();
+    // URLなしで、記録だけが残っていた場合：決済画面を途中で閉じた可能性が高い。
+    // 1時間以上前の記録なら片付ける（まだ支払い途中かもしれない直近の記録は残す）
+    if (attempt && Date.now() - attempt.createdAt > 60 * 60 * 1000) yomiClearAttempt();
   })();
 
   async function yomiFlowStartPayment(){
@@ -4032,6 +4093,29 @@
     }
 
     const panel = document.getElementById('yomiControlPanel');
+
+    // 以前の決済の記録が残っていれば、新しい決済を作る前に、それが実は払われていないか確かめる
+    const attempt = yomiGetAttempt();
+    if (attempt && attempt.sessionId) {
+      if (panel) panel.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">以前のお支払いを確認しています…</div>';
+      const prev = await yomiVerifySession(attempt.sessionId, 1);
+      if (prev.valid) {
+        yomiMarkPendingPaidSession(attempt.sessionId);
+        yomiClearAttempt();
+        if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、もう払ってもらってるみたいだね。続きからやろうか。');
+        yomiResumeToStep2();
+        return;
+      }
+      if (prev.networkError) {
+        // 確かめられない時は、二重課金を避けるため、新しい決済を作らずに止める
+        if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('すまないね、うまく繋がらなかった。少し時間を置いて、もう一度試しておくれ。');
+        if (panel) panel.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">通信を確認できませんでした。少し時間をおいて、もう一度お試しください。</div>';
+        return;
+      }
+      // 未払い（決済画面を途中で閉じた等）・受け取り済みなら、古い記録を片付けて新しい決済へ進む
+      yomiClearAttempt();
+    }
+
     if (panel) {
       panel.innerHTML =
         '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">決済ページへ移動しています…</div>';
@@ -4040,10 +4124,13 @@
       const res = await fetch(EARTH_SIGNAL_URL + 'yomi/create-checkout', { method: 'POST' });
       const data = await res.json();
       if (data && data.url) {
+        // 決済画面へ飛ぶ前に、この決済の番号を記録する（戻りでURLの情報が失われても確かめられるように）
+        if (data.id) yomiSetAttempt(data.id);
         window.location.href = data.url;
         return;
       }
-      throw new Error('no checkout url');
+      // 失敗の理由（鍵が未登録・Stripeに断られた等）を、開発者ツールで確認できるようにする
+      throw new Error('no checkout url: ' + ((data && data.reason) || res.status));
     } catch (e) {
       console.warn('[EternaLog] yomi checkout failed:', e);
       if (window.heroTextboxShowYomi) {
