@@ -2274,7 +2274,7 @@
   (function initAdTransmission(){
     // ===== Amazonアソシエイト：ASINと商品名だけ書けば動く汎用の仕組み =====
     // AMAZON_ASSOCIATE_TAGは1箇所だけ。値を変えれば全リンクに反映される。
-    const AMAZON_ASSOCIATE_TAG = 'your-tag-22'; // ← 実際のアソシエイトIDに差し替える
+    const AMAZON_ASSOCIATE_TAG = 'eternalog-22';
 
     function amazonAffiliateUrl(asin){
       return 'https://www.amazon.co.jp/dp/' + asin + '?tag=' + AMAZON_ASSOCIATE_TAG;
@@ -5898,16 +5898,22 @@
     async function playWithVoice(token){
       const lines = col.conversation;
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
-      // お便りコーナーの始まり。台本に目印があればそれを、古い回は「お便り」という言葉から推定する
-      let cornerIdx = lines.findIndex((l) => l.corner === 'letter');
-      if (cornerIdx < 0) cornerIdx = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
+      // お便りコーナーの始まり（2通制では、1通目 letter・2通目 letter2 の2か所）。
+      // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
+      let cornerIdxs = lines.map((l, i) => (l.corner === 'letter' || l.corner === 'letter2') ? i : -1).filter((i) => i >= 0);
+      if (!cornerIdxs.length) {
+        const guess = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
+        if (guess >= 0) cornerIdxs = [guess];
+      }
+      const cornerSet = new Set(cornerIdxs);
       const chunks = [];
       let s = idx;
       const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
       while (s < lines.length) {
         let size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
         // コーナーの始まりをまたがないように区切る（その切れ目でジングルを鳴らすため）
-        if (cornerIdx > s && s + size > cornerIdx) size = cornerIdx - s;
+        const nextCorner = cornerIdxs.find((c) => c > s);
+        if (nextCorner !== undefined && s + size > nextCorner) size = nextCorner - s;
         chunks.push({ start: s, lines: lines.slice(s, s + size) });
         s += size;
       }
@@ -5927,7 +5933,7 @@
         // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
         for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
         // お便りコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
-        if (k > 0 && chunks[k].start === cornerIdx) await rururuPlaySting(token);
+        if (k > 0 && cornerSet.has(chunks[k].start)) await rururuPlaySting(token);
         // それでも待ちが出た時は、止まったのではないと分かるように表示する
         const waitNotice = setTimeout(() => {
           if (token === rururuPlayToken) setVoiceStatus('📡 電波を受信中…');
