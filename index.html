@@ -5163,6 +5163,32 @@
   let rururuBubbleTimer = null;
   let rururuSoundOn = false;
 
+  // ===== 再生中は画面を点けたままにする（Screen Wake Lock） =====
+  // ラジオを流したまま放置すると、スマホが「操作がない」と判断して画面を消し、再生も止まってしまうため。
+  // 再生中だけ有効にし、終わった・閉じた時に解除する。対応していない端末では何もしない。
+  let rururuWakeLock = null;
+  let rururuPlaybackActive = false;
+  async function rururuAcquireWakeLock(){
+    try {
+      if (!('wakeLock' in navigator) || rururuWakeLock || document.visibilityState !== 'visible') return;
+      rururuWakeLock = await navigator.wakeLock.request('screen');
+      rururuWakeLock.addEventListener('release', () => { rururuWakeLock = null; });
+    } catch (e) {
+      console.warn('[EternaLog] wake lock unavailable:', e);
+    }
+  }
+  function rururuReleaseWakeLock(){
+    if (rururuWakeLock) { rururuWakeLock.release().catch(() => {}); rururuWakeLock = null; }
+  }
+  function rururuSetPlaybackActive(on){
+    rururuPlaybackActive = on;
+    if (on) rururuAcquireWakeLock(); else rururuReleaseWakeLock();
+  }
+  // 別のアプリから戻ってきた時は、画面の点灯維持が自動で外れているので、再生中なら掛け直す
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && rururuPlaybackActive) rururuAcquireWakeLock();
+  });
+
   // ===== 音声再生（会話まるごと方式） =====
   // 会話を数行ずつまとめて2人同時に音声化したものを、順番に再生する。
   // 文字の表示は音声の進行に合わせて出す（音声が主、文字が従）。
@@ -5219,7 +5245,7 @@
   }
 
   // 以前の関数名で呼ばれている箇所があるため、同じ名前で停止処理を提供する
-  function rururuResetAudioQueue(){ rururuStopVoice(); rururuStopBgm(0.3); }
+  function rururuResetAudioQueue(){ rururuStopVoice(); rururuStopBgm(0.3); rururuSetPlaybackActive(false); }
 
   // ===== BGM（ループ再生） =====
   // 通常の<audio>のloopは、ループの継ぎ目にわずかな無音が入りやすい。
@@ -5398,16 +5424,40 @@
   }
 
   // コーナーの切り替わりで短いジングルを鳴らし、キメの余韻が残るうちに次へ進む
+  // コーナー切り替えの効果音（スティング）を鳴らすか。2026年9月、音が場に合わず不評だったため止めている。
+  // 止めている間は、代わりにBGMだけを一瞬ふわっと上げて、一呼吸置くことで切り替わりを示す（実際のラジオでもよく使う形）。
+  const RURURU_STING_ENABLED = false;
+
+  async function rururuPlayCornerBreak(token){
+    if (token !== rururuPlayToken) return;
+    // 声が途切れた所でBGMを上げ、少し間を置いてから次のコーナーへ（次の声が始まるとBGMは自動で下がる）
+    clearTimeout(rururuBgm.raiseTimer);
+    rururuBgmTo(RURURU_BGM_VOLUME_IDLE, 0.4);
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+
   async function rururuPlaySting(token){
+    if (!RURURU_STING_ENABLED) return rururuPlayCornerBreak(token);
     const ctx = rururuBgm.ctx;
     if (!ctx || !rururuStingBuffer || token !== rururuPlayToken) return;
+    // 前のセリフの直後に間も置かずフルボリュームで鳴ると唐突に聞こえるため、
+    // 一呼吸おいてから、音量をふわっと立ち上げて鳴らす（終わりも同様にふわっと消す）
+    const lead = 0.25; // 前のセリフからの間（秒）
+    const fade = 0.05; // 立ち上がり・消え際にかける時間（秒）
+    const startAt = ctx.currentTime + lead;
+    const dur = rururuStingBuffer.duration;
     const src = ctx.createBufferSource(); src.buffer = rururuStingBuffer;
-    const g = ctx.createGain(); g.gain.value = RURURU_JINGLE_GAIN;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startAt);
+    g.gain.linearRampToValueAtTime(RURURU_JINGLE_GAIN, startAt + fade);
+    g.gain.setValueAtTime(RURURU_JINGLE_GAIN, Math.max(startAt + fade, startAt + dur - fade));
+    g.gain.linearRampToValueAtTime(0, startAt + dur);
     src.connect(g); g.connect(ctx.destination);
-    rururuBgmTo(RURURU_BGM_VOLUME_TALK, 0.2); // ジングルを立たせるため、BGMは控えめに
-    src.start(ctx.currentTime + 0.05);
+    // BGMを下げるタイミングも、スティングの立ち上がりに合わせて少し早める
+    setTimeout(() => rururuBgmTo(RURURU_BGM_VOLUME_TALK, 0.3), lead * 1000);
+    src.start(startAt);
     rururuIntroSources.push(src);
-    await new Promise((r) => setTimeout(r, (RURURU_STING_HIT + 0.6) * 1000));
+    await new Promise((r) => setTimeout(r, (lead + dur + 0.4) * 1000));
   }
 
   function rururuStopIntro(){
@@ -5417,10 +5467,16 @@
 
   // 冒頭の演出を鳴らし、ルルルの第一声に入ってよいタイミングまで待つ。
   // ジングルや一言の読み込みに失敗しても、番組本編は止めない（あるものだけで進める）。
+  // 冒頭のジングルを鳴らすか。2026年9月、今のジングルは別々の場所の音を継ぎ合わせたもので、
+  // 突然入って突然消える不自然さがあったため止めている。止めている間は、番組のBGMそのものを
+  // フェードインさせて冒頭の土台にし、その上にDJの一言を乗せる（実際のラジオでもよくある始まり方）。
+  const RURURU_JINGLE_ENABLED = false;
+
   async function rururuPlayIntro(token){
     const ctx = rururuBgm.ctx;
     if (!ctx) { rururuStartBgm(); return; }
     const [jingle, voice] = await Promise.all([
+      !RURURU_JINGLE_ENABLED ? Promise.resolve(null) :
       rururuJingleBuffer ? Promise.resolve(rururuJingleBuffer)
         : rururuLoadBuffer(ctx, RURURU_JINGLE_SRC).then((b) => (rururuJingleBuffer = b))
           .catch((e) => { console.warn('[EternaLog] jingle load failed:', e); return null; }),
@@ -5430,7 +5486,7 @@
     ]);
     if (token !== rururuPlayToken) return;
     // コーナー切り替え用の短いジングルは、本編の途中で使うので裏で読み込んでおく
-    if (!rururuStingBuffer) {
+    if (RURURU_STING_ENABLED && !rururuStingBuffer) {
       rururuLoadBuffer(ctx, RURURU_STING_SRC).then((b) => (rururuStingBuffer = b))
         .catch((e) => console.warn('[EternaLog] sting load failed:', e));
     }
@@ -5440,6 +5496,21 @@
     rururuPlayTuningNoise(ctx, tn);
     const t0 = tn + 0.5;
     let doneAt = t0;
+
+    // ジングルを使わない場合：BGMをフェードインさせ、上がりきった所でDJの一言、
+    // 一言の後に一呼吸おいてから本編へ
+    if (!jingle) {
+      const bgmAt = tn + 0.45;          // チューニングのノイズが消えていくのに合わせてBGMを入れる
+      rururuStartBgm(bgmAt);            // 2秒かけてフェードイン
+      let endAt = bgmAt + 2.5;          // DJの一言がない場合でも、BGMだけで少し聴かせてから本編へ
+      if (voice) {
+        const voiceAt = bgmAt + 1.6;    // BGMがほぼ上がりきってから
+        playStationVoice(voice, voiceAt);
+        endAt = voiceAt + voice.duration + 1.0; // 一言の余韻が消えるまで、一呼吸おく
+      }
+      await new Promise((r) => setTimeout(r, Math.max(0, endAt - ctx.currentTime) * 1000));
+      return;
+    }
 
     // ジングル
     let hitAt = t0; // BGMを入れる時刻（ジングルがなければ即座に）
@@ -5456,7 +5527,18 @@
 
     // DJの一言（エコー付き）。一言の終わりがキメの少し手前に来るように開始位置を合わせる
     if (voice) {
-      const voiceAt = jingle ? Math.max(t0 + 0.3, hitAt - voice.duration - 0.15) : t0;
+      const voiceAt = Math.max(t0 + 0.3, hitAt - voice.duration - 0.15);
+      playStationVoice(voice, voiceAt);
+      doneAt = Math.max(doneAt, voiceAt + voice.duration + 0.6);
+    }
+
+    // BGMはキメの瞬間から入れる
+    rururuStartBgm(hitAt);
+
+    await new Promise((r) => setTimeout(r, Math.max(0, doneAt - ctx.currentTime) * 1000));
+
+    // DJの一言を、控えめなエコー付きで鳴らす
+    function playStationVoice(voice, voiceAt){
       const src = ctx.createBufferSource();
       src.buffer = voice;
       const dry = ctx.createGain(); dry.gain.value = 1.0;
@@ -5470,15 +5552,9 @@
       tone.connect(wet); wet.connect(ctx.destination);
       src.start(voiceAt);
       rururuIntroSources.push(src);
-      doneAt = Math.max(doneAt, voiceAt + voice.duration + 0.6);
       setTimeout(() => { try { wet.disconnect(); feedback.disconnect(); } catch (e) {} },
-        (doneAt - ctx.currentTime + 4) * 1000);
+        (voiceAt + voice.duration - ctx.currentTime + 4) * 1000);
     }
-
-    // BGMはキメの瞬間から入れる
-    rururuStartBgm(hitAt);
-
-    await new Promise((r) => setTimeout(r, Math.max(0, doneAt - ctx.currentTime) * 1000));
   }
 
   // フェードアウトして止める（fadeSecは秒）
@@ -5677,6 +5753,43 @@
       return base + Math.random() * 180;
     }
 
+    // ===== 自動スクロール =====
+    // 新しいセリフが出るたび、そのセリフが見える所まで追いかける。
+    // ただし、自分で上にスクロールして読み返している間は追いかけない（読み返しの邪魔をしないため）。
+    // その間に新しいセリフが出たら、「▼ 最新のセリフへ」ボタンで戻れるようにする。
+    const scroller = document.getElementById('readerBody');
+    let rrFollow = true;
+    let rrUserTouched = 0;
+    let rrLatestRow = null;
+    let rrFollowQueued = false;
+    const rrNearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 140;
+    const rrJumpBtn = document.createElement('button');
+    rrJumpBtn.className = 'mono';
+    rrJumpBtn.textContent = '▼ 最新のセリフへ';
+    rrJumpBtn.style.cssText = 'display:none;position:sticky;bottom:10px;margin:0 auto;z-index:5;font-size:10px;padding:7px 14px;min-height:34px;border-radius:17px;border:1px solid var(--c-rururu);background:#fff;color:var(--c-rururu);box-shadow:0 4px 10px rgba(0,0,0,.12);cursor:pointer;';
+    rrJumpBtn.onclick = () => { rrFollow = true; rrJumpBtn.style.display = 'none'; rrFollowLatest(true); };
+    const markUser = () => { rrUserTouched = Date.now(); };
+    scroller.addEventListener('wheel', markUser, { passive: true });
+    scroller.addEventListener('touchmove', markUser, { passive: true });
+    scroller.addEventListener('scroll', () => {
+      // 自分で動かした直後のスクロールだけで判断する（自動スクロールの動きでは切り替えない）
+      if (Date.now() - rrUserTouched < 900) {
+        rrFollow = rrNearBottom();
+        if (rrFollow) rrJumpBtn.style.display = 'none';
+      }
+    }, { passive: true });
+    function rrFollowLatest(force){
+      if (!rrLatestRow) return;
+      if (!rrFollow && !force) { rrJumpBtn.style.display = 'block'; return; }
+      if (rrFollowQueued) return; // 1文字ごとに呼ばれても、描画1回につき1回だけ動かす
+      rrFollowQueued = true;
+      requestAnimationFrame(() => {
+        rrFollowQueued = false;
+        const target = rrLatestRow.offsetTop + rrLatestRow.offsetHeight - scroller.clientHeight + 40;
+        if (target > scroller.scrollTop) scroller.scrollTo({ top: target, behavior: 'smooth' });
+      });
+    }
+
     // 吹き出しを1つ作って画面に出す（中身の文字はまだ空）
     function createBubble(line){
       const meta = bubbleMeta[line.speaker] || bubbleMeta.rururu;
@@ -5697,7 +5810,10 @@
           '</div>' +
         '</div>';
       convWrap.appendChild(row);
+      if (rrJumpBtn.parentNode !== convWrap.parentNode) convWrap.parentNode.insertBefore(rrJumpBtn, convWrap.nextSibling);
       requestAnimationFrame(() => { row.style.opacity = '1'; });
+      rrLatestRow = row;
+      rrFollowLatest();
       return {
         textEl: row.querySelector('.rururu-type-text'),
         cursorEl: row.querySelector('.bubble-type-cursor'),
@@ -5737,6 +5853,7 @@
       const step = () => {
         if (token !== rururuPlayToken || b.finished) return;
         b.textEl.textContent = text.substring(0, i);
+        rrFollowLatest();
         i++;
         if (i <= text.length) setTimeout(step, speed);
         else if (b.voice) {
@@ -5758,6 +5875,7 @@
     function finishConversation(){
       if (finished) return;
       finished = true;
+      rururuSetPlaybackActive(false); // 放送が終わったら、画面の点灯維持を解除する
       setVoiceStatus('');
       rururuStopBgm(3); // 番組の終わりは、3秒かけてゆっくりフェードアウト
       renderLikeButton('rururu', col.id, bodyEl);
@@ -5776,6 +5894,7 @@
       function typeStep(){
         if (b.finished) return;
         b.textEl.textContent = fullText.substring(0, i);
+        rrFollowLatest();
         i++;
         if (i <= fullText.length) {
           rururuBubbleTimer = setTimeout(typeStep, speed);
@@ -5900,7 +6019,7 @@
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
       // お便りコーナーの始まり（2通制では、1通目 letter・2通目 letter2 の2か所）。
       // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
-      let cornerIdxs = lines.map((l, i) => (l.corner === 'letter' || l.corner === 'letter2') ? i : -1).filter((i) => i >= 0);
+      let cornerIdxs = lines.map((l, i) => (l.corner === 'letter' || l.corner === 'letter2' || l.corner === 'fortune') ? i : -1).filter((i) => i >= 0);
       if (!cornerIdxs.length) {
         const guess = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
         if (guess >= 0) cornerIdxs = [guess];
@@ -5914,6 +6033,13 @@
         // コーナーの始まりをまたがないように区切る（その切れ目でジングルを鳴らすため）
         const nextCorner = cornerIdxs.find((c) => c > s);
         if (nextCorner !== undefined && s + size > nextCorner) size = nextCorner - s;
+        // 音声は1回の依頼で2人までしか作れないため、3人目が登場する手前で区切る
+        // （占いコーナーの前後で、ルルル・ニャモ・ヨミが入れ替わる所）
+        const who = new Set();
+        for (let j = s; j < Math.min(s + size, lines.length); j++) {
+          who.add(lines[j].speaker);
+          if (who.size > 2) { size = j - s; break; }
+        }
         chunks.push({ start: s, lines: lines.slice(s, s + size) });
         s += size;
       }
@@ -5957,6 +6083,7 @@
       idx = 0;
       finished = false;
       currentBubble = null;
+      rrFollow = true; rrLatestRow = null; rrJumpBtn.style.display = 'none';
       setVoiceStatus('');
     }
 
@@ -5967,6 +6094,7 @@
         rururuStopVoice();
         rururuUnlockVoice();
         rururuSoundOn = true;
+        rururuSetPlaybackActive(true);
         rururuEnsureAudioCtx(); // 音の土台はボタン操作の中で用意する（BGMはジングルのキメに合わせて後から入る）
         soundBtn.textContent = '🔊 音声ON';
         resetConversationView();
@@ -5984,6 +6112,7 @@
       }
     };
 
+    rururuSetPlaybackActive(true); // 放送中は画面を点けたままにする
     showNext();
   }
 
