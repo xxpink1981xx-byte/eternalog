@@ -142,20 +142,6 @@
   }
   .mono{ font-family:'Orbitron',sans-serif; }
 
-  /* ページ全体の最背面DOS風コード表示。.device（白背景の本体コンテナ）に
-     隠れているのが通常状態だが、画面幅が.deviceより広い環境や、
-     余白部分でうっすら透けて見えることがある。 */
-  .page-dos-layer{
-    position:absolute; inset:0; z-index:0;
-    background:transparent;
-    color:rgba(0,90,160,0.13);
-    font-family:'Courier New',monospace;
-    font-size:9px; line-height:1.7;
-    padding:10px 14px;
-    white-space:pre-wrap;
-    overflow:hidden;
-    pointer-events:none;
-  }
 
   /* ===== BOOT SEQUENCE（起動演出） ===== */
   #boot-overlay{
@@ -1094,7 +1080,6 @@
 
   <!-- ページ全体の最背面：常時裏で処理が走っているDOS風コード表示。
        .device自体の白背景を通して、コンテンツの隙間・背後にうっすら見える。 -->
-  <div id="pageDosLayer" class="page-dos-layer mono"></div>
 
   <!-- HEADER -->
   <header>
@@ -1711,10 +1696,6 @@
       typeText(text, 'ヨミ', true);
     };
 
-    // ===== 放置検知用：任意の話者ラベルで一言表示する汎用版 =====
-    window.heroTextboxShowIdle = function(text, label){
-      typeText(text, label || 'SYSTEM', true);
-    };
   })();
 
   // ===== 浮遊ターミナル窓（20〜42秒間隔でランダムに出現→タイプ→消滅） =====
@@ -1922,40 +1903,6 @@
     scheduleNextBubble();
   })();
 
-  // ===== 放置検知：一定時間操作がないと、キャラが様子を窺う一言を出す =====
-  (function initIdleDetection(){
-    const IDLE_THRESHOLD_MS = 3 * 60 * 1000; // 3分
-    const IDLE_LINES = [
-      { text: 'ニャモが様子を窺っています…', label: 'ニャモ' },
-      { text: '……まだ見ているよ。ゆっくりでいいんだよ。', label: '燈' },
-      { text: 'ふん、退屈しておるのか？わらわが構ってやろうか。', label: 'ルルル' },
-      { text: 'ん、止まってるんだな。何か思いついたら教えてほしいんだな。', label: 'シャト' },
-    ];
-
-    let idleTimer = null;
-    let alreadyShownThisIdle = false;
-
-    function resetIdleTimer(){
-      alreadyShownThisIdle = false;
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(showIdleLine, IDLE_THRESHOLD_MS);
-    }
-    function showIdleLine(){
-      if (alreadyShownThisIdle) return;
-      // 読者向けコンテンツ（reader）が開いている最中は、演出が邪魔になるため出さない。
-      const readerEl = document.getElementById('reader');
-      if (readerEl && readerEl.classList.contains('show')) { idleTimer = setTimeout(showIdleLine, IDLE_THRESHOLD_MS); return; }
-      alreadyShownThisIdle = true;
-      const pick = IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)];
-      if (window.heroTextboxShowIdle) window.heroTextboxShowIdle(pick.text, pick.label);
-    }
-
-    ['mousemove', 'touchstart', 'scroll', 'click', 'keydown'].forEach((ev) => {
-      window.addEventListener(ev, resetIdleTimer, { passive: true });
-    });
-    resetIdleTimer();
-  })();
-
   // ===== NAV_TERMINAL：SIGNAL最新5件の見出し一覧＋タップ展開ビューア =====
   // 2026年8月：待機動画のステータス表示（At rest等）は廃止し、代わりに
   // 「見出しが5件並んでいる」こと自体で、一目で更新されていると分かる見せ方にした。
@@ -2143,66 +2090,6 @@
         console.warn('[EternaLog] latest log card update failed:', e);
         // 取得に失敗した場合は、index.htmlに書かれた既定の文言のまま表示を続ける
       });
-  })();
-
-  // ===== 最背面DOS風コード表示：ページ全体の裏で常時処理が走っている雰囲気を出す =====
-  // .deviceコンテナ（白背景の本体）に完全に隠れているため通常は見えないが、
-  // 余白部分でうっすら透けて見えることがある。
-  (function initPageDosLayer(){
-    const el = document.getElementById('pageDosLayer');
-    if (!el) return;
-
-    const DOS_LINES = [
-      'eternalog_core.exe --daemon',
-      'mounting /dev/soul0... OK',
-      'loading character_profile[tomori]... OK',
-      'loading character_profile[yomi]... OK',
-      'checksum verify: 0x4A2F0000 PASS',
-      'polling earth_signal relay...',
-      'thread[render] priority=HIGH',
-      'thread[render] status=RUNNING',
-      'gc: freed 128 fragments',
-      'cache hit ratio: 94.2%',
-      'sync ok. latency 12ms',
-      'watchdog: alive',
-      'idle_pool[tomori]: 5 clips loaded',
-      'idle_pool[yomi]: 2 clips loaded',
-      '> waiting for input...',
-    ];
-
-    let buffer = [];
-    // 22行では画面上部のごく一部（300px程度）しか埋まらず、
-    // ページ全体（数千px）のほとんどが空白のままになってしまっていた。
-    // ページ全体をカバーできる行数まで増やす。
-    const MAX_LINES = 280;
-
-    // 初期化時、タイピングを待たず一気に行を埋めておく。
-    // こうしないと、ページ下部（アーカイブ等）に文字が到達するまで
-    // 何十秒も待つことになってしまうため。
-    for (let i = 0; i < MAX_LINES; i++) {
-      buffer.push(DOS_LINES[Math.floor(Math.random() * DOS_LINES.length)]);
-    }
-    el.textContent = buffer.join('\n');
-
-    function typeNextLine(){
-      const line = DOS_LINES[Math.floor(Math.random() * DOS_LINES.length)];
-      let i = 0;
-      function step(){
-        const partial = line.substring(0, i);
-        const display = buffer.concat([partial]).join('\n');
-        el.textContent = display;
-        i++;
-        if (i <= line.length) {
-          setTimeout(step, 22 + Math.random() * 30);
-        } else {
-          buffer.push(line);
-          if (buffer.length > MAX_LINES) buffer.shift();
-          setTimeout(typeNextLine, 400 + Math.random() * 900);
-        }
-      }
-      step();
-    }
-    typeNextLine();
   })();
 
   // ===== ARCHIVEカードの自動マーキースクロール =====
@@ -2782,7 +2669,7 @@
     {
       id: 'tomori', name: '燈', nameEn: 'TOMORI', color: 'var(--c-tomori)', icon: 'center-tomori.png',
       bgImage: 'bg-tomori.png', bgPosition: 'center 42%',
-      role: 'エッセイ担当',
+      role: 'エッセイ担当', menuTarget: 'ESSAY', contentLabel: '燈の週刊エッセイを読む',
       race: '女神', age: '不詳', birthday: '7月17日',
       mbti: 'INFJ（提唱者）',
       mbtiQuote: '観測者としての視点は、燈にとっては生まれつきのものなのかもしれない。',
@@ -2793,7 +2680,7 @@
     {
       id: 'nyamo', name: 'ニャーヤ＝モルフィア', alias: '通称：ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
       bgImage: 'bg-nyamo.png', bgPosition: 'center 30%',
-      role: 'ツッコミ担当',
+      role: 'ツッコミ担当', menuTarget: 'RURURU', contentLabel: 'ETERNARADIOを聴く',
       race: '禁術キメラ', age: '不詳', birthday: '2月23日',
       mbti: 'ISTP（巨匠）',
       mbtiQuote: 'オレは言葉より、行動で示す方が信じられるニャ。',
@@ -2804,7 +2691,7 @@
     {
       id: 'yomi', name: '観月ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
       bgImage: 'bg-yomi.png', bgPosition: 'center 25%',
-      role: '占い担当',
+      role: '占い担当', menuTarget: 'YOMI', contentLabel: '今週の運勢ランキングを見る',
       race: '人間', age: '秘密', birthday: '9月30日',
       mbti: 'INTJ（建築家）',
       mbtiQuote: '運命だろうが人だろうが、見えたもんを曲げずに言う。それだけさ。',
@@ -2815,7 +2702,7 @@
     {
       id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
       bgImage: 'bg-rururu.png', bgPosition: 'center 20%',
-      role: '毒舌担当',
+      role: '毒舌担当', menuTarget: 'RURURU', contentLabel: 'ETERNARADIOを聴く',
       race: '魔族', age: '不詳', birthday: '6月6日',
       mbti: 'ENTJ（指揮官）',
       mbtiQuote: '人間界のことなど、一目見ればわらわには分かるのじゃ。',
@@ -2826,7 +2713,7 @@
     {
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
       bgImage: 'bg-shat.png', bgPosition: 'center 20%',
-      role: '開発担当',
+      role: '開発担当', menuTarget: 'SHATLAB', contentLabel: 'シャトの開発室を見る',
       race: '女神', age: '不詳', birthday: '12月25日',
       mbti: 'ENTP（討論者）',
       mbtiQuote: '関係ないもの同士をくっつけると、案外面白いことが起きるんだな。',
@@ -2908,6 +2795,10 @@
           '<div class="mono" style="font-size:9px;letter-spacing:1.5px;color:#5b7a9a;margin-top:2px;">' + c.nameEn + '</div>' +
         '</div>' +
       '</div>' +
+      // --- 自分のコンテンツへのリンク ---
+      (c.menuTarget ? '<div style="padding:0 16px;margin-top:12px;">' +
+        '<button class="reader-close-bottom mono" style="border-color:' + c.color + ';color:' + c.color + ';margin:0;width:100%;" onclick="closeReader(true); stub(\'' + c.menuTarget + '\')">' + c.contentLabel + ' →</button>' +
+      '</div>' : '') +
       // --- 情報ブロック：GUIDE欄と同じガラス質感レシピ ---
       '<div style="position:relative;background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(224,242,254,0.85));padding:14px 16px 16px;">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:10px;">' +
