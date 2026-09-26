@@ -110,7 +110,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;600;700&family=Yomogi&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#ffffff;
@@ -914,6 +914,31 @@
   .yr .yr-foot{ font-family:'Noto Sans JP', sans-serif; font-size:10.5px; line-height:1.7; color:var(--yr-dim); text-align:center; padding:0 6px; }
   .yr .yr-copyright{ justify-content:center; width:100%; color:var(--yr-indigo); font-weight:700; margin-top:-12px; }
   a.ditem{ color:inherit; text-decoration:none; }
+
+  /* ===== シャトの開発日誌：方眼ノートに手書きしたような見た目 ===== */
+  .shat-page{
+    position:relative; max-width:86%; padding:12px 14px 10px;
+    background-color:#fbf9ee;
+    background-image:
+      linear-gradient(rgba(120,150,110,.22) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,150,110,.22) 1px, transparent 1px);
+    background-size:16px 16px;
+    border:1px solid rgba(120,150,110,.35);
+    border-radius:2px;
+    box-shadow:1px 2px 5px rgba(40,50,30,.12);
+    font-family:'Yomogi', 'Noto Sans JP', sans-serif;
+    font-size:14.5px; line-height:1.85; color:#3a3226;
+  }
+  .shat-page::before{ /* ページ右上をめくれさせて、ノートらしさを足す */
+    content:''; position:absolute; top:0; right:0; width:16px; height:16px;
+    background:linear-gradient(135deg, transparent 50%, rgba(120,150,110,.28) 50%);
+  }
+  .shat-pin{ /* とじ穴（左端の小さな丸2つ） */
+    position:absolute; left:6px; top:10px; bottom:10px; width:5px;
+    background-image:radial-gradient(circle, rgba(120,150,110,.4) 1.6px, transparent 1.7px);
+    background-size:5px 26px; background-repeat:repeat-y;
+  }
+  .shat-page-text{ padding-left:10px; white-space:pre-wrap; }
   .site-about{ margin:0 16px 22px; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:13px; line-height:1.9; color:var(--ink); }
   .site-about p{ margin:0 0 10px; }
   .site-about ul{ margin:0 0 10px; padding-left:1.2em; }
@@ -3293,7 +3318,7 @@
         '<img src="char-shat.png" alt="シャト" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid var(--c-shat);flex-shrink:0;margin-top:2px;" onerror="this.style.visibility=\'hidden\'">' +
         '<div style="max-width:82%;">' +
           '<div style="font-family:\'Orbitron\',sans-serif;font-size:9px;color:var(--c-shat);font-weight:700;margin-bottom:3px;">' + d.day + '日目 ・ ' + escapeHtml(d.phase) + '</div>' +
-          '<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.7;">' + escapeHtml(d.text) + '</div>' +
+          '<div class="shat-page"><span class="shat-pin"></span><span class="shat-page-text">' + escapeHtml(d.text) + '</span></div>' +
         '</div>';
       convWrap.appendChild(row);
     });
