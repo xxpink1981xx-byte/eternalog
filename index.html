@@ -5759,6 +5759,10 @@
       rrFollowQueued = true;
       requestAnimationFrame(() => {
         rrFollowQueued = false;
+        // 呼ばれた時点では対象があっても、1フレーム後には画面がリセットされて
+        // 消えている場合がある（例：音声ONを押した瞬間の resetConversationView）。
+        // ここでも改めて確認してから読む。
+        if (!rrLatestRow || !rrLatestRow.isConnected) return;
         const target = rrLatestRow.offsetTop + rrLatestRow.offsetHeight - scroller.clientHeight + 40;
         if (target > scroller.scrollTop) scroller.scrollTo({ top: target, behavior: 'smooth' });
       });
@@ -5937,7 +5941,7 @@
           if (token !== rururuPlayToken) { finish(); return; }
           // 毎フレームの保険：処理系が再生の途中で一時停止していたら、すぐ立て直す
           // （statechangeイベントが確実に発火しない環境向けの二重の備え）
-          if (ctx.state === 'suspended') ctx.resume();
+          if (rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
           const t = el.currentTime;
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
