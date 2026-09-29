@@ -2195,6 +2195,12 @@
       // { asin: 'B0XXXXXXXX', title: '深夜の作業のお供に', character: 'shat' },
     ];
 
+    // Audible（Amazonアソシエイトの一部として、追加登録なしで使える固定リンク）。
+    // AssociateTrackingIDの部分をAMAZON_ASSOCIATE_TAGに差し替える。
+    function audibleUrl(){
+      return 'https://www.amazon.co.jp/b/ref=adbl_JP_as_0068?ie=UTF8&node=7471076051&tag=' + AMAZON_ASSOCIATE_TAG;
+    }
+
     function buildAmazonAdCreatives(){
       return AMAZON_PRODUCTS.map((p) => ({
         tag: 'PR',
@@ -2211,6 +2217,7 @@
       { tag:'PR', title:'SUPPORT', body:'燈たちの活動を、そっと支える ▸', url:'javascript:void(0)', action:'support' },
       { tag:'PR', title:'DIVINATION', body:'観月ヨミ // 今宵の月が、あなたの周波数を読む ▸', url:'#' },
       { tag:'PR', title:'SIGNAL', body:'忍者AdMax // この枠、まだ空いています ▸', url:'#' },
+      { tag:'PR', title:'AUDIBLE', body:'Audible // 耳が空いていれば、作業しながらでも ▸', url: audibleUrl() },
       ...buildAmazonAdCreatives(),
     ];
     let adIdx = 0, adTimer = null, adHideTimer = null;
@@ -5209,6 +5216,13 @@
         rururuVoiceAnalyser.fftSize = 1024;
         srcNode.connect(rururuBgm.ctx.destination);
         srcNode.connect(rururuVoiceAnalyser);
+        // 2026年9月：声をこの処理系（AudioContext）に接続した結果、スマホでは通知・画面ロック・
+        // Bluetoothの切り替え等で処理系が再生の途中でも一時停止（suspended）することがあり、
+        // その間は音声要素の時間は進み続けるのに音だけ無音になる（＝セリフが飛んだように聞こえる）
+        // 不具合が起きていた。一時停止を検知した瞬間に立て直す見張りを付ける。
+        rururuBgm.ctx.addEventListener('statechange', () => {
+          if (rururuBgm.ctx.state === 'suspended' && rururuPlaybackActive) rururuBgm.ctx.resume();
+        });
       }
     } catch (e) {
       console.warn('[EternaLog] audio context failed:', e);
@@ -5375,6 +5389,54 @@
   function rururuStopIntro(){
     rururuIntroSources.forEach((src) => { try { src.stop(); } catch (e) {} });
     rururuIntroSources = [];
+  }
+
+  // ===== 今日の一曲（ルルルの演奏という設定の、オリジナルピアノ曲） =====
+  // 台本と同じ回のものを、専用のエンドポイントから取りに行く（回ごとに1曲、使い捨て）
+  async function rururuFetchSong(episodeId){
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'rururu/song?id=' + encodeURIComponent(episodeId));
+      if (!res.ok) return null; // その回に曲がない（生成に失敗した等）。曲なしで進める
+      return await res.arrayBuffer();
+    } catch (e) {
+      console.warn('[EternaLog] song fetch failed:', e);
+      return null;
+    }
+  }
+
+  // 前振りの直後に呼ぶ。曲が取れていればBGMを下げて最後まで流し、取れなければ何もせず即座に戻る
+  // （songPromise は前振りが流れている間に裏で取得を始めているので、届くまでの待ちは小さいはず）
+  // setStatus は呼び出し側（showRururuDetailのスコープ）のsetVoiceStatusを渡してもらう
+  async function rururuPlaySong(songPromise, token, setStatus){
+    const status = setStatus || (() => {});
+    const ctx = rururuBgm.ctx;
+    status('🎹 今日の一曲を受信中…');
+    const buf = await songPromise;
+    status('');
+    if (!ctx || !buf || token !== rururuPlayToken) return;
+    let audioBuf;
+    try { audioBuf = await ctx.decodeAudioData(buf.slice(0)); }
+    catch (e) { console.warn('[EternaLog] song decode failed:', e); return; }
+    if (token !== rururuPlayToken) return;
+
+    const fade = 1.2; // 曲の始まり・終わりにかけるフェード（秒）
+    const startAt = ctx.currentTime + 0.15;
+    const src = ctx.createBufferSource(); src.buffer = audioBuf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startAt);
+    g.gain.linearRampToValueAtTime(1, startAt + fade);
+    g.gain.setValueAtTime(1, Math.max(startAt + fade, startAt + audioBuf.duration - fade));
+    g.gain.linearRampToValueAtTime(0, startAt + audioBuf.duration);
+    src.connect(g); g.connect(ctx.destination);
+    // 曲の間は番組のBGMを消す（2つのピアノが重ならないように）。曲が終わったらBGMを戻す
+    clearTimeout(rururuBgm.raiseTimer);
+    rururuBgmTo(0, fade);
+    src.start(startAt);
+    rururuIntroSources.push(src);
+    status('🎹 今日の一曲');
+    await new Promise((r) => setTimeout(r, (audioBuf.duration + 0.15) * 1000));
+    status('');
+    if (token === rururuPlayToken) rururuBgmTo(RURURU_BGM_VOLUME_IDLE, fade);
   }
 
   // 冒頭の演出を鳴らし、ルルルの第一声に入ってよいタイミングまで待つ。
@@ -5873,6 +5935,9 @@
         const tick = () => {
           if (done) return;
           if (token !== rururuPlayToken) { finish(); return; }
+          // 毎フレームの保険：処理系が再生の途中で一時停止していたら、すぐ立て直す
+          // （statechangeイベントが確実に発火しない環境向けの二重の備え）
+          if (ctx.state === 'suspended') ctx.resume();
           const t = el.currentTime;
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
@@ -5931,12 +5996,21 @@
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
       // お便りコーナーの始まり（2通制では、1通目 letter・2通目 letter2 の2か所）。
       // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
-      let cornerIdxs = lines.map((l, i) => (l.corner === 'letter' || l.corner === 'letter2' || l.corner === 'fortune') ? i : -1).filter((i) => i >= 0);
-      if (!cornerIdxs.length) {
+      // お便り・占い・今日の一曲、各コーナーの区切り目。目印がない古い回は、
+      // 「お便り」という言葉から1か所だけ推定する（推定した区切りにも、通常通り演出を入れる）。
+      const markerCorners = ['letter', 'letter2', 'fortune', 'song_intro', 'song_end', 'cm'];
+      let corners = lines.map((l, i) => ({ i, type: l.corner })).filter((c) => markerCorners.includes(c.type));
+      if (!corners.length) {
         const guess = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
-        if (guess >= 0) cornerIdxs = [guess];
+        if (guess >= 0) corners = [{ i: guess, type: 'letter' }];
       }
-      const cornerSet = new Set(cornerIdxs);
+      const cornerIdxs = corners.map((c) => c.i);
+      // スティング（区切りの合図）を鳴らすのは、新しいコーナーが「始まる」所だけ。
+      // song_end は「曲のあとに会話へ戻る」区切りであって、始まりではないので対象に含めない
+      // （その代わり、曲そのものの前後に別の演出を挟む）。
+      const cornerSet = new Set(corners.filter((c) => c.type !== 'song_end').map((c) => c.i));
+      const songIntroIdx = lines.findIndex((l) => l.corner === 'song_intro');
+      const songEndIdx = lines.findIndex((l) => l.corner === 'song_end');
       const chunks = [];
       let s = idx;
       const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
@@ -5966,11 +6040,13 @@
       if (token !== rururuPlayToken) return;
 
       setVoiceStatus('📡 放送を受信中…');
+      // 今日の一曲がある回は、前振りが流れている間に裏で曲を取りに行っておく（届くのを待たせないため）
+      const songPromise = (songIntroIdx >= 0) ? rururuFetchSong(col.id) : null;
       for (let k = 0; k < chunks.length; k++) {
         const urlPromise = getUrl(k);
         // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
         for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
-        // お便りコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
+        // お便り・占いコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
         if (k > 0 && cornerSet.has(chunks[k].start)) await rururuPlaySting(token);
         // それでも待ちが出た時は、止まったのではないと分かるように表示する
         const waitNotice = setTimeout(() => {
@@ -5983,6 +6059,11 @@
         if (url) await playChunkSynced(chunks[k], url, token);
         else await typeChunkPlain(chunks[k], token);
         if (token !== rururuPlayToken) return;
+        // 前振りの直後（次の塊が song_end から始まる）なら、ここで実際の曲を流す
+        if (songEndIdx >= 0 && chunks[k + 1] && chunks[k + 1].start === songEndIdx) {
+          await rururuPlaySong(songPromise, token, setVoiceStatus);
+          if (token !== rururuPlayToken) return;
+        }
       }
       finishConversation();
     }
