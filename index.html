@@ -2196,9 +2196,12 @@
     ];
 
     // Audible（Amazonアソシエイトの一部として、追加登録なしで使える固定リンク）。
+    // 公式ヘルプ「Audibleメンバー紹介プログラム」が示す形そのまま（node=5816607051）。
     // AssociateTrackingIDの部分をAMAZON_ASSOCIATE_TAGに差し替える。
+    // 注意：アソシエイトバーの「テキスト」で作ったリンクは紹介料の対象にならないため、この形を使う。
+    // 成果になるのは、初めてAudibleを使う人の無料体験登録のみ。
     function audibleUrl(){
-      return 'https://www.amazon.co.jp/b/ref=adbl_JP_as_0068?ie=UTF8&node=7471076051&tag=' + AMAZON_ASSOCIATE_TAG;
+      return 'https://www.amazon.co.jp/b/ref=adbl_JP_as_0068?ie=UTF8&node=5816607051&tag=' + AMAZON_ASSOCIATE_TAG;
     }
 
     function buildAmazonAdCreatives(){
