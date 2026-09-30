@@ -5209,7 +5209,10 @@
       if (rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
       // 声を分析器に通して、実際の音量を測れるようにする（名前横のメーターを本物の声に反応させるため）。
       // この接続は1つの音声要素につき1回しかできないので、初回だけ行う。
-      if (!rururuVoiceAnalyser) {
+      // 2026年9月：スマホでは、声をこの処理系に通すと、端末が忙しい時に音のごく短い切れ端が
+      // 抜け落ちる（数文字分の声が飛ぶ）ことが分かったため、PCだけに限る。スマホでは声を
+      // 普通の再生経路のまま流し、メーターは喋っている間の簡易的な動きで表現する。
+      if (!rururuVoiceAnalyser && RURURU_VOICE_VIA_WEBAUDIO) {
         const el = rururuGetVoiceEl();
         const srcNode = rururuBgm.ctx.createMediaElementSource(el);
         rururuVoiceAnalyser = rururuBgm.ctx.createAnalyser();
@@ -5233,8 +5236,17 @@
   let rururuVoiceAnalyser = null;
   let rururuMeterBuf = null;
   // 今の声の大きさ（0〜1）
+  // 声を処理系（Web Audio）に通すか。マウス操作が中心の端末（PC）だけ通す
+  const RURURU_VOICE_VIA_WEBAUDIO = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+
   function rururuVoiceLevel(){
-    if (!rururuVoiceAnalyser) return 0;
+    if (!rururuVoiceAnalyser) {
+      // スマホ：実際の音量は測らず、声が鳴っている間だけ、それらしく揺らす（処理はごく軽い）
+      const el = rururuVoiceEl;
+      if (!el || el.paused || el.ended) return 0;
+      const t = performance.now() / 1000;
+      return 0.45 + 0.35 * Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1.7));
+    }
     if (!rururuMeterBuf) rururuMeterBuf = new Float32Array(rururuVoiceAnalyser.fftSize);
     rururuVoiceAnalyser.getFloatTimeDomainData(rururuMeterBuf);
     let sum = 0;
