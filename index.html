@@ -1332,11 +1332,11 @@
       <li><a href="/archive/essay/">燈の週刊エッセイ</a> ─ 燈が毎週綴る、人の営みを見つめた読み物</li>
       <li><a href="/archive/shatlab/">シャトの開発室</a> ─ 4日間かけて小さなアプリを作る開発日誌と、その作品</li>
     </ul>
-    <p class="site-about-note">キャラクターの発言や記事はAIによって自動生成されています。詳しくは <a href="/about.html">エテルナログとは</a> ・ <a href="/operator.html">運営者情報</a> をご覧ください。</p>
+    <p class="site-about-note">キャラクターの発言や記事はAIによって自動生成されています。詳しくは <a href="/about">エテルナログとは</a> ・ <a href="/operator">運営者情報</a> をご覧ください。</p>
   </section>
 
   <footer>
-    <nav class="foot-links mono" style="flex-wrap:wrap;gap:8px 14px;"><a href="/archive/" style="color:inherit;text-decoration:none;">ARCHIVE</a><a href="/about.html" style="color:inherit;text-decoration:none;">ABOUT</a><a href="/operator.html" style="color:inherit;text-decoration:none;">OPERATOR</a><a href="/privacy.html" style="color:inherit;text-decoration:none;">PRIVACY</a><a href="/contact.html" style="color:inherit;text-decoration:none;">CONTACT</a></nav>
+    <nav class="foot-links mono" style="flex-wrap:wrap;gap:8px 14px;"><a href="/archive/" style="color:inherit;text-decoration:none;">ARCHIVE</a><a href="/about" style="color:inherit;text-decoration:none;">ABOUT</a><a href="/operator" style="color:inherit;text-decoration:none;">OPERATOR</a><a href="/privacy" style="color:inherit;text-decoration:none;">PRIVACY</a><a href="/contact" style="color:inherit;text-decoration:none;">CONTACT</a></nav>
     <div class="foot-links mono"><a href="https://note.com/note_sagami" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">note // 運営者さがみの記録</a></div>
     <div class="ai-disclaimer mono">本サイトのキャラクターの発言・コラム等はAIによって自動生成されており、誤りや不正確な内容を含む場合があります。</div>
     <div class="foot-note mono">© 2026 EternaLog // 運営：さがみ</div>
@@ -1389,10 +1389,10 @@
   <div class="dsection">// SITE</div>
   <!-- SUPPORT：中身が準備中のため、公開できる内容ができるまでメニューから外している -->
   <!-- GOODS：中身が準備中のため、公開できる内容ができるまでメニューから外している -->
-  <a class="ditem" href="/contact.html" onclick="closeDrawer(); stub('CONTACT'); return false;"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></a>
-  <a class="ditem" href="/about.html" onclick="closeDrawer(); stub('ABOUT'); return false;"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></a>
-  <a class="ditem" href="/privacy.html" onclick="closeDrawer(); stub('PRIVACY'); return false;"><span class="di">🔒</span><span class="en">PRIVACY</span><span class="ja">プライバシーポリシー</span></a>
-  <a class="ditem" href="/operator.html" onclick="closeDrawer(); stub('OPERATOR'); return false;"><span class="di">i</span><span class="en">OPERATOR</span><span class="ja">運営者情報</span></a>
+  <a class="ditem" href="/contact" onclick="closeDrawer(); stub('CONTACT'); return false;"><span class="di">✉</span><span class="en">CONTACT</span><span class="ja">お問い合わせ</span></a>
+  <a class="ditem" href="/about" onclick="closeDrawer(); stub('ABOUT'); return false;"><span class="di">?</span><span class="en">ABOUT</span><span class="ja">エテルナログとは</span></a>
+  <a class="ditem" href="/privacy" onclick="closeDrawer(); stub('PRIVACY'); return false;"><span class="di">🔒</span><span class="en">PRIVACY</span><span class="ja">プライバシーポリシー</span></a>
+  <a class="ditem" href="/operator" onclick="closeDrawer(); stub('OPERATOR'); return false;"><span class="di">i</span><span class="en">OPERATOR</span><span class="ja">運営者情報</span></a>
 </aside>
 
 <script>
@@ -4049,7 +4049,7 @@
       const panel = ensureYomiControlPanel();
       panel.innerHTML =
         '<div style="font-size:11.5px;line-height:1.8;color:var(--ink);margin-bottom:10px;">お支払いの確認が取れませんでした。お支払いが完了している場合は、少し時間をおいてから、もう一度「占いを始める」を押してください。新たに料金がかかることはありません。</div>' +
-        '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);margin-bottom:10px;">それでも解決しない場合は、お手数ですが <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。</div>' +
+        '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);margin-bottom:10px;">それでも解決しない場合は、お手数ですが <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。</div>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     });
   }
@@ -4342,7 +4342,7 @@
     if (result.error === 'invalid_input') { yomiFlowStep2(result.message ? result.message + '。もう一度教えておくれ。' : null); return; }
     const panel = ensureYomiControlPanel();
     const retry = '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 10px;width:100%;" id="yomiRetryBtn">もう一度占ってもらう</button>';
-    const contact = '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);">何度試しても鑑定が届かない場合は、お手数ですが <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。お支払いの確認のうえ対応します。</div>';
+    const contact = '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);">何度試しても鑑定が届かない場合は、お手数ですが <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。お支払いの確認のうえ対応します。</div>';
     if (result.error === 'not_paid' || result.error === 'no_session') {
       if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、お支払いの記録が見つからないね。');
       panel.innerHTML = '<div style="font-size:11.5px;line-height:1.7;color:var(--ink);margin-bottom:10px;">お支払いを確認できませんでした。</div>' + contact;
@@ -4627,7 +4627,7 @@
           document.getElementById('readerTag').textContent = '// YOMI';
           document.getElementById('readerSub').textContent = '本格鑑定';
           const bodyEl = document.getElementById('readerBody');
-          bodyEl.innerHTML = '<div style="font-size:12.5px;line-height:1.8;padding:8px 0;">この鑑定結果は見つかりませんでした。保存期間（30日）を過ぎたか、リンクが正しくない可能性があります。お困りの場合は <a href="/contact.html" style="color:var(--c-yomi);">お問い合わせ</a> ください。</div>';
+          bodyEl.innerHTML = '<div style="font-size:12.5px;line-height:1.8;padding:8px 0;">この鑑定結果は見つかりませんでした。保存期間（30日）を過ぎたか、リンクが正しくない可能性があります。お困りの場合は <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> ください。</div>';
           appendCloseButton(bodyEl);
         }
       };
