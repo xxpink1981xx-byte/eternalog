@@ -5350,10 +5350,16 @@
       .then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)));
   }
 
-  // ザザッと周波数が合っていくようなノイズ（0.6秒）。音声ファイルは使わず合成する
+  // ザザッと周波数が合っていくようなノイズ。音声ファイルは使わず合成する。
+  // 2026年10月、0.6秒だと一瞬で終わって「飛んでいる」ように聞こえたため、1.4秒に伸ばした。
+  // 周波数を探っていく変化（400Hz→2600Hz）も、その分ゆっくり聞こえる。
+  const RURURU_TUNING_NOISE_SEC = 1.4;
+  const RURURU_INTRO_SILENCE_SEC = 0.6;  // ノイズのあと、DJの一言の前に置く無音
+  const RURURU_INTRO_BGM_LAG_SEC = 0.3;  // DJの一言が終わってから、BGMが入り始めるまで
+  const RURURU_INTRO_BGM_HOLD_SEC = 1.8; // BGMが入り始めてから、本編に入るまで（フェードインが、ほぼ上がる時間）
   function rururuPlayTuningNoise(ctx, at){
     try {
-      const len = 0.6;
+      const len = RURURU_TUNING_NOISE_SEC;
       const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < d.length; i++) {
@@ -5496,17 +5502,21 @@
     const t0 = tn + 0.5;
     let doneAt = t0;
 
-    // ジングルを使わない場合：BGMをフェードインさせ、上がりきった所でDJの一言、
-    // 一言の後に一呼吸おいてから本編へ
+    // ジングルを使わない場合の流れ（2026年10月に変更）：
+    //   ノイズ → 短い無音 → DJの一言（BGMなし。エコーのみ） → 一言が終わってからBGMがフェードイン → 本編
+    // 以前は、ノイズの途中からBGMが入り、その上にDJの声が乗る順番だった。
     if (!jingle) {
-      const bgmAt = tn + 0.45;          // チューニングのノイズが消えていくのに合わせてBGMを入れる
-      rururuStartBgm(bgmAt);            // 2秒かけてフェードイン
-      let endAt = bgmAt + 2.5;          // DJの一言がない場合でも、BGMだけで少し聴かせてから本編へ
+      const noiseEnd = tn + RURURU_TUNING_NOISE_SEC;
+      const voiceAt = noiseEnd + RURURU_INTRO_SILENCE_SEC; // ノイズのあと、無音を挟んで
+      let bgmAt;
       if (voice) {
-        const voiceAt = bgmAt + 1.6;    // BGMがほぼ上がりきってから
-        playStationVoice(voice, voiceAt);
-        endAt = voiceAt + voice.duration + 1.0; // 一言の余韻が消えるまで、一呼吸おく
+        playStationVoice(voice, voiceAt);                  // 無音の中で、DJの一言
+        bgmAt = voiceAt + voice.duration + RURURU_INTRO_BGM_LAG_SEC; // 一言が終わってから、音楽を入れる
+      } else {
+        bgmAt = voiceAt;                                    // DJの声が読み込めなかった場合は、無音のあとに音楽
       }
+      rururuStartBgm(bgmAt);                                // 2秒かけてフェードイン
+      const endAt = bgmAt + RURURU_INTRO_BGM_HOLD_SEC;      // BGMがほぼ上がった頃に、本編（ルルルの第一声）へ
       await new Promise((r) => setTimeout(r, Math.max(0, endAt - ctx.currentTime) * 1000));
       return;
     }
@@ -5793,6 +5803,43 @@
       });
     }
 
+    // ===== コーナーの見出し =====
+    // 流れでサクサク進んで、どこからが別のコーナーか伝わりにくかったため、コーナーが始まる所に、見出しの帯を出す。
+    // サーバー側（worker.js の RADIO_CORNER_TITLES）と、同じ名前にそろえること。
+    // 小ネタ・CMは、サーバーが先頭の行に付けた cornerTitle を使う。印のない古い回のCMは、corner:'cm' から「CM」にする。
+    const RURURU_CORNER_TITLES = {
+      letter: 'お便りコーナー ①',
+      letter2: 'お便りコーナー ②',
+      song_intro: '今日の一曲',
+      fortune: 'ヨミの運勢ランキング',
+      recap: '今夜のおさらい',
+      cm: 'CM',
+    };
+    const RURURU_CORNER_COLORS = {
+      fortune: 'var(--c-yomi)', cm: '#8a8f99',
+    };
+    function cornerTitleOf(line){
+      if (!line) return null;
+      if (line.cornerTitle) return line.cornerTitle;      // サーバーが付けたもの（小ネタ・CM）
+      if (line.corner === 'song_end') return null;        // 曲のあとの一言は、新しいコーナーではない
+      return RURURU_CORNER_TITLES[line.corner] || null;
+    }
+    function appendCornerBanner(line){
+      const title = cornerTitleOf(line);
+      if (!title) return;
+      const color = (line.fixedKind ? '#8a8f99' : RURURU_CORNER_COLORS[line.corner]) || 'var(--c-rururu)';
+      const bar = document.createElement('div');
+      bar.className = 'rr-corner';
+      bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin:18px 0 10px;opacity:0;transition:opacity .5s ease;';
+      bar.innerHTML =
+        '<span style="flex:1;height:1px;background:linear-gradient(90deg,transparent,' + color + ');"></span>' +
+        '<span class="mono" style="font-size:10px;letter-spacing:.12em;font-weight:700;color:' + color + ';white-space:nowrap;"></span>' +
+        '<span style="flex:1;height:1px;background:linear-gradient(270deg,transparent,' + color + ');"></span>';
+      bar.children[1].textContent = '▶ ' + title;           // 文字は textContent で入れる（HTMLとして解釈させない）
+      convWrap.appendChild(bar);
+      requestAnimationFrame(() => { bar.style.opacity = '1'; });
+    }
+
     // ===== ラジオのCMの直後に出す、PR表示つきのリンク =====
     // CMは音声だけで、聴いても押せる場所がないため、CMの最後のセリフの下に、小さなリンクを出す。
     // 広告であることが分かるよう「PR」を添え、有料の紹介リンクであることを示す rel="sponsored" を付ける。
@@ -5829,6 +5876,7 @@
 
     // 吹き出しを1つ作って画面に出す（中身の文字はまだ空）
     function createBubble(line){
+      appendCornerBanner(line); // コーナーの始まりなら、見出しの帯を、吹き出しより前に出す
       const meta = bubbleMeta[line.speaker] || bubbleMeta.rururu;
       const isLeft = isLeftSpeaker(line.speaker);
       const row = document.createElement('div');
