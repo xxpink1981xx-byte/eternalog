@@ -1286,11 +1286,12 @@
         <div class="flabel mono">LATEST LOG</div>
         <div class="ftext">燈×ニャモの雑談</div>
       </div>
-      <div class="fcard day" onclick="stub('今日は何の日')">
+      <!-- 2026年10月：TODAY（今日は何の日）は、ラジオの冒頭の雑談の題材に統合したため、ラジオのカードに差し替えた -->
+      <div class="fcard day" onclick="stub('RURURU')">
         <span class="hud-mini"></span>
-        <div class="thumb"><img src="archive-today.jpg" alt="TODAY" onerror="this.style.display='none'"></div>
-        <div class="flabel mono">TODAY</div>
-        <div class="ftext">今日は何の日</div>
+        <div class="thumb"><img src="eternaradio-booth.jpg" alt="ETERNARADIO" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">ETERNARADIO</div>
+        <div class="ftext">ルルルさまの暇つぶし</div>
       </div>
       <div class="fcard snd" onclick="stub('SOUND')">
         <span class="hud-mini"></span>
@@ -1305,11 +1306,11 @@
         <div class="flabel mono">LATEST LOG</div>
         <div class="ftext">燈×ニャモの雑談</div>
       </div>
-      <div class="fcard day" onclick="stub('今日は何の日')" aria-hidden="true">
+      <div class="fcard day" onclick="stub('RURURU')" aria-hidden="true">
         <span class="hud-mini"></span>
-        <div class="thumb"><img src="archive-today.jpg" alt="" onerror="this.style.display='none'"></div>
-        <div class="flabel mono">TODAY</div>
-        <div class="ftext">今日は何の日</div>
+        <div class="thumb"><img src="eternaradio-booth.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">ETERNARADIO</div>
+        <div class="ftext">ルルルさまの暇つぶし</div>
       </div>
       <div class="fcard snd" onclick="stub('SOUND')" aria-hidden="true">
         <span class="hud-mini"></span>
@@ -1377,7 +1378,6 @@
   <a class="ditem" href="/archive/logs/" onclick="closeDrawer(); stub('LOGS'); return false;"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></a>
   <a class="ditem" href="/archive/radio/" onclick="closeDrawer(); stub('RURURU'); return false;"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></a>
   <a class="ditem" href="/archive/essay/" onclick="closeDrawer(); stub('ESSAY'); return false;"><span class="di">✒</span><span class="en">ESSAY</span><span class="ja">燈の週刊エッセイ</span></a>
-  <div class="ditem" onclick="closeDrawer(); stub('今日は何の日');"><span class="di">◇</span><span class="en">TODAY</span><span class="ja">今日は何の日</span></div>
   <a class="ditem" href="/archive/shatlab/" onclick="closeDrawer(); stub('SHATLAB'); return false;"><span class="di">🔧</span><span class="en">SHAT LAB</span><span class="ja">シャトの開発室</span></a>
   <div class="ditem" onclick="closeDrawer(); stub('MEETING');"><span class="di">🪑</span><span class="en">MEETING</span><span class="ja">会議室</span></div>
 
@@ -2714,9 +2714,9 @@
       race: '女神', age: '不詳', birthday: '7月17日',
       mbti: 'INFJ（提唱者）',
       mbtiQuote: '観測者としての視点は、燈にとっては生まれつきのものなのかもしれない。',
-      like: '人間の営みを眺めること・あたたかい飲み物',
+      like: '植物を育てて眺めること・フルーツジュース（冬はあたたかい飲み物）・人間の営みを眺めること',
       dislike: '争いごと・誰かが泣くこと',
-      origin: '天界で左遷され、緩い天界「ユールリ」に暮らしながらEternaLogに降臨している。天界の仰々しい衣装は着心地が悪いという理由で、人間界で見つけた赤いジャージを普段着にしている。ニャモに力を与えて以来弱体化しており、虹色の髪留めを手首に装着すると全盛期の力が約7分だけ戻る。'
+      origin: '死者たちの魂から生まれた女神。ニャモに力を分け与えてから力が弱まり、緩い天界「ユールリ」に左遷され、そこで暮らしながらEternaLogに降臨している。昔のことは、ほとんど覚えていない。天界の仰々しい衣装は着心地が悪いという理由で、人間界で見つけた赤いジャージを普段着にしている。旅の途中で友人のシャトが作ってくれた虹色の髪留めを手首に着けると、全盛期の力が約7分だけ戻る。'
     },
     {
       id: 'nyamo', name: 'ニャーヤ＝モルフィア', alias: '通称：ニャモ', nameEn: 'NYAMO', color: 'var(--c-nyamo)', icon: 'char-nyamo.png',
@@ -2727,7 +2727,7 @@
       mbtiQuote: 'オレは言葉より、行動で示す方が信じられるニャ。',
       like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
       dislike: '燈が無茶をすること',
-      origin: '元々はキメラだが、天界で長年の平和な時間を過ごすうちに燈同様に見た目が変化し、今は普通の猫のような姿になっている。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
+      origin: '天界の禁術の実験に、偶然紛れ込んだ野良猫から生まれたキメラ。実験場から逃げ出し、力尽きて倒れていたところを燈に救われた。燈に力を分け与えられて生き延び、長い時間をかけて力が落ち着くにつれ、今の白猫のような姿になった。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
     },
     {
       id: 'yomi', name: '観月ヨミ', nameEn: 'YOMI', color: 'var(--c-yomi)', icon: 'char-yomi.png',
@@ -2736,9 +2736,9 @@
       race: '人間', age: '秘密', birthday: '9月30日',
       mbti: 'INTJ（建築家）',
       mbtiQuote: '運命だろうが人だろうが、見えたもんを曲げずに言う。それだけさ。',
-      like: '月夜・静かな夜更け',
+      like: '月夜・月光浴・静かな夜更け',
       dislike: 'インチキ占い師・騒がしい場所',
-      origin: '物心ついた頃には盗賊団にいた占い師。盗品の中から見つけた水晶玉に心を惹かれ、占術の道へ進んだ。EternaLogでは本格鑑定を担当している。'
+      origin: '物心ついた頃には盗賊団にいた占い師。盗品の中から見つけた水晶玉に心を惹かれ、占術の道へ進んだ。同じく盗品の月のピアスを着けてから、年の取り方がとても遅いらしい。実年齢は、本人も数えるのをやめた。EternaLogでは本格鑑定を担当している。'
     },
     {
       id: 'rururu', name: 'ルルル', nameEn: 'RURURU', color: 'var(--c-rururu)', icon: 'char-rururu.png',
@@ -2747,9 +2747,9 @@
       race: '魔族', age: '不詳', birthday: '6月6日',
       mbti: 'ENTJ（指揮官）',
       mbtiQuote: '人間界のことなど、一目見ればわらわには分かるのじゃ。',
-      like: '紅茶・退屈しのぎ・見下ろすこと・ニャモ',
+      like: '紅茶・読書・退屈しのぎ・見下ろすこと・ニャモ',
       dislike: '暇・へりくだること・平凡なトレンド',
-      origin: '魔界を統べる姫。今は統治すべきこともなく、退屈な日々を過ごしている。燈とは戦禍の時代を共に駆けた戦友で、今も遠慮のない間柄。'
+      origin: '魔界を統べる姫。魔界の統治は家臣のベニュに任せきりで、画面越しに人間界を眺めては退屈をしのいでいる。本は多読だが、気分ですぐ飽きる。燈とは、かつての戦禍の時代に共に戦った戦友で、今も遠慮のない間柄。'
     },
     {
       id: 'shat', name: 'シャト', nameEn: 'SHAT', color: 'var(--c-shat)', icon: 'char-shat.png',
@@ -2760,7 +2760,7 @@
       mbtiQuote: '関係ないもの同士をくっつけると、案外面白いことが起きるんだな。',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
-      origin: '記録と星を司る女神セシャトの末裔。誰も知らない秘境のオアシス「ワーハ」で、衛星Wifiを使い人間界を観測している。ネットで見つけた着想をもとに、EternaLog内でアプリを発案・制作している。'
+      origin: '記録と星を司る女神セシャトの末裔。各地に時折入口が開く、独立した空間「ワーハ」に暮らし、入口が開いたときに届く電波（衛星Wifi）で人間界を観測している。燈とは、燈の旅の途中にワーハで出会った友人で、燈の虹色の髪留めを作ったのもシャト。家事はこまめにするのに、いつもうまくいかない。EternaLog内でアプリを発案・制作している。'
     }
   ];
 
@@ -3974,7 +3974,7 @@
         (yomiLoadLastReading()
           ? '<button class="reader-close-bottom mono" style="border-color:var(--line);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="showYomiLastReading()">前回の鑑定結果を見る</button>'
           : '') +
-        '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 8px;">※鑑定結果には、あとで見返せる専用リンクが付きます（30日間有効）。お支払い後、鑑定を受け取る前にページを閉じてしまった場合は、同じ端末・同じブラウザであれば続きから再開できます。</div>' +
+        '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 8px;">※鑑定結果には、あとで見返せる専用リンクが付きます（7日間有効）。7日を過ぎると見られなくなるため、手元に残したい方はスクリーンショットなどで保存してください。お支払い後、鑑定を受け取る前にページを閉じてしまった場合は、同じ端末・同じブラウザであれば続きから再開できます。</div>' +
         '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">← 燈のもとへ戻る</div>';
     }
   }
@@ -4162,7 +4162,12 @@
         '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">決済ページへ移動しています…</div>';
     }
     try {
-      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/create-checkout', { method: 'POST' });
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // 支払い後に、今いるページ（本番のトップ／テスト購入用のページ）へ戻ってくるため
+        body: JSON.stringify({ returnPath: window.location.pathname === '/yomi-test.html' ? '/yomi-test.html' : '/' }),
+      });
       const data = await res.json();
       if (data && data.url) {
         // 決済画面へ飛ぶ前に、この決済の番号を記録する（戻りでURLの情報が失われても確かめられるように）
@@ -4205,32 +4210,46 @@
     const panel = ensureYomiControlPanel();
     panel.innerHTML =
       '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:10px;">// BIRTH DATA INPUT</div>' +
+      // 呼び名（任意）。2026年10月追加。本名ではなくニックネームを勧める（万一の漏洩時の影響を小さくするため）
+      '<div style="margin-bottom:10px;">' +
+        '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">ヨミに呼んでほしい名前（任意・ニックネームで。本名は入れないでおくれ）</label>' +
+        '<input type="text" id="yomiInputNickname" maxlength="12" autocomplete="off" placeholder="例：ねこ好き" style="' + YOMI_INPUT_STYLE + '">' +
+      '</div>' +
       '<div style="margin-bottom:10px;">' +
         '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">生年月日</label>' +
         '<input type="date" id="yomiInputDate" min="1900-01-01" style="' + YOMI_INPUT_STYLE + '">' +
       '</div>' +
       '<div style="margin-bottom:10px;">' +
         '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生時刻（分からない場合は空欄でよい）</label>' +
-        '<input type="time" id="yomiInputTime" style="' + YOMI_INPUT_STYLE + '">' +
+        '<input type="time" id="yomiInputTime" oninput="yomiTogglePlaceField()" onchange="yomiTogglePlaceField()" style="' + YOMI_INPUT_STYLE + '">' +
       '</div>' +
-      '<div style="margin-bottom:6px;">' +
+      // 出生地は、出生時刻と組み合わせた時だけ使う（アセンダント・ハウス）。時刻を入れた人にだけ聞く
+      '<div id="yomiPlaceWrap" style="margin-bottom:6px;display:none;">' +
         '<label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生地</label>' +
         '<select id="yomiInputPlace" style="' + YOMI_INPUT_STYLE + '">' +
           YOMI_PLACES.map(([k, n]) => '<option value="' + k + '"' + (k === 'tokyo' ? ' selected' : '') + '>' + n + '</option>').join('') +
         '</select>' +
       '</div>' +
-      '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 12px;">出生時刻・出生地が分からない場合は、それに左右される部分（アセンダントなど）を使わずに鑑定します。一度鑑定すると、同じお支払いで別の生年月日に変えることはできません。</div>' +
+      '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 12px;">出生地は、出生時刻を入れた場合だけ聞きます。出生時刻・出生地が分からない場合は、それに左右される部分（アセンダントなど）を使わずに鑑定します。一度鑑定すると、同じお支払いで別の生年月日に変えることはできません。</div>' +
       '<div id="yomiInputError" style="font-size:11px;color:#e25555;min-height:1em;margin-bottom:6px;"></div>' +
       '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiSubmitBirthData()">この内容で占ってもらう</button>';
   }
 
+  // 出生時刻が入っている時だけ、出生地の欄を出す
+  function yomiTogglePlaceField(){
+    const t = (document.getElementById('yomiInputTime') || {}).value || '';
+    const wrap = document.getElementById('yomiPlaceWrap');
+    if (wrap) wrap.style.display = t ? '' : 'none';
+  }
   function yomiSubmitBirthData(){
     const date = (document.getElementById('yomiInputDate') || {}).value || '';
     const time = (document.getElementById('yomiInputTime') || {}).value || '';
-    const place = (document.getElementById('yomiInputPlace') || {}).value || 'unknown';
+    // 時刻がなければ、出生地は送らない（預かる情報を最小限にする）
+    const place = time ? ((document.getElementById('yomiInputPlace') || {}).value || 'unknown') : 'unknown';
+    const nickname = ((document.getElementById('yomiInputNickname') || {}).value || '').trim().slice(0, 12);
     const errEl = document.getElementById('yomiInputError');
     if (!date) { if (errEl) errEl.textContent = '生年月日を入れておくれ。'; return; }
-    yomiFlowStep3({ date, time, place });
+    yomiFlowStep3({ date, time, place, nickname });
   }
 
   // 鑑定結果をサーバーから受け取る（本当に支払われた決済にだけ、サーバー側で作られる）
@@ -4241,7 +4260,7 @@
       const res = await fetch(EARTH_SIGNAL_URL + 'yomi/reading', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: pending.sessionId, date: input.date, time: input.time, place: input.place }),
+        body: JSON.stringify({ session_id: pending.sessionId, date: input.date, time: input.time, place: input.place, nickname: input.nickname || '' }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.reading) return { reading: data.reading };
@@ -4549,7 +4568,8 @@
 
       (link ?
         '<section class="yr-card yr-link">' +
-          '<p class="yr-link-lead">' + yrIcon('lock', 14) + 'この鑑定は、専用リンクからいつでも見返せます（30日間）</p>' +
+          '<p class="yr-link-lead">' + yrIcon('lock', 14) + 'この鑑定は、専用リンクから見返せます（7日間）</p>' +
+          '<p class="yr-link-lead" style="font-size:11px;opacity:.85;">7日を過ぎると見られなくなります。手元に残したい場合は、スクリーンショットで保存しておくのがおすすめです。</p>' +
           '<button class="yr-copy" type="button" onclick="yomiCopyReadingLink(this, \'' + link + '\')">' + yrIcon('copy', 15) + '<span>リンクをコピー</span></button>' +
           '<p class="yr-note">このリンクを知っている人は鑑定結果を見られます。他の人には教えないでください。</p>' +
         '</section>' : '') +
@@ -4640,7 +4660,7 @@
           document.getElementById('readerTag').textContent = '// YOMI';
           document.getElementById('readerSub').textContent = '本格鑑定';
           const bodyEl = document.getElementById('readerBody');
-          bodyEl.innerHTML = '<div style="font-size:12.5px;line-height:1.8;padding:8px 0;">この鑑定結果は見つかりませんでした。保存期間（30日）を過ぎたか、リンクが正しくない可能性があります。お困りの場合は <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> ください。</div>';
+          bodyEl.innerHTML = '<div style="font-size:12.5px;line-height:1.8;padding:8px 0;">この鑑定結果は見つかりませんでした。保存期間（7日）を過ぎたか、リンクが正しくない可能性があります。お困りの場合は <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> ください。</div>';
           appendCloseButton(bodyEl);
         }
       };
@@ -4740,7 +4760,7 @@
     },
     'PRIVACY': {
       tag: '// PRIVACY', sub: 'プライバシーポリシー',
-      text: '当サイト(EternaLog)における、アクセス情報の取り扱いについて説明します。\n\n【アクセス解析について】\n当サイトは、Cloudflare Analyticsを利用しています。これはCookieを使用せず、個人を特定しない形で、アクセス数やページの閲覧状況などの集計情報のみを取得するものです。\n\nまた、当サイトはGoogle LLCが提供するアクセス解析ツール「Googleアナリティクス」を利用しています。Googleアナリティクスは、トラフィックデータの収集のためにCookieを使用しています。このデータは匿名で収集されており、個人を特定するものではありません。この機能は、ブラウザの設定でCookieを無効にすることで収集を拒否できます。また、Googleアナリティクス オプトアウト アドオン（https://tools.google.com/dlpage/gaoptout?hl=ja）を利用して無効にすることもできます。詳しくは、Googleのポリシーと規約（https://policies.google.com/technologies/partner-sites?hl=ja）をご確認ください。\n\n【広告について】\n当サイトは、第三者配信事業者(Googleを含む)による広告を掲載しています。これらの第三者配信事業者は、Cookieを使用して、ユーザーが当サイトや他のサイトにアクセスした際の情報に基づいて広告を配信することがあります。\n\nGoogleが使用するCookieにより、Googleおよびそのパートナーは、当サイトや他のインターネット上のサイトへのアクセス情報に基づいて広告を配信します。ユーザーは、<a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">Googleの広告設定ページ</a>でパーソナライズ広告を無効にできるほか、<a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">www.aboutads.info</a>にアクセスすることで、第三者配信事業者によるCookieを使用したパーソナライズ広告の配信を無効にすることも可能です。\n\n【占い（ヨミの本格鑑定）でお預かりする情報について】\n本格鑑定では、生年月日・出生時刻・出生地をご入力いただきます。これらは鑑定の計算と鑑定文の作成のためだけに使用し、他の目的には使用しません。計算には運営者が開発した天体計算エンジン「LogiGrain」を、鑑定文の作成にはGoogleのAIサービス（Gemini API）を利用するため、これらのサービスに入力内容や計算結果を送信します。作成した鑑定結果（生年月日・出生地の表記を含みます）は、お支払いの確認と結果の再表示のため当サイトのサーバーに30日間保存し、その後自動的に削除します。また、同じ端末で結果を見返せるよう、お使いのブラウザ内にも鑑定結果を保存します（ブラウザの閲覧データを削除すると消えます）。お支払いは決済サービス「Stripe」を通じて行われ、クレジットカード情報を当サイトが受け取ったり保存したりすることはありません。\n\n【お問い合わせフォームについて】\nお問い合わせの際にご入力いただいたお名前・メールアドレス・お問い合わせ内容は、お問い合わせへの回答のためにのみ使用し、それ以外の目的での利用や、第三者への提供は行いません。\n\n【免責事項】\n当サイトのコンテンツは、AIによって生成された文章を含みます。内容の正確性については万全を期していますが、利用によって生じたいかなる損害についても、当サイトは責任を負いかねます。\n\n【お問い合わせ】\n本ポリシーに関するご質問は、CONTACTページよりご連絡ください。\n\n制定日:2026年7月17日(2026年7月28日、2026年9月21日改定)'
+      text: '当サイト(EternaLog)における、アクセス情報の取り扱いについて説明します。\n\n【アクセス解析について】\n当サイトは、Cloudflare Analyticsを利用しています。これはCookieを使用せず、個人を特定しない形で、アクセス数やページの閲覧状況などの集計情報のみを取得するものです。\n\nまた、当サイトはGoogle LLCが提供するアクセス解析ツール「Googleアナリティクス」を利用しています。Googleアナリティクスは、トラフィックデータの収集のためにCookieを使用しています。このデータは匿名で収集されており、個人を特定するものではありません。この機能は、ブラウザの設定でCookieを無効にすることで収集を拒否できます。また、Googleアナリティクス オプトアウト アドオン（https://tools.google.com/dlpage/gaoptout?hl=ja）を利用して無効にすることもできます。詳しくは、Googleのポリシーと規約（https://policies.google.com/technologies/partner-sites?hl=ja）をご確認ください。\n\n【広告について】\n当サイトは、第三者配信事業者(Googleを含む)による広告を掲載しています。これらの第三者配信事業者は、Cookieを使用して、ユーザーが当サイトや他のサイトにアクセスした際の情報に基づいて広告を配信することがあります。\n\nGoogleが使用するCookieにより、Googleおよびそのパートナーは、当サイトや他のインターネット上のサイトへのアクセス情報に基づいて広告を配信します。ユーザーは、<a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">Googleの広告設定ページ</a>でパーソナライズ広告を無効にできるほか、<a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">www.aboutads.info</a>にアクセスすることで、第三者配信事業者によるCookieを使用したパーソナライズ広告の配信を無効にすることも可能です。\n\n【占い（ヨミの本格鑑定）でお預かりする情報について】\n本格鑑定では、生年月日・出生時刻・出生地をご入力いただきます。これらは鑑定の計算と鑑定文の作成のためだけに使用し、他の目的には使用しません。計算には運営者が開発した天体計算エンジン「LogiGrain」を、鑑定文の作成にはGoogleのAIサービス（Gemini API）を利用するため、これらのサービスに入力内容や計算結果を送信します。作成した鑑定結果（生年月日・出生地の表記を含みます）は、お支払いの確認と結果の再表示のため当サイトのサーバーに7日間保存し、その後自動的に削除します。また、同じ端末で結果を見返せるよう、お使いのブラウザ内にも鑑定結果を保存します（ブラウザの閲覧データを削除すると消えます）。お支払いは決済サービス「Stripe」を通じて行われ、クレジットカード情報を当サイトが受け取ったり保存したりすることはありません。\n\n【お問い合わせフォームについて】\nお問い合わせの際にご入力いただいたお名前・メールアドレス・お問い合わせ内容は、お問い合わせへの回答のためにのみ使用し、それ以外の目的での利用や、第三者への提供は行いません。\n\n【免責事項】\n当サイトのコンテンツは、AIによって生成された文章を含みます。内容の正確性については万全を期していますが、利用によって生じたいかなる損害についても、当サイトは責任を負いかねます。\n\n【お問い合わせ】\n本ポリシーに関するご質問は、CONTACTページよりご連絡ください。\n\n制定日:2026年7月17日(2026年7月28日、2026年9月21日、2026年10月9日改定)'
     },
     'OPERATOR': {
       tag: '// OPERATOR', sub: '運営者情報',
@@ -5808,11 +5828,10 @@
     // サーバー側（worker.js の RADIO_CORNER_TITLES）と、同じ名前にそろえること。
     // 小ネタ・CMは、サーバーが先頭の行に付けた cornerTitle を使う。印のない古い回のCMは、corner:'cm' から「CM」にする。
     const RURURU_CORNER_TITLES = {
-      letter: 'お便りコーナー ①',
-      letter2: 'お便りコーナー ②',
+      letter: 'お便りコーナー',
+      letter2: 'スピード裁定',
       song_intro: '今日の一曲',
       fortune: 'ヨミの運勢ランキング',
-      recap: '今夜のおさらい',
       cm: 'CM',
     };
     const RURURU_CORNER_COLORS = {
@@ -6110,7 +6129,7 @@
       // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
       // お便り・占い・今日の一曲、各コーナーの区切り目。目印がない古い回は、
       // 「お便り」という言葉から1か所だけ推定する（推定した区切りにも、通常通り演出を入れる）。
-      const markerCorners = ['letter', 'letter2', 'fortune', 'song_intro', 'song_end', 'cm'];
+      const markerCorners = ['letter', 'letter2', 'fortune', 'song_intro', 'song_end', 'cm', 'daily']; // daily：日替わりコーナー（2026年10月）
       let corners = lines.map((l, i) => ({ i, type: l.corner })).filter((c) => markerCorners.includes(c.type));
       if (!corners.length) {
         const guess = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
