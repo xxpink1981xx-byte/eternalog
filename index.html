@@ -83,8 +83,17 @@
       "name": "観月ヨミ",
       "alternateName": "Yomi",
       "additionalType": "https://www.wikidata.org/wiki/Q95074",
-      "description": "EternaLogに登場する架空のAIキャラクター。占い師。西洋占星術に基づく本格鑑定を担当する。",
-      "url": "https://eternalog.net/"
+      "description": "EternaLogに登場する架空のAIキャラクター。AI占い師。西洋占星術・四柱推命・九星気学を実際の天体計算で読み解く本格鑑定（1回100円）と、無料の週間12星座ランキングを担当する。",
+      "url": "https://eternalog.net/yomi"
+    },
+    {
+      "@type": "Service",
+      "@id": "https://eternalog.net/yomi#service",
+      "name": "AI占い師ヨミの本格鑑定",
+      "serviceType": "AI占い（西洋占星術・四柱推命・九星気学）",
+      "url": "https://eternalog.net/yomi",
+      "provider": { "@type": "Organization", "name": "EternaLog（エテルナログ）", "url": "https://eternalog.net/" },
+      "offers": { "@type": "Offer", "price": "100", "priceCurrency": "JPY" }
     },
     {
       "@type": "Person",
@@ -1333,11 +1342,11 @@
       <li><a href="/archive/essay/">燈の週刊エッセイ</a> ─ 燈が毎週綴る、人の営みを見つめた読み物</li>
       <li><a href="/archive/shatlab/">シャトの開発室</a> ─ 4日間かけて小さなアプリを作る開発日誌と、その作品</li>
     </ul>
-    <p class="site-about-note">キャラクターの発言や記事はAIによって自動生成されています。詳しくは <a href="/about">エテルナログとは</a> ・ <a href="/operator">運営者情報</a> をご覧ください。</p>
+    <p class="site-about-note">キャラクターの発言や記事はAIによって自動生成されています。詳しくは <a href="/about">エテルナログとは</a> ・ <a href="/operator">運営者情報</a> をご覧ください。AI占い師・観月ヨミの本格鑑定については <a href="/yomi">ヨミの本格鑑定（AI占い）</a> へ。</p>
   </section>
 
   <footer>
-    <nav class="foot-links mono" style="flex-wrap:wrap;gap:8px 14px;"><a href="/archive/" style="color:inherit;text-decoration:none;">ARCHIVE</a><a href="/about" style="color:inherit;text-decoration:none;">ABOUT</a><a href="/operator" style="color:inherit;text-decoration:none;">OPERATOR</a><a href="/privacy" style="color:inherit;text-decoration:none;">PRIVACY</a><a href="/contact" style="color:inherit;text-decoration:none;">CONTACT</a></nav>
+    <nav class="foot-links mono" style="flex-wrap:wrap;gap:8px 14px;"><a href="/archive/" style="color:inherit;text-decoration:none;">ARCHIVE</a><a href="/about" style="color:inherit;text-decoration:none;">ABOUT</a><a href="/yomi" style="color:inherit;text-decoration:none;">AI占い</a><a href="/operator" style="color:inherit;text-decoration:none;">OPERATOR</a><a href="/privacy" style="color:inherit;text-decoration:none;">PRIVACY</a><a href="/contact" style="color:inherit;text-decoration:none;">CONTACT</a></nav>
     <div class="foot-links mono"><a href="https://note.com/note_sagami" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">note // 運営者さがみの記録</a></div>
     <div class="ai-disclaimer mono">本サイトのキャラクターの発言・コラム等はAIによって自動生成されており、誤りや不正確な内容を含む場合があります。</div>
     <div class="foot-note mono">© 2026 EternaLog // 運営：さがみ</div>
@@ -2661,7 +2670,7 @@
     conversation: [
       { speaker: 'rururu', text: 'ネザーエフエム、666.6メガヘルツ。ETERNARADIO、ルルルさまの暇つぶしの時間じゃ。' },
       { speaker: 'nyamo', text: 'いきなり本格的に始まったニャ🐾 何の準備もしてないんだけどニャ。' },
-      { speaker: 'rururu', text: 'よいか、下々の者ども。この度わらわは、暇つぶしのためにラジオ番組のパーソナリティなるものを務めてやることにした。ありがたく思え。' },
+      { speaker: 'rururu', text: 'よいか、者ども。この度わらわは、暇つぶしのためにラジオ番組のパーソナリティなるものを務めてやることにした。ありがたく思え。' },
       { speaker: 'nyamo', text: '偉そうだニャ😼 その周波数は何なんだニャ。' },
       { speaker: 'rururu', text: '魔界から電波を飛ばしておるのじゃ。細かいことは気にするな。' },
       { speaker: 'rururu', text: '当然じゃ。魔界を統べる姫が、わざわざ声を届けてやるのじゃぞ。' },
@@ -2680,6 +2689,14 @@
       { speaker: 'nyamo', text: 'オレの意思は聞かないんだニャ🐾' },
       { speaker: 'rururu', text: '聞いてどうする。どうせ暇なのだろう。……というわけじゃ。以後、よろしく頼むぞ。' },
       { speaker: 'nyamo', text: '雑にまとめたニャ🐾' },
+      { speaker: 'nyamo', text: 'ところで、番組の中身はもう決まってるのかニャ' },
+      { speaker: 'rururu', text: '決まっておらぬ。暇つぶしに始めたのじゃ、形などやりながら決めればよい' },
+      { speaker: 'nyamo', text: '手探りにもほどがあるニャ😼' },
+      { speaker: 'rururu', text: 'ふん、しばらくは試し打ちじゃ。者どもも、多少の不出来には目をつぶるがよい' },
+      { speaker: 'nyamo', text: '自分で不出来って言っちゃったニャ' },
+      { speaker: 'rururu', text: '……形が定まった暁には、新章として、改めて堂々と幕を開けてやる。それまで待っておれ' },
+      { speaker: 'nyamo', text: 'ちゃんと続ける気はあるんだニャ🐾' },
+      { speaker: 'rururu', text: '当然じゃ。わらわの退屈は、そう簡単には尽きぬ' },
       { speaker: 'rururu', text: '今宵はここまでじゃ。次も良き暇つぶしを送ってくるがよいぞ。' },
       { speaker: 'nyamo', text: 'またニャ〜🐾' }
     ]
@@ -2687,6 +2704,11 @@
 
   let rururuDataCache = [];
   let rururuFetched = false;
+  // 回の番号の見せ方。新章（2026年10月20日〜の作り直し後）の回は「新章 第N回」、それより前は「第N回」
+  function rururuEpisodeLabel(col){
+    if (col && col.chapter === 2 && col.chapterNo) return '新章 第' + col.chapterNo + '回';
+    return '第' + parseInt(col.id, 10) + '回';
+  }
 
   // rururuDataCacheの先頭に必ずRURURU_000（殿堂入り）が含まれるようにする
   function ensureRururuZero(){
@@ -4641,6 +4663,21 @@
     yomiOpenReadingPanel(reading, { sub: '本格鑑定の結果', link: true, keepYomi: inYomi });
   }
 
+  // 紹介ページ（/yomi）からの入口：?yomi=start で本格鑑定、?yomi=ranking で週間ランキングを開く
+  (function openYomiFromLandingLink(){
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('yomi');
+    if (mode !== 'start' && mode !== 'ranking') return;
+    if (params.get('yomi_session_id') || params.get('yomi_reading')) return;
+    history.replaceState({}, '', window.location.origin + window.location.pathname);
+    const go = () => setTimeout(() => {
+      if (mode === 'start' && YOMI_PAID_ENABLED) startYomiFullDivination();
+      else openReaderPanel('YOMI');
+    }, 800);
+    if (document.readyState === 'complete') go();
+    else window.addEventListener('load', go, { once: true });
+  })();
+
   // 専用リンク（?yomi_reading=...）から開かれた時は、その鑑定を表示する
   (async function openYomiReadingFromLink(){
     const token = new URLSearchParams(window.location.search).get('yomi_reading');
@@ -5221,11 +5258,13 @@
   }
   // 喋り始めたら下げる
   function rururuDuckBgm(){
+    if (rururuBgm.hold) return; // CMの間は、番組のBGMを止めたままにする
     clearTimeout(rururuBgm.raiseTimer);
     rururuBgmTo(RURURU_BGM_VOLUME_TALK, 0.4);
   }
   // 喋りが途切れたら、少し待ってから上げる（すぐ次が始まる時に音量が上下して落ち着かなくなるのを防ぐ）
   function rururuUnduckBgmSoon(){
+    if (rururuBgm.hold) return;
     clearTimeout(rururuBgm.raiseTimer);
     rururuBgm.raiseTimer = setTimeout(() => rururuBgmTo(RURURU_BGM_VOLUME_IDLE, 1.0), 700);
   }
@@ -5490,6 +5529,89 @@
     if (token === rururuPlayToken) rururuBgmTo(RURURU_BGM_VOLUME_IDLE, fade);
   }
 
+  // ===== CMの前後の演出（2026年10月20日） =====
+  // 「CMだニャ」の一言のあと：番組のBGMを止める → 2秒の無音 → CM用のBGMと一緒にCMが始まる。
+  // CMの締め（アマゾンオーディブル！）のあと：CM用のBGMを止める → 2秒の無音 → 番組冒頭の英語のステーションコール → 番組のBGMが戻って本編へ。
+  const RURURU_CM_GAP_SEC = 2;          // CMの前後の無音
+  const RURURU_CM_BGM_VOLUME = 0.16;    // CM用BGMの音量（声の下に敷く）
+  let rururuCmBgmBuffer = null;
+  const rururuCmBgm = { src: null, gain: null };
+  function rururuLoadCmBgm(ctx){
+    if (rururuCmBgmBuffer) return Promise.resolve(rururuCmBgmBuffer);
+    return rururuLoadBuffer(ctx, EARTH_SIGNAL_URL + 'radio/cm-bgm').then((b) => (rururuCmBgmBuffer = b))
+      .catch((e) => { console.warn('[EternaLog] cm bgm load failed:', e); return null; });
+  }
+  function rururuLoadStationId(ctx){
+    if (rururuStationIdBuffer) return Promise.resolve(rururuStationIdBuffer);
+    return rururuLoadBuffer(ctx, EARTH_SIGNAL_URL + 'tts/station-id').then((b) => (rururuStationIdBuffer = b))
+      .catch((e) => { console.warn('[EternaLog] station id load failed:', e); return null; });
+  }
+  // ステーションコールの声に、冒頭と同じエコーをかけて鳴らす
+  function rururuPlayEchoVoice(ctx, voice, at){
+    const src = ctx.createBufferSource(); src.buffer = voice;
+    const dry = ctx.createGain(); dry.gain.value = 1.0;
+    const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.26;
+    const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 2600;
+    const feedback = ctx.createGain(); feedback.gain.value = 0.3;
+    const wet = ctx.createGain(); wet.gain.value = 0.32;
+    src.connect(dry); dry.connect(ctx.destination);
+    src.connect(delay); delay.connect(tone); tone.connect(feedback); feedback.connect(delay);
+    tone.connect(wet); wet.connect(ctx.destination);
+    src.start(at);
+    rururuIntroSources.push(src);
+    setTimeout(() => { try { wet.disconnect(); feedback.disconnect(); } catch (e) {} }, (at + voice.duration - ctx.currentTime + 4) * 1000);
+  }
+  const rururuWait = (sec) => new Promise((r) => setTimeout(r, Math.max(0, sec) * 1000));
+  async function rururuCmIn(token, cmBgmPromise){
+    const ctx = rururuBgm.ctx;
+    if (!ctx || token !== rururuPlayToken) return;
+    rururuBgm.hold = true;
+    clearTimeout(rururuBgm.raiseTimer);
+    rururuBgmTo(0, 0.5);                       // 番組のBGMを止める
+    const buf = await cmBgmPromise;
+    await rururuWait(0.5 + RURURU_CM_GAP_SEC); // 2秒の無音
+    if (token !== rururuPlayToken) return;
+    if (buf) {
+      const t = ctx.currentTime + 0.02;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(RURURU_CM_BGM_VOLUME, t + 0.3);
+      g.connect(ctx.destination);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      src.connect(g); src.start(t);
+      rururuCmBgm.src = src; rururuCmBgm.gain = g;
+      rururuIntroSources.push(src);
+      await rururuWait(0.8);                   // CM用BGMが鳴ってから、CMの声へ
+    }
+  }
+  async function rururuCmOut(token){
+    const ctx = rururuBgm.ctx;
+    if (!ctx) { rururuBgm.hold = false; return; }
+    if (rururuCmBgm.src) {
+      try {
+        const now = ctx.currentTime;
+        rururuCmBgm.gain.gain.cancelScheduledValues(now);
+        rururuCmBgm.gain.gain.setValueAtTime(rururuCmBgm.gain.gain.value, now);
+        rururuCmBgm.gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        rururuCmBgm.src.stop(now + 0.55);
+      } catch (e) {}
+      rururuCmBgm.src = null; rururuCmBgm.gain = null;
+    }
+    const voicePromise = rururuLoadStationId(ctx);
+    await rururuWait(0.5 + RURURU_CM_GAP_SEC); // 2秒の無音
+    if (token !== rururuPlayToken) { rururuBgm.hold = false; return; }
+    const voice = await voicePromise;
+    if (voice && token === rururuPlayToken) {
+      const at = ctx.currentTime + 0.05;
+      rururuPlayEchoVoice(ctx, voice, at);      // 英語のステーションコールから戻る
+      await rururuWait(voice.duration + 0.3);
+    }
+    rururuBgm.hold = false;
+    if (token !== rururuPlayToken) return;
+    rururuBgmTo(RURURU_BGM_VOLUME_IDLE, 1.5);  // 番組のBGMが戻る
+    await rururuWait(1.5);
+  }
+
   // 冒頭の演出を鳴らし、ルルルの第一声に入ってよいタイミングまで待つ。
   // ジングルや一言の読み込みに失敗しても、番組本編は止めない（あるものだけで進める）。
   // 冒頭のジングルを鳴らすか。2026年9月、今のジングルは別々の場所の音を継ぎ合わせたもので、
@@ -5676,10 +5798,10 @@
       card.style.cssText = 'padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-left:3px solid var(--c-rururu);border-radius:0 12px 12px 0;cursor:pointer;opacity:0;transition:opacity .35s ease;';
       card.innerHTML =
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">' +
-          '<span class="mono" style="font-size:9px;letter-spacing:1px;color:var(--c-rururu);font-weight:700;">第' + parseInt(col.id, 10) + '回</span>' +
+          '<span class="mono" style="font-size:9px;letter-spacing:1px;color:var(--c-rururu);font-weight:700;">' + rururuEpisodeLabel(col) + '</span>' +
           '<span class="mono" style="font-size:8px;color:var(--ink-soft);letter-spacing:.5px;">' + col.date + '</span>' +
         '</div>' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">' + escapeHtml(col.title) + '</div>' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">' + escapeHtml(col.chapter === 2 ? '『' + (col.title || '') + '』' : col.title) + '</div>' +
         (col.aphorism
           ? '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.5;">' + escapeHtml(col.aphorism) + '</div>'
           : '<div style="font-size:10px;color:var(--ink-soft);">「' + escapeHtml(col.trend) + '」</div>');
@@ -5705,7 +5827,7 @@
     rururuResetAudioQueue();
     rururuSoundOn = false; // 音声は回ごとにボタンで明示的にONにする（再生の解錠にボタン操作が必要なため）
     document.getElementById('readerTag').textContent = '// RURURU';
-    document.getElementById('readerSub').textContent = '第' + parseInt(col.id, 10) + '回 ・ ' + col.date;
+    document.getElementById('readerSub').textContent = rururuEpisodeLabel(col) + ' ・ ' + col.date;
 
     const bodyEl = document.getElementById('readerBody');
     bodyEl.innerHTML = '';
@@ -6124,6 +6246,7 @@
 
     async function playWithVoice(token){
       const lines = col.conversation;
+      rururuBgm.hold = false; // 前回、CMの途中で止めた場合に備えて戻しておく
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
       // お便りコーナーの始まり（2通制では、1通目 letter・2通目 letter2 の2か所）。
       // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
@@ -6142,13 +6265,23 @@
       const cornerSet = new Set(corners.filter((c) => c.type !== 'song_end').map((c) => c.i));
       const songIntroIdx = lines.findIndex((l) => l.corner === 'song_intro');
       const songEndIdx = lines.findIndex((l) => l.corner === 'song_end');
+      // CM：1行目（「CMだニャ」）のあとで番組のBGMを止めて無音→CM用BGM、CMの最後のあとで無音→ステーションコール→本編
+      const cmIdx = lines.findIndex((l) => l.corner === 'cm');
+      let cmEnd = -1;
+      if (cmIdx >= 0) {
+        cmEnd = cmIdx + 1;
+        while (cmEnd < lines.length && cmEnd < cmIdx + 6 && (lines[cmEnd].fixedKind === 'cm' || !lines[cmIdx].fixedKind)) cmEnd++;
+      }
+      const cmBodyStart = (cmIdx >= 0 && cmEnd > cmIdx + 1) ? cmIdx + 1 : -1;
+      // 塊の区切りに、CMの本体の始まりと終わりも加える（その切れ目で演出を入れるため）
+      const splitIdxs = cornerIdxs.concat(cmBodyStart > 0 ? [cmBodyStart, cmEnd] : []).sort((a, b) => a - b);
       const chunks = [];
       let s = idx;
       const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
       while (s < lines.length) {
         let size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
         // コーナーの始まりをまたがないように区切る（その切れ目でジングルを鳴らすため）
-        const nextCorner = cornerIdxs.find((c) => c > s);
+        const nextCorner = splitIdxs.find((c) => c > s);
         if (nextCorner !== undefined && s + size > nextCorner) size = nextCorner - s;
         // 音声は1回の依頼で2人までしか作れないため、3人目が登場する手前で区切る
         // （占いコーナーの前後で、ルルル・ニャモ・ヨミが入れ替わる所）
@@ -6173,12 +6306,16 @@
       setVoiceStatus('📡 放送を受信中…');
       // 今日の一曲がある回は、前振りが流れている間に裏で曲を取りに行っておく（届くのを待たせないため）
       const songPromise = (songIntroIdx >= 0) ? rururuFetchSong(col.id) : null;
+      // CM用BGMも、先に読み込んでおく
+      const cmBgmPromise = (cmBodyStart > 0 && rururuBgm.ctx) ? rururuLoadCmBgm(rururuBgm.ctx) : Promise.resolve(null);
       for (let k = 0; k < chunks.length; k++) {
         const urlPromise = getUrl(k);
         // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
         for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
         // お便り・占いコーナーに入る所で、短いジングルを挟む（次の音声の取得と同時に進む）
         if (k > 0 && cornerSet.has(chunks[k].start)) await rururuPlaySting(token);
+        // CMの本体に入る所：番組のBGMを止めて2秒の無音、CM用BGMと一緒にCMへ
+        if (cmBodyStart > 0 && chunks[k].start === cmBodyStart) { await rururuCmIn(token, cmBgmPromise); if (token !== rururuPlayToken) return; }
         // それでも待ちが出た時は、止まったのではないと分かるように表示する
         const waitNotice = setTimeout(() => {
           if (token === rururuPlayToken) setVoiceStatus('📡 電波を受信中…');
@@ -6190,6 +6327,8 @@
         if (url) await playChunkSynced(chunks[k], url, token);
         else await typeChunkPlain(chunks[k], token);
         if (token !== rururuPlayToken) return;
+        // CMが終わった所：CM用BGMを止めて2秒の無音、英語のステーションコールから本編へ戻る
+        if (cmBodyStart > 0 && chunks[k].start + chunks[k].lines.length === cmEnd) { await rururuCmOut(token); if (token !== rururuPlayToken) return; }
         // 前振りの直後（次の塊が song_end から始まる）なら、ここで実際の曲を流す
         if (songEndIdx >= 0 && chunks[k + 1] && chunks[k + 1].start === songEndIdx) {
           await rururuPlaySong(songPromise, token, setVoiceStatus);
