@@ -539,6 +539,19 @@
     font-family:'Courier New',monospace; font-size:8px; letter-spacing:.3px;
     color:rgba(150,220,255,.6);
   }
+  /* 今日の問い（NAV_TERMINAL内） */
+  .nt-q-answers{ margin-top:8px; }
+  .nt-q-answer{ margin:6px 0; padding:4px 6px; border-left:2px solid rgba(0,225,255,0.4); background:rgba(0,40,80,0.25); white-space:normal; }
+  .nt-q-answer b{ display:block; font-size:9px; margin-bottom:1px; }
+  .nt-q-vote{ margin-top:10px; padding-top:6px; border-top:1px dashed rgba(0,225,255,0.3); white-space:normal; }
+  .nt-q-vote-head{ font-size:10px; font-weight:700; color:#fff; margin-bottom:5px; }
+  .nt-q-btns{ display:flex; flex-wrap:wrap; gap:4px; }
+  .nt-q-btns button{ background:rgba(0,30,60,0.6); border:1px solid; border-radius:10px; padding:2px 8px; font-size:9px; font-weight:700; cursor:pointer; }
+  .nt-q-bar{ display:flex; align-items:center; gap:4px; font-size:8.5px; margin:2px 0; }
+  .nt-q-bar span{ flex:0 0 3.6em; }
+  .nt-q-bar i{ display:block; height:5px; border-radius:3px; min-width:1px; }
+  .nt-q-bar em{ font-style:normal; opacity:.8; }
+  .nt-q-note{ font-size:8.5px; color:rgba(200,240,255,.75); }
   .nt-article-title{
     font-size:10.5px; font-weight:700; color:#fff; margin-bottom:8px; line-height:1.5;
   }
@@ -817,6 +830,8 @@
   .fcard.log .thumb{ background:linear-gradient(150deg,#e2f6ff,#c3e9ff); }
   .fcard.day .thumb{ background:linear-gradient(150deg,#fff2d9,#ffe1ab); }
   .fcard.sup .thumb{ background:linear-gradient(150deg,#ffe4f0,#ffc7e2); }
+  .fcard.yomi .thumb{ background:linear-gradient(150deg,#2a1d4a,#4b3480); }
+  .fcard.yomi{ border-color:color-mix(in srgb, var(--c-yomi) 45%, var(--line)); }
   .fcard.snd .thumb{ background:linear-gradient(150deg,#ece4ff,#d6c7ff); }
   .fcard .flabel{ font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:.5px;color:var(--ink-soft);font-weight:600;margin-bottom:2px; }
   .fcard .ftext{ font-size:9.5px;color:var(--ink);line-height:1.35; }
@@ -1289,6 +1304,13 @@
   <h2 class="sec-label mono">// ARCHIVE</h2>
   <div class="cardrow-viewport" id="cardrowViewport">
     <div class="cardrow" id="cardrowTrack">
+      <!-- 2026年10月21日：ヨミの占いの入口が奥まっていたため、先頭にカードを追加（4枚×2セットになり、ループ距離の実測も正しく働く） -->
+      <div class="fcard yomi" onclick="openYomiCard()">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-yomi.jpg" alt="観月ヨミのAI占い" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">AI占い</div>
+        <div class="ftext">ヨミの本格鑑定</div>
+      </div>
       <div class="fcard log" onclick="stub('LATEST LOG')">
         <span class="hud-mini"></span>
         <div class="thumb"><img src="archive-latestlog.jpg" alt="LATEST LOG" onerror="this.style.display='none'"></div>
@@ -1309,6 +1331,12 @@
         <div class="ftext">燈の楽曲 RESONANCE</div>
       </div>
       <!-- 無限ループ用に、同じ4枚をもう1セット複製 -->
+      <div class="fcard yomi" onclick="openYomiCard()" aria-hidden="true">
+        <span class="hud-mini"></span>
+        <div class="thumb"><img src="archive-yomi.jpg" alt="" onerror="this.style.display='none'"></div>
+        <div class="flabel mono">AI占い</div>
+        <div class="ftext">ヨミの本格鑑定</div>
+      </div>
       <div class="fcard log" onclick="stub('LATEST LOG')" aria-hidden="true">
         <span class="hud-mini"></span>
         <div class="thumb"><img src="archive-latestlog.jpg" alt="" onerror="this.style.display='none'"></div>
@@ -1383,7 +1411,7 @@
   <div class="ditem" onclick="closeDrawer(); scrollToTop();"><span class="di">◆</span><span class="en">TOP</span><span class="ja">トップ</span></div>
 
   <div class="dsection">// CONTENTS</div>
-  <div class="ditem" onclick="closeDrawer(); stub('SIGNAL');"><span class="di">◇</span><span class="en">SIGNAL</span><span class="ja">受信記録</span></div>
+  <div class="ditem" onclick="closeDrawer(); stub('QUESTION');"><span class="di">◇</span><span class="en">QUESTION</span><span class="ja">今日の問い</span></div>
   <a class="ditem" href="/archive/logs/" onclick="closeDrawer(); stub('LOGS'); return false;"><span class="di">◇</span><span class="en">LOGS</span><span class="ja">雑談ログ</span></a>
   <a class="ditem" href="/archive/radio/" onclick="closeDrawer(); stub('RURURU'); return false;"><span class="di">◈</span><span class="en">RURURU</span><span class="ja">ルルルさまの暇つぶし</span></a>
   <a class="ditem" href="/archive/essay/" onclick="closeDrawer(); stub('ESSAY'); return false;"><span class="di">✒</span><span class="en">ESSAY</span><span class="ja">燈の週刊エッセイ</span></a>
@@ -1597,6 +1625,7 @@
 
     const reactions = {
       'SIGNAL': { cmd: 'tomori@eternalog:~$ open signal', say: 'SIGNAL、オープンします。' },
+      'QUESTION': { cmd: 'tomori@eternalog:~$ open question', say: '今日の問い、オープンします。' },
       'LOGS': { cmd: 'tomori@eternalog:~$ open logs', say: 'LOGS、オープンします。' },
       'CHARACTERS': { cmd: 'tomori@eternalog:~$ open characters', say: 'CHARACTERS、オープンします。' },
       'YOMI': { cmd: 'tomori@eternalog:~$ open yomi', say: 'YOMI、オープンします。' }
@@ -1719,6 +1748,10 @@
     // ===== 今後の実データ連携用（そのまま維持） =====
     window.heroTextboxShowSignal = function(text){
       typeText(text, 'SIGNAL UPDATE', true);
+    };
+    // 今日の問い：出題者のひと言をGUIDE欄に出す
+    window.heroTextboxShowQuestion = function(name, text){
+      typeText(text, name || 'QUESTION', true);
     };
 
     // ===== ヨミモード中、ヨミの語りかけをGUIDE欄と同じ場所に表示する =====
@@ -1943,32 +1976,38 @@
     // 呼び出し元（initIdleVideoSystem）を変更せずに済むよう、何もしない関数として残す。
     window.ntUpdateStatus = function(){};
 
-    let signalItems = [];   // SIGNAL最新5件のフルデータ
-    let signalDateLabel = '-- / --';
-    let expandedIndex = -1; // 現在展開中の見出しのインデックス（-1は未展開）
+    // 2026年10月21日：SIGNALをやめ、「今日の問い」を表示する窓にした
+    let q = null;            // 今日の問い（/question の応答）
+    let expandedIndex = -1;  // 展開中なら0
     let typingTimer = null;
+    const Q_COLORS = { tomori: 'var(--c-tomori)', nyamo: 'var(--c-nyamo)', yomi: 'var(--c-yomi)', rururu: 'var(--c-rururu)', shat: 'var(--c-shat)' };
+    const qVotedKey = (date) => 'eternalog_q_voted_' + date;
+    function qGetVoted(date){ try { return localStorage.getItem(qVotedKey(date)); } catch (e) { return null; } }
+    function qSetVoted(date, id){ try { localStorage.setItem(qVotedKey(date), id); } catch (e) {} }
 
     function truncate(str, max){
       str = String(str || '');
       return str.length > max ? str.slice(0, max - 1) + '…' : str;
     }
+    function esc(t){ return String(t || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-    // ページ読み込み時に一度だけ、SIGNAL最新5件を取得して一覧に並べる
-    async function loadSignalHeadlines(){
+    async function loadDailyQuestion(){
       const listEl = document.getElementById('ntHeadlineList');
       const dateEl = document.getElementById('ntDateRow');
       if (!listEl) return;
       try {
-        const res = await fetch(WORKER_URL, { cache: 'no-store' });
+        const res = await fetch(WORKER_URL + 'question', { cache: 'no-store' });
         if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.items) && data.items.length) {
-            signalItems = data.items;
-            if (data.updatedAt) {
-              const d = new Date(data.updatedAt);
-              signalDateLabel = (d.getMonth() + 1) + '/' + d.getDate() + ' SIGNAL';
-            }
-            renderHeadlineList();
+          q = await res.json();
+          if (q && q.question) {
+            const parts = String(q.date || '').split('.');
+            if (dateEl) dateEl.textContent = (parts.length === 3 ? (parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10)) : '') + ' 今日の問い';
+            listEl.innerHTML = '';
+            const line = document.createElement('div');
+            line.className = 'nt-headline-item';
+            line.innerHTML = '<span class="nt-headline-num mono">Q</span><span>' + esc(truncate(q.question, 30)) + '<br><span style="opacity:.7;font-size:.9em;">出題：' + esc(q.askerName) + '</span></span>';
+            line.addEventListener('click', () => openQuestion());
+            listEl.appendChild(line);
             return;
           }
         }
@@ -1976,65 +2015,82 @@
       listEl.innerHTML = '<div class="nt-headline-loading mono">unavailable</div>';
     }
 
-    function renderHeadlineList(){
-      const listEl = document.getElementById('ntHeadlineList');
-      const dateEl = document.getElementById('ntDateRow');
-      if (dateEl) dateEl.textContent = signalDateLabel;
-      if (!listEl) return;
-      listEl.innerHTML = '';
-      signalItems.forEach((item, idx) => {
-        const line = document.createElement('div');
-        line.className = 'nt-headline-item';
-        line.innerHTML = '<span class="nt-headline-num mono">' + (idx + 1) + '</span><span>' + truncate(item.title, 26) + '</span>';
-        line.addEventListener('click', () => openArticle(idx));
-        listEl.appendChild(line);
-      });
-    }
-
-    // タップで拡大し、その見出しの記事（要約）をタイピング表示する
-    function openArticle(idx){
-      if (expandedIndex === idx) return;
-      const item = signalItems[idx];
-      if (!item) return;
-      expandedIndex = idx;
+    // タップで拡大し、問い → 5人の答え（1人ずつ）→「あなたは誰派？」の順に見せる
+    function openQuestion(){
+      if (expandedIndex === 0 || !q) return;
+      expandedIndex = 0;
       const nav = document.getElementById('navTerminal');
       const articleEl = document.getElementById('ntArticleBody');
       nav.classList.add('nt-expanded');
-
-      // NAV_TERMINAL展開中はPR広告（着信トランスミッション）と表示エリアが重なるため、
-      // 展開している間は広告演出を止める（z-index衝突でボックスが欠けて見える問題の対策）。
       window.eternalogNavTerminalExpanded = true;
       const adEl = document.getElementById('adTransmission');
       if (adEl) adEl.classList.remove('show');
 
-      articleEl.innerHTML = '<div class="nt-article-title"></div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span><div class="nt-article-source"></div>';
-      const titleEl = articleEl.querySelector('.nt-article-title');
+      articleEl.innerHTML = '<div class="nt-article-title">今日の問い ── 出題：' + esc(q.askerName) + '</div><span class="nt-article-body-text"></span><span class="nt-article-cursor"></span><div class="nt-q-answers"></div><div class="nt-q-vote"></div>';
       const bodyTextEl = articleEl.querySelector('.nt-article-body-text');
-      const sourceEl = articleEl.querySelector('.nt-article-source');
-      titleEl.textContent = item.title || '';
+      const answersEl = articleEl.querySelector('.nt-q-answers');
+      const voteEl = articleEl.querySelector('.nt-q-vote');
+      if (window.heroTextboxShowQuestion && q.intro) window.heroTextboxShowQuestion(q.askerName, q.intro);
 
-      // 燈のコメントは下のガイド欄（heroTextboxShowSignal）に表示するため、
-      // ターミナル側では要約のみをタイピングし、重複させない。
-      const bodyOnly = item.summary || '';
+      const text = q.question;
       let i = 0;
       clearTimeout(typingTimer);
       function step(){
-        bodyTextEl.textContent = bodyOnly.substring(0, i);
+        bodyTextEl.textContent = text.substring(0, i);
         i++;
-        if (i <= bodyOnly.length) {
-          typingTimer = setTimeout(step, 16);
-        } else {
-          // 出典表示：データに source（媒体名）があれば、タイピング完了後に表示する。
-          // まだearth-signal側でsourceを返していない場合は何も出さない。
-          if (sourceEl && item.source) {
-            sourceEl.textContent = '出典: ' + item.source;
-          }
-          if (window.heroTextboxShowSignal && item.comment) {
-            window.heroTextboxShowSignal(item.comment);
-          }
-        }
+        if (i <= text.length) typingTimer = setTimeout(step, 22);
+        else typingTimer = setTimeout(() => showAnswer(0), 450);
+      }
+      function showAnswer(k){
+        if (expandedIndex !== 0) return;
+        if (k >= q.answers.length) { renderVote(voteEl); return; }
+        const a = q.answers[k];
+        const row = document.createElement('div');
+        row.className = 'nt-q-answer';
+        row.innerHTML = '<b style="color:' + (Q_COLORS[a.id] || '#fff') + ';">' + esc(a.name) + '</b><span></span>';
+        answersEl.appendChild(row);
+        const sp = row.querySelector('span');
+        let j = 0;
+        (function typeA(){
+          sp.textContent = a.text.substring(0, j);
+          j++;
+          if (j <= a.text.length) typingTimer = setTimeout(typeA, 14);
+          else typingTimer = setTimeout(() => showAnswer(k + 1), 300);
+        })();
+        articleEl.scrollTop = articleEl.scrollHeight;
       }
       step();
+    }
+
+    function renderVote(voteEl){
+      if (!q) return;
+      const voted = qGetVoted(q.date);
+      if (voted) {
+        const name = (q.answers.find((a) => a.id === voted) || {}).name || '';
+        let html = '<div class="nt-q-vote-head">あなたは ' + esc(name) + ' 派</div>';
+        if (q.results) {
+          html += q.results.map((r) => {
+            const a = q.answers.find((x) => x.id === r.id) || {};
+            return '<div class="nt-q-bar"><span>' + esc(a.name) + '</span><i style="width:' + r.pct + '%;background:' + (Q_COLORS[r.id] || '#0ef') + ';"></i><em>' + r.pct + '%</em></div>';
+          }).join('');
+        } else {
+          html += '<div class="nt-q-note">者どもの票：受付中</div>';
+        }
+        voteEl.innerHTML = html;
+        return;
+      }
+      voteEl.innerHTML = '<div class="nt-q-vote-head">あなたは誰派？</div><div class="nt-q-btns">' +
+        q.answers.map((a) => '<button type="button" data-id="' + a.id + '" style="border-color:' + (Q_COLORS[a.id] || '#0ef') + ';color:' + (Q_COLORS[a.id] || '#0ef') + ';">' + esc(a.name) + '</button>').join('') + '</div>';
+      voteEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-id');
+        qSetVoted(q.date, id);
+        try {
+          const res = await fetch(WORKER_URL + 'question/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pick: id }) });
+          if (res.ok) { const nq = await res.json(); if (nq && nq.question) q = nq; }
+        } catch (err) { /* 送れなくても、この端末では投票済みとして見せる */ }
+        renderVote(voteEl);
+      }));
     }
 
     function closeArticle(){
@@ -2050,7 +2106,7 @@
     const closeBtn = document.getElementById('ntCloseBtn');
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeArticle(); });
 
-    loadSignalHeadlines();
+    loadDailyQuestion();
   })();
 
   // ===== ACTIVITY FEED：既存アーカイブから集約した最新10件を表示 =====
@@ -4808,6 +4864,42 @@
   let contentTypeTimer = null;
 
 
+  // 今日の問い：これまでの問いと、住人5人の答えを一覧で読む
+  async function loadQuestionList(bodyEl){
+    const COLORS = { tomori: 'var(--c-tomori)', nyamo: 'var(--c-nyamo)', yomi: 'var(--c-yomi)', rururu: 'var(--c-rururu)', shat: 'var(--c-shat)' };
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'question/list?limit=30', { cache: 'no-store' });
+      const data = await res.json();
+      const items = (data && data.items) || [];
+      if (!items.length) throw new Error('empty');
+      bodyEl.innerHTML = '';
+      items.forEach((q) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding:14px 16px;margin-bottom:12px;border:1px solid var(--line);border-left:3px solid ' + (COLORS[q.asker] || 'var(--accent)') + ';border-radius:0 12px 12px 0;';
+        card.innerHTML =
+          '<div class="mono" style="font-size:9px;color:var(--ink-soft);margin-bottom:4px;">' + escapeHtml(q.date) + ' ・ 出題：' + escapeHtml(q.askerName) + '</div>' +
+          '<div style="font-size:14px;font-weight:700;margin-bottom:6px;">' + escapeHtml(q.question) + '</div>' +
+          (q.intro ? '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">' + escapeHtml(q.askerName) + '「' + escapeHtml(q.intro) + '」</div>' : '') +
+          q.answers.map((a) => '<div style="font-size:12px;line-height:1.7;margin:4px 0;"><b style="color:' + (COLORS[a.id] || 'inherit') + ';">' + escapeHtml(a.name) + '</b>　' + escapeHtml(a.text) + '</div>').join('');
+        bodyEl.appendChild(card);
+      });
+      appendCloseButton(bodyEl);
+    } catch (e) {
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// 今日の問いは、まだ届いていません</div>';
+      appendCloseButton(bodyEl);
+    }
+  }
+
+  // ARCHIVEのヨミのカード：本格鑑定の受付に直行する（受付停止中は週間ランキングを開く）
+  function openYomiCard(){
+    if (window.heroTextboxReact) window.heroTextboxReact('YOMI');
+    if (window.tomoriStartSpeak) window.tomoriStartSpeak();
+    setTimeout(() => {
+      if (typeof YOMI_PAID_ENABLED !== 'undefined' && YOMI_PAID_ENABLED) startYomiFullDivination();
+      else openReaderPanel('YOMI');
+    }, 1550);
+  }
+
   function stub(name){
     if (window.heroTextboxReact) window.heroTextboxReact(name);
     if (window.tomoriStartSpeak) window.tomoriStartSpeak();
@@ -4846,6 +4938,15 @@
 
     // 一旦SUPPORT機能を保留中にしているため、ここは現状特に何もしない
     // （以前ここでcodocウィジェットの表示切り替えを行っていた名残）。
+
+    if (name === 'QUESTION') {
+      document.getElementById('readerTag').textContent = '// QUESTION';
+      document.getElementById('readerSub').textContent = '今日の問い // これまでの問い';
+      const bodyEl = document.getElementById('readerBody');
+      bodyEl.innerHTML = '<div class="reader-placeholder mono">// 受信中...</div>';
+      loadQuestionList(bodyEl);
+      return;
+    }
 
     if (name === 'SIGNAL') {
       document.getElementById('readerTag').textContent = '// SIGNAL';
@@ -6266,7 +6367,8 @@
       const songIntroIdx = lines.findIndex((l) => l.corner === 'song_intro');
       const songEndIdx = lines.findIndex((l) => l.corner === 'song_end');
       // CM：1行目（「CMだニャ」）のあとで番組のBGMを止めて無音→CM用BGM、CMの最後のあとで無音→ステーションコール→本編
-      const cmIdx = lines.findIndex((l) => l.corner === 'cm');
+      // 魔界通信などの小ネタにも見出し用に corner:'cm' が付くので、本物のCM（fixedKind:'cm'、印のない古い回は小ネタ以外）だけを探す
+      const cmIdx = lines.findIndex((l) => l.corner === 'cm' && l.fixedKind !== 'bit');
       let cmEnd = -1;
       if (cmIdx >= 0) {
         cmEnd = cmIdx + 1;
