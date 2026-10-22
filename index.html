@@ -5252,6 +5252,19 @@
   // ===== ルルルさまの暇つぶし：一覧・詳細表示 =====
   let rururuBubbleTimer = null;
   let rururuSoundOn = false;
+  // ===== 一時停止（2026年10月22日） =====
+  // 一時停止中は、声を止め、BGM・曲・CM用BGMなどの音の土台（AudioContext）もまとめて止める。
+  // 演出の待ち時間（rururuWait）も、止めている間は進まない。
+  let rururuPaused = false;
+  let rururuResumeWaiters = [];
+  let rururuUiTimer = null;
+  function rururuWhenResumed(){
+    return rururuPaused ? new Promise((r) => rururuResumeWaiters.push(r)) : Promise.resolve();
+  }
+  function rururuFlushResumeWaiters(){
+    const ws = rururuResumeWaiters; rururuResumeWaiters = [];
+    ws.forEach((r) => { try { r(); } catch (e) {} });
+  }
 
   // ===== 再生中は画面を点けたままにする（Screen Wake Lock） =====
   // ラジオを流したまま放置すると、スマホが「操作がない」と判断して画面を消し、再生も止まってしまうため。
@@ -5335,7 +5348,14 @@
   }
 
   // 以前の関数名で呼ばれている箇所があるため、同じ名前で停止処理を提供する
-  function rururuResetAudioQueue(){ rururuStopVoice(); rururuStopBgm(0.3); rururuSetPlaybackActive(false); }
+  function rururuResetAudioQueue(){
+    rururuStopVoice(); rururuStopBgm(0.3); rururuSetPlaybackActive(false);
+    // 一時停止のまま閉じた場合に備えて、止めていた音の土台を戻し、待っている処理を解放する
+    if (rururuPaused) { rururuPaused = false; if (rururuBgm.ctx) rururuBgm.ctx.resume().catch(() => {}); }
+    rururuFlushResumeWaiters();
+    clearInterval(rururuUiTimer); rururuUiTimer = null;
+    try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {}
+  }
 
   // ===== BGM（ループ再生） =====
   // 通常の<audio>のloopは、ループの継ぎ目にわずかな無音が入りやすい。
@@ -5397,7 +5417,7 @@
         // その間は音声要素の時間は進み続けるのに音だけ無音になる（＝セリフが飛んだように聞こえる）
         // 不具合が起きていた。一時停止を検知した瞬間に立て直す見張りを付ける。
         rururuBgm.ctx.addEventListener('statechange', () => {
-          if (rururuBgm.ctx.state === 'suspended' && rururuPlaybackActive) rururuBgm.ctx.resume();
+          if (rururuBgm.ctx.state === 'suspended' && rururuPlaybackActive && !rururuPaused) rururuBgm.ctx.resume();
         });
       }
     } catch (e) {
@@ -5625,7 +5645,7 @@
     src.start(startAt);
     rururuIntroSources.push(src);
     status('🎹 今日の一曲');
-    await new Promise((r) => setTimeout(r, (audioBuf.duration + 0.15) * 1000));
+    await rururuWait(audioBuf.duration + 0.15); // 一時停止中は待ちも止まる
     status('');
     if (token === rururuPlayToken) rururuBgmTo(RURURU_BGM_VOLUME_IDLE, fade);
   }
@@ -5662,7 +5682,18 @@
     rururuIntroSources.push(src);
     setTimeout(() => { try { wet.disconnect(); feedback.disconnect(); } catch (e) {} }, (at + voice.duration - ctx.currentTime + 4) * 1000);
   }
-  const rururuWait = (sec) => new Promise((r) => setTimeout(r, Math.max(0, sec) * 1000));
+  // 一時停止している間は時間が進まない「待ち」
+  const rururuWait = (sec) => new Promise((resolve) => {
+    let left = Math.max(0, sec) * 1000;
+    let last = performance.now();
+    const step = () => {
+      const now = performance.now();
+      if (!rururuPaused) left -= (now - last);
+      last = now;
+      if (left <= 0) resolve(); else setTimeout(step, Math.min(100, left));
+    };
+    step();
+  });
   async function rururuCmIn(token, cmBgmPromise){
     const ctx = rururuBgm.ctx;
     if (!ctx || token !== rururuPlayToken) return;
@@ -6206,6 +6237,9 @@
       rururuSetPlaybackActive(false); // 放送が終わったら、画面の点灯維持を解除する
       setVoiceStatus('');
       rururuStopBgm(3); // 番組の終わりは、3秒かけてゆっくりフェードアウト
+      if (rururuSoundOn) rrClearPos();
+      rrRefreshUi();
+      try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {}
       renderLikeButton('rururu', col.id, bodyEl);
       appendCloseButton(bodyEl);
     }
@@ -6291,7 +6325,7 @@
           if (token !== rururuPlayToken) { finish(); return; }
           // 毎フレームの保険：処理系が再生の途中で一時停止していたら、すぐ立て直す
           // （statechangeイベントが確実に発火しない環境向けの二重の備え）
-          if (rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
+          if (!rururuPaused && rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
           const t = el.currentTime;
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
@@ -6321,6 +6355,9 @@
           lens = weights.map((w) => (w / total) * dur);
           el.playbackRate = RURURU_AUDIO_RATE;
           el.preservesPitch = true;
+          const go = () => {
+          if (done) return;
+          if (token !== rururuPlayToken) { finish(); return; }
           if (rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
           rururuDuckBgm(); // 喋り始めたらBGMを下げる
           el.play().then(() => requestAnimationFrame(tick)).catch((e) => {
@@ -6330,6 +6367,9 @@
             ac.abort();
             typeChunkPlain(chunk, token).then(resolve);
           });
+          };
+          // 一時停止中に次の塊の準備ができた時は、再開されるまで鳴らさない
+          if (rururuPaused) rururuWhenResumed().then(go); else go();
         };
 
         el.addEventListener('loadedmetadata', begin, { once: true, signal: ac.signal });
@@ -6345,7 +6385,7 @@
       });
     }
 
-    async function playWithVoice(token){
+    async function playWithVoice(token, opts){
       const lines = col.conversation;
       rururuBgm.hold = false; // 前回、CMの途中で止めた場合に備えて戻しておく
       // 最初の塊だけ短くして、再生開始までの待ちを縮める。以降は会話の流れを掴めるよう長めにする。
@@ -6401,8 +6441,16 @@
       // 冒頭のジングルとDJの一言が流れている間に、最初の2つの音声を同時に作り始めておく
       if (chunks.length) getUrl(0);
       if (chunks.length > 1) getUrl(1);
-      setVoiceStatus('📻 ON AIR');
-      await rururuPlayIntro(token);
+      if (opts && opts.skipIntro) {
+        // 途中から聴く時は、冒頭の演出を飛ばし、番組のBGMだけを流して本編に入る
+        rururuEnsureAudioCtx();
+        rururuStartBgm();
+        rururuBgmTo(RURURU_BGM_VOLUME_IDLE, 0.8);
+        await rururuWait(0.6);
+      } else {
+        setVoiceStatus('📻 ON AIR');
+        await rururuPlayIntro(token);
+      }
       if (token !== rururuPlayToken) return;
 
       setVoiceStatus('📡 放送を受信中…');
@@ -6411,6 +6459,9 @@
       // CM用BGMも、先に読み込んでおく
       const cmBgmPromise = (cmBodyStart > 0 && rururuBgm.ctx) ? rururuLoadCmBgm(rururuBgm.ctx) : Promise.resolve(null);
       for (let k = 0; k < chunks.length; k++) {
+        await rururuWhenResumed();
+        if (token !== rururuPlayToken) return;
+        rrSavePos(chunks[k].start);
         const urlPromise = getUrl(k);
         // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
         for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
@@ -6452,6 +6503,217 @@
       setVoiceStatus('');
     }
 
+    // ===== 再生の操作（2026年10月22日）：一時停止・戻る／進む・コーナーへジャンプ・続きから =====
+    const rrLines = col.conversation;
+    // 時間の目安：台詞の長さから、それぞれの台詞が何秒くらいかを見積もる（音声側に正確な時刻がないため）
+    const rrSongEnd = rrLines.findIndex((l) => l.corner === 'song_end');
+    const rrCum = [0];
+    rrLines.forEach((l, i) => {
+      let sec = ((l.disp || '').length + 6 + (l.tagCount || 0) * 4) * 0.12 / RURURU_AUDIO_RATE;
+      if (i + 1 === rrSongEnd) sec += 150; // 今日の一曲（約2分半）
+      rrCum.push(rrCum[i] + sec);
+    });
+    const rrTotal = rrCum[rrLines.length] || 1;
+    const rrMin = (sec) => Math.max(0, Math.round(sec / 60));
+    // CMの本体の範囲（途中から始めると演出が崩れるので、CMの中を指定されたらCMの頭に寄せる）
+    const rrCmIdx = rrLines.findIndex((l) => l.corner === 'cm' && l.fixedKind !== 'bit');
+    let rrCmEnd = -1;
+    if (rrCmIdx >= 0) { rrCmEnd = rrCmIdx + 1; while (rrCmEnd < rrLines.length && rrCmEnd < rrCmIdx + 6 && (rrLines[rrCmEnd].fixedKind === 'cm' || !rrLines[rrCmIdx].fixedKind)) rrCmEnd++; }
+    // 目次（コーナーの始まり）
+    const rrChapters = [{ i: 0, title: 'オープニング' }];
+    rrLines.forEach((l, i) => {
+      if (i === 0) return;
+      const t = (l.corner === 'recap') ? 'エンディング' : cornerTitleOf(l);
+      if (t && !rrChapters.some((c) => c.i === i)) rrChapters.push({ i, title: t });
+    });
+    if (!rrChapters.some((c) => c.title === 'エンディング')) {
+      const endI = rrLines.findIndex((l) => l.ending);
+      if (endI > 0) rrChapters.push({ i: endI, title: 'エンディング' });
+    }
+    if (rrCmEnd > 0 && rrCmEnd < rrLines.length && !rrChapters.some((c) => c.i === rrCmEnd)) rrChapters.push({ i: rrCmEnd, title: 'CMあけ' });
+    rrChapters.sort((a, b) => a.i - b.i);
+    const rrChapterAt = (i) => { let c = rrChapters[0]; for (const x of rrChapters) if (x.i <= i) c = x; return c; };
+
+    // 続きから聴くための、聴いた位置の記録（この端末のブラウザの中だけ）
+    const RR_POS_KEY = 'eternalog_rr_pos';
+    function rrReadPosMap(){ try { return JSON.parse(localStorage.getItem(RR_POS_KEY) || '{}') || {}; } catch (e) { return {}; } }
+    function rrSavePos(i){ try { const m = rrReadPosMap(); m[col.id] = i; localStorage.setItem(RR_POS_KEY, JSON.stringify(m)); } catch (e) {} }
+    function rrClearPos(){ try { const m = rrReadPosMap(); delete m[col.id]; localStorage.setItem(RR_POS_KEY, JSON.stringify(m)); } catch (e) {} }
+
+    const rrCtrl = document.createElement('div');
+    rrCtrl.style.cssText = 'display:none;position:sticky;top:0;z-index:6;background:#fff;border:1px solid rgba(225,29,72,.25);border-radius:12px;padding:10px 10px 8px;margin:0 0 12px;box-shadow:0 4px 12px rgba(0,0,0,.06);';
+    const btnCss = 'flex:1;min-height:40px;font-size:12px;border:1px solid var(--line);background:#fff;border-radius:10px;color:var(--ink);cursor:pointer;padding:0 4px;';
+    rrCtrl.innerHTML =
+      '<div class="rr-bar" style="position:relative;height:16px;cursor:pointer;margin-bottom:2px;"><div style="position:absolute;left:0;right:0;top:6px;height:4px;border-radius:2px;background:rgba(225,29,72,.15);"></div><div class="rr-fill" style="position:absolute;left:0;top:6px;height:4px;border-radius:2px;background:var(--c-rururu);width:0%;"></div><div class="rr-knob" style="position:absolute;top:2px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--c-rururu);left:0%;"></div></div>' +
+      '<div class="mono" style="display:flex;justify-content:space-between;font-size:9px;color:var(--ink-soft);margin-bottom:8px;"><span class="rr-now"></span><span class="rr-chap" style="color:var(--c-rururu);font-weight:700;"></span><span class="rr-total"></span></div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:8px;">' +
+        '<button type="button" class="rr-prevc" style="' + btnCss + '" aria-label="前のコーナー">⏮</button>' +
+        '<button type="button" class="rr-back" style="' + btnCss + '" aria-label="少し戻る">↺ 戻る</button>' +
+        '<button type="button" class="rr-pp" style="' + btnCss + 'flex:1.3;border-color:var(--c-rururu);color:var(--c-rururu);font-weight:700;" aria-label="一時停止">❚❚ 停止</button>' +
+        '<button type="button" class="rr-fwd" style="' + btnCss + '" aria-label="少し進む">進む ↻</button>' +
+        '<button type="button" class="rr-nextc" style="' + btnCss + '" aria-label="次のコーナー">⏭</button>' +
+      '</div>' +
+      '<div class="rr-chips" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;"></div>';
+    const rrChips = rrCtrl.querySelector('.rr-chips');
+    rrChapters.forEach((c) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'mono';
+      chip.dataset.i = String(c.i);
+      chip.style.cssText = 'flex:0 0 auto;font-size:10px;padding:5px 10px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;white-space:nowrap;';
+      chip.textContent = c.title;
+      chip.onclick = () => rrPlayFrom(c.i);
+      rrChips.appendChild(chip);
+    });
+
+    function rrRefreshUi(){
+      if (rrCtrl.style.display === 'none') return;
+      const cur = finished ? rrLines.length : Math.min(idx, rrLines.length);
+      const pct = Math.max(0, Math.min(100, (rrCum[cur] / rrTotal) * 100));
+      rrCtrl.querySelector('.rr-fill').style.width = pct + '%';
+      rrCtrl.querySelector('.rr-knob').style.left = pct + '%';
+      rrCtrl.querySelector('.rr-now').textContent = '約' + rrMin(rrCum[cur]) + '分';
+      rrCtrl.querySelector('.rr-total').textContent = '約' + rrMin(rrTotal) + '分';
+      const chap = rrChapterAt(Math.max(0, cur - 1));
+      rrCtrl.querySelector('.rr-chap').textContent = finished ? '放送終了' : chap.title;
+      rrCtrl.querySelector('.rr-pp').textContent = rururuPaused ? '▶ 再生' : (finished ? '▶ 最初から' : '❚❚ 停止');
+      rrChips.querySelectorAll('button').forEach((b) => {
+        const on = !finished && Number(b.dataset.i) === chap.i;
+        b.style.background = on ? 'var(--c-rururu)' : '#fff';
+        b.style.color = on ? '#fff' : 'var(--ink-soft)';
+        b.style.borderColor = on ? 'var(--c-rururu)' : 'var(--line)';
+        // 今のコーナーの札が、横に並んだ目次の見える位置に来るようにする（ページ全体は動かさない）
+        if (on && rrChips.dataset.cur !== b.dataset.i) {
+          rrChips.dataset.cur = b.dataset.i;
+          rrChips.scrollTo({ left: Math.max(0, b.offsetLeft - rrChips.clientWidth / 2 + b.offsetWidth / 2), behavior: 'smooth' });
+        }
+      });
+    }
+
+    function rrPause(){
+      if (!rururuSoundOn || rururuPaused || finished) return;
+      rururuPaused = true;
+      if (rururuVoiceEl) rururuVoiceEl.pause();
+      if (rururuBgm.ctx) rururuBgm.ctx.suspend().catch(() => {});
+      rururuReleaseWakeLock();
+      rrSavePos(Math.max(0, idx - 1));
+      try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
+      rrRefreshUi();
+    }
+    function rrResume(){
+      if (!rururuPaused) return;
+      rururuPaused = false;
+      if (rururuBgm.ctx) rururuBgm.ctx.resume().catch(() => {});
+      const el = rururuVoiceEl;
+      if (el && el.paused && !el.ended && el.currentTime > 0) el.play().catch(() => {});
+      rururuAcquireWakeLock();
+      rururuFlushResumeWaiters();
+      try { navigator.mediaSession.playbackState = 'playing'; } catch (e) {}
+      rrRefreshUi();
+    }
+
+    // 指定した台詞の位置から、音声つきで流し直す（それより前の台詞は、文字だけすぐに並べておく）
+    function rrPlayFrom(target){
+      let i = Math.max(0, Math.min(rrLines.length - 1, target | 0));
+      if (rrCmIdx >= 0 && i > rrCmIdx && i < rrCmEnd) i = rrCmIdx;
+      rururuStopVoice();                      // 今の再生を止める（世代番号が進む）
+      if (i === 0) rururuStopBgm(0.3);          // 最初からの時は、冒頭の演出からBGMを入れ直す
+      rururuBgm.hold = false;
+      rururuCmBgm.src = null; rururuCmBgm.gain = null;
+      if (rururuPaused) { rururuPaused = false; if (rururuBgm.ctx) rururuBgm.ctx.resume().catch(() => {}); }
+      rururuFlushResumeWaiters();
+      rururuUnlockVoice();                    // ボタン操作の中で、再生の許可を取り直す
+      if (!rururuSoundOn) {
+        rururuSoundOn = true;
+        soundBtn.textContent = '🔊 音声ON';
+      }
+      rururuSetPlaybackActive(true);
+      rururuEnsureAudioCtx();
+      resetConversationView();
+      for (let j = 0; j < i; j++) finishBubble(createBubble(rrLines[j]), rrLines[j].disp);
+      idx = i;
+      rrShowControls(true);
+      rrFollow = true; rrFollowLatest(true);
+      playWithVoice(rururuPlayToken, { skipIntro: i > 0 });
+    }
+    function rrSkip(lines){ if (rururuSoundOn) rrPlayFrom(Math.max(0, idx - 1) + lines); }
+    function rrCorner(dir){
+      if (!rururuSoundOn) return;
+      const cur = Math.max(0, idx - 1);
+      const here = rrChapterAt(cur);
+      let target;
+      if (dir < 0) {
+        // コーナーに入ってすぐなら1つ前のコーナーへ、そうでなければ今のコーナーの頭へ
+        const k = rrChapters.indexOf(here);
+        target = (cur - here.i < 4 && k > 0) ? rrChapters[k - 1].i : here.i;
+      } else {
+        const nx = rrChapters.find((c) => c.i > cur);
+        if (!nx) return;
+        target = nx.i;
+      }
+      rrPlayFrom(target);
+    }
+
+    rrCtrl.querySelector('.rr-pp').onclick = () => {
+      if (finished) { rrPlayFrom(0); return; }
+      if (rururuPaused) rrResume(); else rrPause();
+    };
+    rrCtrl.querySelector('.rr-back').onclick = () => rrSkip(-8);  // 約1分ぶん
+    rrCtrl.querySelector('.rr-fwd').onclick = () => rrSkip(8);
+    rrCtrl.querySelector('.rr-prevc').onclick = () => rrCorner(-1);
+    rrCtrl.querySelector('.rr-nextc').onclick = () => rrCorner(1);
+    rrCtrl.querySelector('.rr-bar').onclick = (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const sec = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * rrTotal;
+      let i = 0; while (i < rrLines.length - 1 && rrCum[i + 1] <= sec) i++;
+      rrPlayFrom(i);
+    };
+
+    // スマホのロック画面・通知の操作パネル
+    function rrSetupMediaSession(){
+      if (!('mediaSession' in navigator)) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: rururuEpisodeLabel(col) + (col.title ? '『' + col.title + '』' : ''),
+          artist: 'ETERNARADIO ルルルさまの暇つぶし',
+          album: 'EternaLog',
+          artwork: [{ src: new URL('eternaradio-booth.jpg', location.href).href, sizes: '1375x768', type: 'image/jpeg' }],
+        });
+        const h = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch (e) {} };
+        h('play', () => rrResume());
+        h('pause', () => rrPause());
+        h('seekbackward', () => rrSkip(-8));
+        h('seekforward', () => rrSkip(8));
+        h('previoustrack', () => rrCorner(-1));
+        h('nexttrack', () => rrCorner(1));
+        navigator.mediaSession.playbackState = 'playing';
+      } catch (e) {}
+    }
+
+    function rrShowControls(on){
+      rrCtrl.style.display = on ? 'block' : 'none';
+      if (rrResumeBtn) rrResumeBtn.style.display = 'none';
+      clearInterval(rururuUiTimer); rururuUiTimer = null;
+      if (on) {
+        rrSetupMediaSession();
+        rururuUiTimer = setInterval(rrRefreshUi, 500);
+        rrRefreshUi();
+      }
+    }
+
+    // 前回の続き（この回を途中まで聴いていた場合）
+    let rrResumeBtn = null;
+    const rrSaved = rrReadPosMap()[col.id];
+    if (typeof rrSaved === 'number' && rrSaved > 3 && rrSaved < rrLines.length - 5) {
+      rrResumeBtn = document.createElement('button');
+      rrResumeBtn.className = 'mono';
+      rrResumeBtn.style.cssText = 'display:block;margin:0 0 6px auto;font-size:9px;padding:5px 10px;border-radius:12px;border:1px solid var(--c-rururu);background:#fff;color:var(--c-rururu);cursor:pointer;';
+      rrResumeBtn.textContent = '▶ 続きから聴く（約' + rrMin(rrCum[rrSaved]) + '分〜・' + rrChapterAt(rrSaved).title + '）';
+      rrResumeBtn.onclick = () => rrPlayFrom(rrSaved);
+      soundBtn.parentNode.insertBefore(rrResumeBtn, soundBtn.nextSibling);
+    }
+    voiceStatusEl.parentNode.insertBefore(rrCtrl, voiceStatusEl.nextSibling);
+
     soundBtn.onclick = () => {
       if (!rururuSoundOn) {
         // ONにしたら最初から、音声つきで流し直す。
@@ -6463,12 +6725,15 @@
         rururuEnsureAudioCtx(); // 音の土台はボタン操作の中で用意する（BGMはジングルのキメに合わせて後から入る）
         soundBtn.textContent = '🔊 音声ON';
         resetConversationView();
+        rrShowControls(true);
         playWithVoice(rururuPlayToken);
       } else {
         // OFFにしたら、音声だけ止めて、続きは文字だけで流す
         rururuStopVoice();
         rururuStopBgm();
         rururuSoundOn = false;
+        if (rururuPaused) { rururuPaused = false; if (rururuBgm.ctx) rururuBgm.ctx.resume().catch(() => {}); rururuFlushResumeWaiters(); }
+        rrShowControls(false);
         soundBtn.textContent = '🔈 音声で聴く';
         setVoiceStatus('');
         if (currentBubble) { finishBubble(currentBubble.b, currentBubble.text); currentBubble = null; }
