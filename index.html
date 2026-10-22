@@ -1900,12 +1900,12 @@
         'またチョコの話ニャ？', 'オレは元気ニャ',
       ],
       yomi: [
-        '占い日和だね', '嘘は見えるのさ', '月が綺麗な夜だ',
-        '今夜は静かでいいね', 'インチキ野郎には容赦しないよ', '星の巡りが妙な夜さ',
+        '占い日和だね', '星は嘘をつかないよ', '月が綺麗な夜だ',
+        '今夜は静かでいいね', '慰めの嘘は言わない主義さ', '星の巡りが妙な夜さ',
         '騒がしいのは好かないね', '水晶玉が疼くのさ', '運命ってのは、ただの因果さ',
         '今夜も一件、占ってやるか', '幽霊の話はよしとくれ', '夜更けが一番落ち着くのさ',
         '誠実さだけは曲げないよ', 'たまには当たるだけの占いもいいさ', '静かな夜更けが好きなのさ',
-        'あたしは見たままを言うだけさ', '今夜の星回り、悪くないね', 'インチキ占いは許さないよ',
+        'あたしは見たままを言うだけさ', '今夜の星回り、悪くないね', '言い伝えにも、ちゃんと訳があるのさ',
         '月夜に一杯、やりたい気分さ', 'さて、今夜は誰の番だい',
       ],
       rururu: [
@@ -2815,7 +2815,7 @@
       mbti: 'INTJ（建築家）',
       mbtiQuote: '運命だろうが人だろうが、見えたもんを曲げずに言う。それだけさ。',
       like: '月夜・月光浴・静かな夜更け',
-      dislike: 'インチキ占い師・騒がしい場所',
+      dislike: 'その場しのぎの慰め・騒がしい場所',
       origin: '物心ついた頃には盗賊団にいた占い師。盗品の中から見つけた水晶玉に心を惹かれ、占術の道へ進んだ。同じく盗品の月のピアスを着けてから、年の取り方がとても遅いらしい。実年齢は、本人も数えるのをやめた。EternaLogでは本格鑑定を担当している。'
     },
     {
@@ -5475,6 +5475,7 @@
         src.start(t, bounds.start);
         rururuBgm.source = src;
         rururuBgm.gain = gain;
+        rururuBgmSlots.current = 'main';
       };
 
       if (rururuBgm.buffer) { startWith(rururuBgm.buffer); return; }
@@ -5840,6 +5841,86 @@
     }
   }
 
+  // ===== コーナーごとのBGM（2026年10月22日） =====
+  // 採用済みの場面のBGMだけ、コーナーが変わる所で数秒かけて切り替える。採用がない場面は、いつもの番組のBGM（main）。
+  // スマホのメモリを食わないよう、展開した曲は「今流している1曲」だけ持ち、元のファイルだけを先読みしておく。
+  const rururuBgmSlots = { list: null, listPromise: null, bytes: {}, decoded: null, current: 'main' };
+  function rururuLoadBgmList(){
+    if (rururuBgmSlots.list) return Promise.resolve(rururuBgmSlots.list);
+    if (!rururuBgmSlots.listPromise) {
+      rururuBgmSlots.listPromise = fetch(EARTH_SIGNAL_URL + 'radio/bgm/list')
+        .then((r) => r.ok ? r.json() : { slots: {} })
+        .then((d) => (rururuBgmSlots.list = (d && d.slots) || {}))
+        .catch(() => (rururuBgmSlots.list = {}));
+    }
+    return rururuBgmSlots.listPromise;
+  }
+  function rururuPrefetchSlot(slot){
+    const list = rururuBgmSlots.list || {};
+    if (!list[slot]) return null;
+    if (!rururuBgmSlots.bytes[slot]) {
+      rururuBgmSlots.bytes[slot] = fetch(EARTH_SIGNAL_URL + 'radio/bgm?slot=' + encodeURIComponent(slot) + '&v=' + encodeURIComponent(list[slot]))
+        .then((r) => { if (!r.ok) throw new Error('bgm ' + r.status); return r.arrayBuffer(); })
+        .catch((e) => { console.warn('[EternaLog] slot bgm load failed:', e); delete rururuBgmSlots.bytes[slot]; return null; });
+    }
+    return rururuBgmSlots.bytes[slot];
+  }
+  // 生成した曲は、頭と終わりにフェードが付いていることが多い。音量がしっかりある範囲だけをループに使う
+  function rururuSlotBounds(buffer){
+    const sr = buffer.sampleRate, win = Math.floor(sr * 0.5), d = buffer.getChannelData(0);
+    const rms = [];
+    for (let i = 0; i + win <= d.length; i += win) { let s = 0; for (let j = i; j < i + win; j += 4) s += d[j] * d[j]; rms.push(Math.sqrt(s / (win / 4))); }
+    if (rms.length < 8) return { start: 0, end: buffer.duration };
+    const sorted = rms.slice().sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
+    let a = 0; while (a < rms.length - 1 && rms[a] < med * 0.6) a++;
+    let b = rms.length - 1; while (b > a && rms[b] < med * 0.6) b--;
+    const start = a * 0.5, end = (b + 1) * 0.5;
+    return (end - start > 20) ? { start, end } : { start: 0, end: buffer.duration };
+  }
+  async function rururuSwitchBgm(slot){
+    try {
+      const ctx = rururuBgm.ctx;
+      if (!ctx || !rururuSoundOn) return;
+      const list = await rururuLoadBgmList();
+      const want = (slot !== 'main' && list[slot]) ? slot : 'main';
+      if (want === rururuBgmSlots.current || rururuBgm.hold || !rururuBgm.source) return;
+      let buffer, bounds;
+      if (want === 'main') {
+        buffer = rururuBgm.buffer; if (!buffer) return;
+        bounds = rururuBgmBounds(buffer);
+      } else {
+        const bytes = await rururuPrefetchSlot(want);
+        if (!bytes) return;
+        buffer = await new Promise((res, rej) => ctx.decodeAudioData(bytes.slice(0), res, rej));
+        bounds = rururuSlotBounds(buffer);
+      }
+      // 待っている間に状況が変わっていたら（CMに入った、止められた、別の場面に移った）切り替えない
+      if (!rururuSoundOn || rururuBgm.hold || !rururuBgm.source || want === rururuBgmSlots.current) return;
+      const old = { src: rururuBgm.source, gain: rururuBgm.gain };
+      const t = ctx.currentTime, fade = 2.5;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(rururuBgm.target, t + fade);
+      g.connect(ctx.destination);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer; src.loop = true;
+      src.loopStart = bounds.start; src.loopEnd = bounds.end;
+      src.connect(g);
+      src.start(t, bounds.start);
+      rururuBgm.source = src; rururuBgm.gain = g;
+      rururuBgmSlots.current = want;
+      rururuBgmSlots.decoded = want === 'main' ? null : buffer; // 展開した曲は今の1曲だけ持つ
+      try {
+        old.gain.gain.cancelScheduledValues(t);
+        old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+        old.gain.gain.linearRampToValueAtTime(0, t + fade);
+        old.src.stop(t + fade + 0.1);
+      } catch (e) {}
+    } catch (e) {
+      console.warn('[EternaLog] bgm switch failed:', e);
+    }
+  }
+
   // フェードアウトして止める（fadeSecは秒）
   function rururuStopBgm(fadeSec){
     const { ctx, gain, source } = rururuBgm;
@@ -5847,6 +5928,8 @@
     const f = typeof fadeSec === 'number' ? fadeSec : 0.8;
     rururuBgm.source = null;
     rururuBgm.gain = null;
+    rururuBgmSlots.current = 'main';
+    rururuBgmSlots.decoded = null;
     try {
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
@@ -5888,6 +5971,56 @@
       .replace(/ {2,}/g, ' ')
       .replace(/^ | $/g, '')
       .replace(/ ([、。！？…「」『』])/g, '$1');
+  }
+
+  // ===== 読み違いの報告（運営者の端末だけ。2026年10月22日） =====
+  // 一度だけ ?admin=キー でサイトを開くと、この端末に記録され、ラジオの吹き出しを長押しすると「読み違いを報告」が出る。
+  // ?admin=off で解除。キーを知らない訪問者には何も表示されない（辞書への登録は、サーバー側でキーを確かめる）。
+  (function rrAdminFromUrl(){
+    try {
+      const p = new URLSearchParams(location.search);
+      const v = p.get('admin');
+      if (v === null) return;
+      if (v === 'off') localStorage.removeItem('eternalog_admin_key'); else if (v) localStorage.setItem('eternalog_admin_key', v);
+      p.delete('admin');
+      const q = p.toString();
+      history.replaceState({}, '', location.pathname + (q ? '?' + q : '') + location.hash);
+    } catch (e) {}
+  })();
+  function rrAdminKey(){ try { return localStorage.getItem('eternalog_admin_key') || ''; } catch (e) { return ''; } }
+  function rrAttachReport(row, line){
+    let timer = null, sx = 0, sy = 0;
+    const open = () => {
+      if (row.querySelector('.rr-report')) return;
+      const box = document.createElement('div');
+      box.className = 'rr-report';
+      box.style.cssText = 'margin:6px 0 0 34px;padding:10px;border:1px dashed var(--c-rururu);border-radius:10px;background:#fff;font-size:12px;display:grid;gap:6px;';
+      box.innerHTML = '<div class="mono" style="font-size:9px;color:var(--c-rururu);">読み違いを報告（運営者用）</div>' +
+        '<label style="display:grid;gap:2px;">台本に書かれている語句（前後を少し含める）<input class="rp-w" style="font-size:16px;padding:6px;"></label>' +
+        '<label style="display:grid;gap:2px;">正しい読み（ひらがな）<input class="rp-r" style="font-size:16px;padding:6px;"></label>' +
+        '<div style="display:flex;gap:6px;"><button type="button" class="rp-ok" style="flex:1;min-height:36px;border-radius:8px;border:0;background:var(--c-rururu);color:#fff;">辞書に登録</button><button type="button" class="rp-x" style="min-height:36px;border-radius:8px;border:1px solid var(--line);background:#fff;padding:0 12px;">閉じる</button></div>' +
+        '<div class="rp-msg" style="font-size:11px;color:var(--ink-soft);"></div>';
+      row.after(box);
+      box.querySelector('.rp-x').onclick = () => box.remove();
+      box.querySelector('.rp-ok').onclick = async () => {
+        const w = box.querySelector('.rp-w').value.trim(), r = box.querySelector('.rp-r').value.trim();
+        const msg = box.querySelector('.rp-msg');
+        if (!w || !r) { msg.textContent = '語句と読みを入れてください。'; return; }
+        if (!String(line.text).includes(w)) { msg.textContent = 'その語句は、この台詞の中に見つかりません。台本の文字のまま入れてください。'; return; }
+        msg.textContent = '登録しています…';
+        try {
+          const res = await fetch(EARTH_SIGNAL_URL + 'reading-dict?key=' + encodeURIComponent(rrAdminKey()) + '&add=' + encodeURIComponent(w) + '&reading=' + encodeURIComponent(r) + '&src=report&format=json');
+          const d = res.ok ? await res.json() : null;
+          msg.textContent = d ? (d.message || (d.ok ? '登録しました。' : '登録できませんでした。')) : '登録できませんでした（キーを確かめてください）。';
+        } catch (e) { msg.textContent = '通信に失敗しました。'; }
+      };
+    };
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    row.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; cancel(); timer = setTimeout(open, 650); });
+    row.addEventListener('pointermove', (e) => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) cancel(); });
+    row.addEventListener('pointerup', cancel);
+    row.addEventListener('pointercancel', cancel);
+    row.addEventListener('contextmenu', (e) => { e.preventDefault(); open(); });
   }
 
   async function showRururuList(){
@@ -6168,6 +6301,7 @@
           '</div>' +
         '</div>';
       convWrap.appendChild(row);
+      if (rrAdminKey()) rrAttachReport(row, line); // 運営者の端末だけ：長押しで読み違いを報告
       if (cmLinkLines.has(line)) appendCmLink(row); // CMの最後のセリフの下に、PR表示つきのリンク
       if (rrJumpBtn.parentNode !== convWrap.parentNode) convWrap.parentNode.insertBefore(rrJumpBtn, convWrap.nextSibling);
       requestAnimationFrame(() => { row.style.opacity = '1'; });
@@ -6438,6 +6572,23 @@
       const pending = [];
       const getUrl = (k) => (pending[k] = pending[k] || rururuFetchDialogueAudio(chunks[k].lines));
 
+      // コーナーごとのBGM：その位置がどの場面かを、直前のコーナーの目印から決める
+      const dailyGuest = (String(col.dailyCornerId || '').match(/skill-(tomori|nyamo|yomi|shat)/) || [])[1];
+      const SLOT_OF_CORNER = { letter: 'letter', daily: dailyGuest ? 'daily_' + dailyGuest : 'main', letter2: 'speed', fortune: 'fortune', recap: 'ending', lineup: 'main', song_intro: 'main', song_end: 'main', cm: 'main' };
+      const bgmSlotAt = (i) => {
+        for (let j = i; j >= 0; j--) {
+          const l = lines[j];
+          if (l.ending) return 'ending';
+          if (l.corner && SLOT_OF_CORNER[l.corner]) return SLOT_OF_CORNER[l.corner];
+        }
+        return 'main';
+      };
+      // この回で使う場面の曲を、裏で先に取りに行っておく（展開はしない）
+      rururuLoadBgmList().then(() => {
+        const used = new Set(chunks.map((c) => bgmSlotAt(c.start)));
+        used.forEach((sl) => { if (sl !== 'main') rururuPrefetchSlot(sl); });
+      });
+
       // 冒頭のジングルとDJの一言が流れている間に、最初の2つの音声を同時に作り始めておく
       if (chunks.length) getUrl(0);
       if (chunks.length > 1) getUrl(1);
@@ -6462,6 +6613,7 @@
         await rururuWhenResumed();
         if (token !== rururuPlayToken) return;
         rrSavePos(chunks[k].start);
+        rururuSwitchBgm(bgmSlotAt(chunks[k].start)); // コーナーが変わる所で、BGMを切り替える（待たない）
         const urlPromise = getUrl(k);
         // 再生中に、先の塊を先読みしておく（生成が遅れても途切れにくくするため）
         for (let j = 1; j <= RURURU_PREFETCH_AHEAD; j++) if (k + j < chunks.length) getUrl(k + j);
