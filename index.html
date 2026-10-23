@@ -1891,13 +1891,13 @@
         '虫だけは、ちょっと苦手なんだよ', 'こんな時間も悪くないよ',
       ],
       nyamo: [
-        '見張り中ニャ🐾', '暇ニャ〜', 'チョコ食べたいニャ🍫',
+        '見張り中ニャ🐾', '暇ニャ〜', 'まぐろ食べたいニャ🐟',
         '燈、無茶するなよニャ', '昼寝したいニャ😼', '今日も平和ニャ',
         '鉄火巻食べたいニャ', 'またそれかニャ', '別に心配してないニャ',
         'にゃあ', '静かな夜ニャ🐾', '相棒はどこニャ',
         'まあ、いいニャ', '今日は機嫌がいいニャ😼', '退屈しのぎ募集中ニャ',
         'たまには褒めてほしいニャ', '行動が全てニャ', '見てるだけで満足ニャ🐾',
-        'またチョコの話ニャ？', 'オレは元気ニャ',
+        'また魚の話ニャ？', 'オレは元気ニャ',
       ],
       yomi: [
         '占い日和だね', '星は嘘をつかないよ', '月が綺麗な夜だ',
@@ -2803,7 +2803,7 @@
       race: '禁術キメラ', age: '不詳', birthday: '2月23日',
       mbti: 'ISTP（巨匠）',
       mbtiQuote: 'オレは言葉より、行動で示す方が信じられるニャ。',
-      like: '昼寝・燈を見守ること・鉄火巻・チョコレート',
+      like: '昼寝・燈を見守ること・魚（特にまぐろ）',
       dislike: '燈が無茶をすること',
       origin: '天界の禁術の実験に、偶然紛れ込んだ野良猫から生まれたキメラ。実験場から逃げ出し、力尽きて倒れていたところを燈に救われた。燈に力を分け与えられて生き延び、長い時間をかけて力が落ち着くにつれ、今の白猫のような姿になった。燈のふわふわを現実に引き戻す相棒で、心配していても言葉の感情としては出さず、事実を淡々と返す形で示す。'
     },
@@ -5605,9 +5605,10 @@
 
   // ===== 今日の一曲（ルルルの演奏という設定の、オリジナルピアノ曲） =====
   // 台本と同じ回のものを、専用のエンドポイントから取りに行く（回ごとに1曲、使い捨て）
-  async function rururuFetchSong(episodeId){
+  // ver：曲の版。同じ番号の回を作り直して曲が変わった時、ブラウザに残った古い曲を使わないようにする（2026年10月23日）
+  async function rururuFetchSong(episodeId, ver){
     try {
-      const res = await fetch(EARTH_SIGNAL_URL + 'rururu/song?id=' + encodeURIComponent(episodeId));
+      const res = await fetch(EARTH_SIGNAL_URL + 'rururu/song?id=' + encodeURIComponent(episodeId) + (ver ? '&v=' + encodeURIComponent(ver) : ''));
       if (!res.ok) return null; // その回に曲がない（生成に失敗した等）。曲なしで進める
       return await res.arrayBuffer();
     } catch (e) {
@@ -6606,7 +6607,7 @@
 
       setVoiceStatus('📡 放送を受信中…');
       // 今日の一曲がある回は、前振りが流れている間に裏で曲を取りに行っておく（届くのを待たせないため）
-      const songPromise = (songIntroIdx >= 0) ? rururuFetchSong(col.id) : null;
+      const songPromise = (songIntroIdx >= 0) ? rururuFetchSong(col.id, col.songVer || col.replacedAt || '') : null;
       // CM用BGMも、先に読み込んでおく
       const cmBgmPromise = (cmBodyStart > 0 && rururuBgm.ctx) ? rururuLoadCmBgm(rururuBgm.ctx) : Promise.resolve(null);
       for (let k = 0; k < chunks.length; k++) {
