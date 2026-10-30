@@ -5296,7 +5296,17 @@
   // 会話を数行ずつまとめて2人同時に音声化したものを、順番に再生する。
   // 文字の表示は音声の進行に合わせて出す（音声が主、文字が従）。
   // 音声の再生速度。1.0が等速。上げすぎると聞き取りにくくなるので、1.0〜1.2の範囲で調整する。
-  const RURURU_AUDIO_RATE = 1.1;
+  // 2026年10月30日：音飛びの切り分け用に、端末ごとに速さを変えられるようにした（?rrrate=1.0 で等速、?rrrate=1.1 で元に戻す）。
+  // スマホでは、速さを変えたまま声の高さを保つ処理（preservesPitch）が重く、音が飛ぶ原因になることがあるため。
+  const RURURU_AUDIO_RATE = (function(){
+    try {
+      const q = new URLSearchParams(location.search).get('rrrate');
+      if (q) localStorage.setItem('eternalog_rr_rate', q);
+      const v = parseFloat(localStorage.getItem('eternalog_rr_rate'));
+      if (v >= 0.9 && v <= 1.3) return v;
+    } catch (e) {}
+    return 1.1;
+  })();
   // 1回の音声化にまとめる行数。多いほど会話の流れを掴めるが、最初の再生開始までの待ちが長くなる。
   const RURURU_VOICE_CHUNK = 6;
   // 再生中に、何個先の塊まで先に作っておくか。音声は聴いている最中にその場で作るため、
@@ -5308,13 +5318,56 @@
   // 1つの音声要素を使い回し、ボタンを押した瞬間に解錠してから以後の再生に使う。
   let rururuVoiceEl = null;
   let rururuVoiceUrls = [];
-
+  // 2026年10月30日：声の音声要素を2つ用意して交互に使う（ダブルバッファ）。
+  // 1つが鳴っている間に、もう1つへ次の塊を読み込んでおき、塊の切り替わりで読み込み待ちの隙間が出ないようにする。
+  const rururuVoicePool = [];
+  function rururuMakeVoiceEl(){
+    const el = new Audio();
+    el.preload = 'auto';
+    // 音飛びの記録：読み込み待ち（waiting）・データ切れ（stalled）が起きた回数と場所を残す
+    ['waiting', 'stalled'].forEach((ev) => el.addEventListener(ev, () => {
+      // 鳴り始める前の読み込み待ちは数えない（途中で止まった時だけ、音飛びとして記録する）
+      if (el !== rururuVoiceEl || el.paused || el.currentTime < 0.3) return;
+      rururuDiagNote(ev, el.currentTime);
+    }));
+    rururuVoicePool.push(el);
+    return el;
+  }
   function rururuGetVoiceEl(){
-    if (!rururuVoiceEl) {
-      rururuVoiceEl = new Audio();
-      rururuVoiceEl.preload = 'auto';
-    }
+    if (!rururuVoicePool.length) { rururuMakeVoiceEl(); rururuMakeVoiceEl(); }
+    if (!rururuVoiceEl) rururuVoiceEl = rururuVoicePool[0];
     return rururuVoiceEl;
+  }
+  // 次に鳴らす塊を、いま鳴っていない方の要素に読み込んでおく
+  function rururuPreloadVoice(url){
+    if (!url) return;
+    rururuGetVoiceEl();
+    if (rururuVoicePool.some((e) => e.dataset.url === url)) return;
+    const idle = rururuVoicePool.find((e) => e !== rururuVoiceEl);
+    if (!idle) return;
+    const old = idle.dataset.url;
+    idle.dataset.url = url;
+    idle.src = url;
+    idle.load();
+    // その要素が前に持っていた塊（もう鳴り終わったもの）は、メモリから外す（長い回でメモリが膨らまないように）
+    if (old && old !== url && old.startsWith('blob:')) { try { URL.revokeObjectURL(old); } catch (e) {} rururuVoiceUrls = rururuVoiceUrls.filter((u) => u !== old); }
+  }
+  // 音飛びの記録（端末の中だけに保存。?rrdebug=1 で画面に件数を出す）
+  const RURURU_DIAG = { n: 0, list: [], chunk: -1, show: (function(){ try { const q = new URLSearchParams(location.search).get('rrdebug'); if (q !== null) localStorage.setItem('eternalog_rr_debug', q === '0' ? '' : '1'); return !!localStorage.getItem('eternalog_rr_debug'); } catch (e) { return false; } })() };
+  function rururuDiagNote(kind, t){
+    RURURU_DIAG.n++;
+    const rec = { kind, chunk: RURURU_DIAG.chunk, t: Math.round(t * 10) / 10, at: new Date().toISOString().slice(11, 19), rate: RURURU_AUDIO_RATE, mem: (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null) };
+    RURURU_DIAG.list.push(rec);
+    console.warn('[EternaLog] voice ' + kind, rec);
+    try { localStorage.setItem('eternalog_rr_diag', JSON.stringify(RURURU_DIAG.list.slice(-50))); } catch (e) {}
+    rururuDiagShow();
+  }
+  function rururuDiagShow(){
+    if (!RURURU_DIAG.show) return;
+    let box = document.getElementById('rrDiag');
+    if (!box) { box = document.createElement('div'); box.id = 'rrDiag'; box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;background:rgba(0,0,0,.75);color:#fff;font:12px/1.4 monospace;padding:4px 8px;border-radius:6px;pointer-events:none'; document.body.appendChild(box); }
+    const last = RURURU_DIAG.list[RURURU_DIAG.list.length - 1];
+    box.textContent = '速さ' + RURURU_AUDIO_RATE + '・塊' + (RURURU_DIAG.chunk + 1) + '・音の途切れ' + RURURU_DIAG.n + '回' + (last ? '（最後：塊' + (last.chunk + 1) + ' ' + last.kind + '）' : '');
   }
 
   // ごく短い無音のWAVを作る（再生の解錠用）
@@ -5332,16 +5385,20 @@
 
   // ボタン操作の中で必ず呼ぶ（この時点で再生を許可させておく）
   function rururuUnlockVoice(){
-    const el = rururuGetVoiceEl();
-    const url = rururuSilentWavUrl();
-    rururuVoiceUrls.push(url);
-    el.src = url;
-    el.play().catch(() => {});
+    rururuGetVoiceEl();
+    // 2つとも、ボタン操作の中で再生の許可を取っておく（交互に使うため）
+    rururuVoicePool.forEach((el) => {
+      const url = rururuSilentWavUrl();
+      rururuVoiceUrls.push(url);
+      el.dataset.url = '';
+      el.src = url;
+      el.play().catch(() => {});
+    });
   }
 
   function rururuStopVoice(){
     rururuPlayToken++;
-    if (rururuVoiceEl) { rururuVoiceEl.pause(); }
+    rururuVoicePool.forEach((el) => { el.pause(); el.dataset.url = ''; });
     rururuStopIntro();
     rururuVoiceUrls.forEach((u) => URL.revokeObjectURL(u));
     rururuVoiceUrls = [];
@@ -5406,12 +5463,15 @@
       // 抜け落ちる（数文字分の声が飛ぶ）ことが分かったため、PCだけに限る。スマホでは声を
       // 普通の再生経路のまま流し、メーターは喋っている間の簡易的な動きで表現する。
       if (!rururuVoiceAnalyser && RURURU_VOICE_VIA_WEBAUDIO) {
-        const el = rururuGetVoiceEl();
-        const srcNode = rururuBgm.ctx.createMediaElementSource(el);
+        rururuGetVoiceEl();
         rururuVoiceAnalyser = rururuBgm.ctx.createAnalyser();
         rururuVoiceAnalyser.fftSize = 1024;
-        srcNode.connect(rururuBgm.ctx.destination);
-        srcNode.connect(rururuVoiceAnalyser);
+        // 交互に使う2つの要素を、どちらも同じ分析器につなぐ（接続は1つの要素につき1回だけ）
+        rururuVoicePool.forEach((el) => {
+          const srcNode = rururuBgm.ctx.createMediaElementSource(el);
+          srcNode.connect(rururuBgm.ctx.destination);
+          srcNode.connect(rururuVoiceAnalyser);
+        });
         // 2026年9月：声をこの処理系（AudioContext）に接続した結果、スマホでは通知・画面ロック・
         // Bluetoothの切り替え等で処理系が再生の途中でも一時停止（suspended）することがあり、
         // その間は音声要素の時間は進み続けるのに音だけ無音になる（＝セリフが飛んだように聞こえる）
@@ -5942,11 +6002,21 @@
   // 数行ぶんの会話を音声化して取得する（失敗時はnull）
   // 数行ぶんの会話を音声化して取得する。失敗したら少し待ってもう1回だけ取り直し、
   // それでもダメな時だけnullを返す（その部分は文字だけで流れる＝声が抜けたように聞こえるため）
+  // 2026年10月30日：「ある所から先、声が出ずに文字だけ進む」対策。
+  //  ・失敗の理由を覚えておき、画面に出す（上限・台本の食い違い・一時的な失敗を区別する）
+  //  ・一時的な失敗（生成の失敗・通信）は、間を空けて2回まで取り直す。上限と台本の食い違いは、取り直しても同じなので取り直さない
+  let rururuTtsLastFail = '';
   async function rururuFetchDialogueAudio(lines){
-    const first = await rururuFetchDialogueAudioOnce(lines);
-    if (first) return first;
-    await new Promise((r) => setTimeout(r, 1500));
-    return rururuFetchDialogueAudioOnce(lines);
+    const waits = [0, 2000, 5000];
+    for (let i = 0; i < waits.length; i++) {
+      if (waits[i]) await new Promise((r) => setTimeout(r, waits[i]));
+      const r = await rururuFetchDialogueAudioOnce(lines);
+      if (r.url) { rururuTtsLastFail = ''; return r.url; }
+      rururuTtsLastFail = r.fail;
+      if (r.fail === 'daily_limit' || r.fail === 'not_in_script') break;
+    }
+    if (typeof rururuDiagNote === 'function') rururuDiagNote('tts:' + rururuTtsLastFail, 0);
+    return null;
   }
   async function rururuFetchDialogueAudioOnce(lines){
     try {
@@ -5955,14 +6025,23 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lines: lines.map((l) => ({ speaker: l.speaker, text: l.text })) }),
       });
-      if (!res.ok) throw new Error('tts status ' + res.status);
+      if (!res.ok) {
+        let kind = 'status' + res.status;
+        try { const j = await res.json(); if (j && j.error) kind = j.error; } catch (e) {}
+        return { fail: kind };
+      }
       const url = URL.createObjectURL(await res.blob());
       rururuVoiceUrls.push(url);
-      return url;
+      return { url };
     } catch (e) {
       console.warn('[EternaLog] tts dialogue fetch failed:', e);
-      return null;
+      return { fail: 'network' };
     }
+  }
+  function rururuTtsFailMessage(kind){
+    if (kind === 'daily_limit') return '📻 今日の声の上限に達したため、ここから先は文字だけでお届けします';
+    if (kind === 'not_in_script') return '📻 この回の台本が新しくなっています。ページを読み込み直すと、声で聴けます';
+    return '📻 声を受信できなかった部分を、文字だけで流しています';
   }
 
   // 音声用の演技タグ（[laughs] [sighs] [short pause] 等の半角英字の角括弧）を、表示用に取り除く
@@ -6198,9 +6277,9 @@
     function rrFollowLatest(force){
       if (!rrLatestRow) return;
       if (!rrFollow && !force) { rrJumpBtn.style.display = 'block'; return; }
-      if (rrFollowQueued) return; // 1文字ごとに呼ばれても、描画1回につき1回だけ動かす
+      if (rrFollowQueued) return; // 1文字ごとに呼ばれても、0.25秒に1回だけ動かす（長い回でスクロールの計算が積み重ならないように）
       rrFollowQueued = true;
-      requestAnimationFrame(() => {
+      setTimeout(() => requestAnimationFrame(() => {
         rrFollowQueued = false;
         // 呼ばれた時点では対象があっても、1フレーム後には画面がリセットされて
         // 消えている場合がある（例：音声ONを押した瞬間の resetConversationView）。
@@ -6208,7 +6287,7 @@
         if (!rrLatestRow || !rrLatestRow.isConnected) return;
         const target = rrLatestRow.offsetTop + rrLatestRow.offsetHeight - scroller.clientHeight + 40;
         if (target > scroller.scrollTop) scroller.scrollTo({ top: target, behavior: 'smooth' });
-      });
+      }), 250);
     }
 
     // ===== コーナーの見出し =====
@@ -6432,9 +6511,18 @@
 
     // 1つの塊を再生し、音声の進み具合に合わせて吹き出しを出していく。
     // 行ごとの開始位置は、文字数の比率から推定する（音声側に単語単位の時刻情報がないため）。
-    function playChunkSynced(chunk, url, token){
+    function playChunkSynced(chunk, url, token, nextUrlPromise){
       return new Promise((resolve) => {
-        const el = rururuGetVoiceEl();
+        rururuGetVoiceEl();
+        // 先に読み込んであれば、その要素をそのまま使う。なければ、鳴っていない方の要素に読み込む
+        let el = rururuVoicePool.find((e) => e.dataset.url === url);
+        const preloaded = !!el;
+        RURURU_DIAG.preloadHits = (RURURU_DIAG.preloadHits || 0) + (preloaded ? 1 : 0);
+        if (!el) el = rururuVoicePool.find((e) => e !== rururuVoiceEl) || rururuVoicePool[0];
+        rururuVoiceEl = el;
+        RURURU_DIAG.chunk = chunk.ci != null ? chunk.ci : RURURU_DIAG.chunk + 1;
+        rururuDiagShow();
+        let lastMeter = 0;
         const ac = new AbortController(); // この塊で付けたイベントを、終わったら一括で外す
         let done = false;
         let starts = [], lens = [], next = 0;
@@ -6473,7 +6561,9 @@
             idx = chunk.start + next + 1;
             next++;
           }
-          if (currentBubble) updateMeter(currentBubble.b);
+          // メーターは1秒に約15回だけ動かす（毎フレームだと、長い回で端末の負担が積み重なるため）
+          const nowMs = performance.now();
+          if (currentBubble && nowMs - lastMeter > 66) { lastMeter = nowMs; updateMeter(currentBubble.b); }
           requestAnimationFrame(tick);
         };
 
@@ -6495,9 +6585,22 @@
           if (token !== rururuPlayToken) { finish(); return; }
           if (rururuBgm.ctx && rururuBgm.ctx.state === 'suspended') rururuBgm.ctx.resume();
           rururuDuckBgm(); // 喋り始めたらBGMを下げる
-          el.play().then(() => requestAnimationFrame(tick)).catch((e) => {
-            // 再生を拒否された場合は、この塊を文字だけで流す
+          el.play().then(() => {
+            requestAnimationFrame(tick);
+            // 鳴り始めたら、次の塊をもう一方の要素に読み込んでおく
+            if (nextUrlPromise) nextUrlPromise.then((u) => { if (token === rururuPlayToken && u) rururuPreloadVoice(u); });
+          }).catch((e) => {
             console.warn('[EternaLog] tts play blocked:', e);
+            if (typeof rururuDiagNote === 'function') rururuDiagNote('play:' + (e && e.name), 0);
+            // 2026年10月30日：別のアプリに切り替えた・画面を消した等で、ブラウザが再生を止めた時（NotAllowedError）は、
+            // 以前はこの先を全部「文字だけ」で流していた（声が消えて文字だけ進む原因）。
+            // いまは一時停止にして、▶（再生）を押してもらったら、同じ所から声つきで再開する
+            if (e && e.name === 'NotAllowedError' && !rururuPaused) {
+              try { rrPause(); } catch (err) {}
+              setVoiceStatus('⏸ 再生が止められたため、一時停止しました。▶ で続きから声つきで再開します');
+              rururuWhenResumed().then(() => { if (!done) go(); });
+              return;
+            }
             done = true;
             ac.abort();
             typeChunkPlain(chunk, token).then(resolve);
@@ -6507,7 +6610,6 @@
           if (rururuPaused) rururuWhenResumed().then(go); else go();
         };
 
-        el.addEventListener('loadedmetadata', begin, { once: true, signal: ac.signal });
         el.addEventListener('ended', finish, { signal: ac.signal });
         el.addEventListener('error', () => {
           if (done) return;
@@ -6515,8 +6617,16 @@
           ac.abort();
           typeChunkPlain(chunk, token).then(resolve);
         }, { signal: ac.signal });
-        el.src = url;
-        el.load();
+        if (preloaded && el.readyState >= 1) {
+          // 読み込み済み：待たずにすぐ鳴らす（塊の切り替わりの隙間をなくす）
+          try { el.currentTime = 0; } catch (e) {}
+          begin();
+        } else {
+          el.addEventListener('loadedmetadata', begin, { once: true, signal: ac.signal });
+          el.dataset.url = url;
+          el.src = url;
+          el.load();
+        }
       });
     }
 
@@ -6567,7 +6677,7 @@
           who.add(lines[j].speaker);
           if (who.size > 2) { size = j - s; break; }
         }
-        chunks.push({ start: s, lines: lines.slice(s, s + size) });
+        chunks.push({ start: s, lines: lines.slice(s, s + size), ci: chunks.length });
         s += size;
       }
       const pending = [];
@@ -6630,8 +6740,8 @@
         clearTimeout(waitNotice);
         if (token !== rururuPlayToken) return;
         setVoiceStatus('');
-        if (url) await playChunkSynced(chunks[k], url, token);
-        else await typeChunkPlain(chunks[k], token);
+        if (url) await playChunkSynced(chunks[k], url, token, (k + 1 < chunks.length && !(cmBodyStart > 0 && chunks[k + 1].start === cmBodyStart)) ? getUrl(k + 1) : null);
+        else { setVoiceStatus(rururuTtsFailMessage(rururuTtsLastFail)); await typeChunkPlain(chunks[k], token); }
         if (token !== rururuPlayToken) return;
         // CMが終わった所：CM用BGMを止めて2秒の無音、英語のステーションコールから本編へ戻る
         if (cmBodyStart > 0 && chunks[k].start + chunks[k].lines.length === cmEnd) { await rururuCmOut(token); if (token !== rururuPlayToken) return; }
@@ -6746,7 +6856,7 @@
     function rrPause(){
       if (!rururuSoundOn || rururuPaused || finished) return;
       rururuPaused = true;
-      if (rururuVoiceEl) rururuVoiceEl.pause();
+      rururuVoicePool.forEach((el) => el.pause());
       if (rururuBgm.ctx) rururuBgm.ctx.suspend().catch(() => {});
       rururuReleaseWakeLock();
       rrSavePos(Math.max(0, idx - 1));
