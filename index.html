@@ -621,6 +621,10 @@
   @keyframes ntCursorBlink{ 0%,50%{ opacity:1; } 51%,100%{ opacity:0; } }
 
   /* ===== 常駐テキストボックス（モニター下、普段は独白／SIGNAL更新時に切替） ===== */
+  /* 2026年11月4日：初めての人への「最初の一つ」（ラジオの最新回）の案内 */
+  .first-guide{ margin:10px 0 0; padding:12px 14px; border-radius:12px; background:linear-gradient(135deg, rgba(176,48,110,.10), rgba(0,90,200,.08)); border:1px solid rgba(176,48,110,.35); }
+  .first-guide .fg-btn{ display:block; width:100%; padding:13px 10px; border-radius:10px; border:none; background:var(--c-rururu, #b0306e); color:#fff; font-size:15px; font-weight:700; letter-spacing:.5px; cursor:pointer; box-shadow:0 3px 10px rgba(176,48,110,.3); }
+  .first-guide .fg-sub{ margin-top:7px; font-size:12px; color:var(--ink-soft, #556); text-align:center; line-height:1.5; }
   .hero-textbox{
     position:relative;
     background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(224,242,254,0.85));
@@ -1699,7 +1703,15 @@
         if (defaultShown) return;
         if (bootDone && videoDone) {
           defaultShown = true;
-          typeTwoLine(DEFAULT_CMD, DEFAULT_TEXT, 'GUIDE');
+          // 2026年11月4日：まだラジオを聴いたことのない人には、燈が「最初の一つ」を案内する
+          let firstTime = false;
+          try { firstTime = !localStorage.getItem('eternalog_radio_tried'); } catch (e) {}
+          if (firstTime && window.eternalogShowFirstGuide) {
+            typeTwoLine(DEFAULT_CMD, 'はじめまして、燈だよ。まずは、ルルルのラジオを聴いてみて。みんなの人柄が、いちばん伝わるから。', 'GUIDE');
+            window.eternalogShowFirstGuide();
+          } else {
+            typeTwoLine(DEFAULT_CMD, DEFAULT_TEXT, 'GUIDE');
+          }
         }
       }
 
@@ -2761,6 +2773,53 @@
   let rururuDataCache = [];
   let rururuFetched = false;
   // 回の番号の見せ方。新章（2026年10月20日〜の作り直し後）の回は「新章 第N回」、それより前は「第N回」
+  // ===== 初めての人への案内（2026年11月4日） =====
+  // まだラジオを聴いたことのない端末にだけ、GUIDE欄の下に「ラジオの最新回を聴く」ボタンを1つ出す。
+  // 押すと、最新回をその場で音声つきで流し始める（ボタンの操作のまま再生を始めるので、スマホでも音が出る）。
+  // 一度でもラジオを聴いたら、この案内は出なくなる（端末の中だけで覚える。会員登録や顧客情報は持たない）。
+  window.eternalogShowFirstGuide = async function(){
+    if (document.getElementById('firstGuide')) return;
+    let latest = null;
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'rururu?limit=1', { cache: 'no-store' });
+      if (res.ok) { const d = await res.json(); latest = d && Array.isArray(d.items) ? d.items[d.items.length - 1] : null; }
+    } catch (e) {}
+    if (!latest || !Array.isArray(latest.conversation)) return;
+    try { if (localStorage.getItem('eternalog_radio_tried')) return; } catch (e) {}
+    if (!rururuDataCache.some((c) => c.id === latest.id)) rururuDataCache.push(latest);
+    const box = document.createElement('div');
+    box.id = 'firstGuide';
+    box.className = 'first-guide';
+    box.innerHTML = '<button class="fg-btn" type="button">▶ ラジオの最新回を聴く</button>' +
+      '<div class="fg-sub">ETERNARADIO ' + escapeHtmlText(rururuEpisodeLabel(latest)) + '『' + escapeHtmlText(latest.title || '') + '』<br>魔界の姫ルルルと白猫ニャモの、夜のラジオ番組（音が出ます）</div>';
+    const tb = document.querySelector('.hero-textbox');
+    if (!tb || !tb.parentNode) return;
+    tb.parentNode.insertBefore(box, tb.nextSibling);
+    box.querySelector('.fg-btn').addEventListener('click', () => {
+      try { localStorage.setItem('eternalog_radio_tried', '1'); } catch (e) {}
+      try { if (window.gtag) window.gtag('event', 'first_guide_radio', { episode: latest.id }); } catch (e) {}
+      box.remove();
+      // ボタンを押した操作のまま、読み手パネルを開いて最新回を出し、「音声で聴く」を押す（スマホで音を出すため、待たずに続けて行う）
+      document.getElementById('readerBack').classList.add('show');
+      const reader = document.getElementById('reader');
+      reader.classList.add('show');
+      showRururuDetail(latest.id);
+      const sb = [...document.querySelectorAll('#readerBody button')].find((b) => /音声で聴く/.test(b.textContent));
+      if (sb) sb.click();
+    });
+  };
+  function escapeHtmlText(t){ return String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+  // ラジオを聴き終えた初めての人に、1回だけヨミの無料の運勢を案内する
+  function rururuMaybeYomiHint(bodyEl){
+    try { if (localStorage.getItem('eternalog_yomi_hint')) return; localStorage.setItem('eternalog_yomi_hint', '1'); } catch (e) { return; }
+    const d = document.createElement('div');
+    d.className = 'first-guide';
+    d.style.borderColor = 'rgba(58,111,216,.4)';
+    d.innerHTML = '<button class="fg-btn" type="button" style="background:var(--c-yomi,#3a6fd8)">ヨミに、今週の運勢を見てもらう</button><div class="fg-sub">占い師ヨミの、無料の週間12星座ランキング</div>';
+    d.querySelector('.fg-btn').addEventListener('click', () => { try { if (window.gtag) window.gtag('event', 'first_guide_yomi'); } catch (e) {} openReaderPanel('YOMI'); });
+    bodyEl.appendChild(d);
+  }
+
   function rururuEpisodeLabel(col){
     if (col && col.chapter === 2 && col.chapterNo) return '新章 第' + col.chapterNo + '回';
     return '第' + parseInt(col.id, 10) + '回';
@@ -5285,6 +5344,7 @@
   }
   function rururuSetPlaybackActive(on){
     rururuPlaybackActive = on;
+    if (on) { try { localStorage.setItem('eternalog_radio_tried', '1'); } catch (e) {} const fg = document.getElementById('firstGuide'); if (fg) fg.remove(); }
     if (on) rururuAcquireWakeLock(); else rururuReleaseWakeLock();
   }
   // 別のアプリから戻ってきた時は、画面の点灯維持が自動で外れているので、再生中なら掛け直す
@@ -6557,6 +6617,7 @@
       rrRefreshUi();
       try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {}
       renderLikeButton('rururu', col.id, bodyEl);
+      if (rururuSoundOn) rururuMaybeYomiHint(bodyEl);
       appendCloseButton(bodyEl);
     }
 
