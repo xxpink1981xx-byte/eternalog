@@ -1442,6 +1442,16 @@
   // 以前は後ろの方で定義していたため、開いた瞬間の処理が「定義前には使えない」エラーで止まり、
   // 決済から戻った時の確認が失敗して、もう一度支払いを求める原因になっていた。
   const EARTH_SIGNAL_URL = 'https://eternalog-earth-signal.xxpink1981xx.workers.dev/';
+  // 2026年11月12日：ヨミの鑑定のために来た人（/yomi からの入口・決済からの戻り・鑑定の専用リンク・支払い済みで未受領）かどうか。
+  // その人には、燈の「はじめまして」の案内とラジオのボタンを出さない（ヨミの部屋に割り込むため）。
+  // URLは後で掃除されるので、ページを開いた瞬間に判定しておく。
+  window.eternalogYomiEntry = (function(){
+    try {
+      if (/[?&](yomi|yomi_session_id|yomi_reading)=/.test(location.search)) return true;
+      if (localStorage.getItem('eternalog_yomi_pending_session')) return true;
+    } catch (e) {}
+    return false;
+  })();
 
   // ===== 投げ銭リンクをタップした瞬間の、光の粒が舞う演出 =====
   // 実際の入金確認とは連動していない（webhook等が必要）。あくまでタップした瞬間への
@@ -1703,9 +1713,12 @@
         if (defaultShown) return;
         if (bootDone && videoDone) {
           defaultShown = true;
+          // すでにヨミの部屋に切り替わっていたら、燈の案内文で上書きしない
+          if (window.eternalogIsYomiMode && window.eternalogIsYomiMode()) return;
           // 2026年11月4日：まだラジオを聴いたことのない人には、燈が「最初の一つ」を案内する
           let firstTime = false;
           try { firstTime = !localStorage.getItem('eternalog_radio_tried'); } catch (e) {}
+          if (window.eternalogYomiEntry) firstTime = false;
           if (firstTime && window.eternalogShowFirstGuide) {
             typeTwoLine(DEFAULT_CMD, 'はじめまして、燈だよ。まずは、ルルルのラジオを聴いてみて。みんなの人柄が、いちばん伝わるから。', 'GUIDE');
             window.eternalogShowFirstGuide();
@@ -2488,6 +2501,8 @@
     // このplayYomiVideoだけが動画の出し入れを担う。
     window.eternalogEnterYomiMode = function(){
       yomiMode = true;
+      // 燈の「はじめまして」のラジオ案内が出ていたら、ヨミの部屋では片付ける
+      const fg = document.getElementById('firstGuide'); if (fg) fg.remove();
       speaking = false;
       // 直前まで動いていた燈側のクロスフェード処理を完全に打ち切る。
       // closeReader() が tomoriStopSpeak() 経由で crossfadeTo() を呼んでいるため、
@@ -2779,12 +2794,15 @@
   // 一度でもラジオを聴いたら、この案内は出なくなる（端末の中だけで覚える。会員登録や顧客情報は持たない）。
   window.eternalogShowFirstGuide = async function(){
     if (document.getElementById('firstGuide')) return;
+    const inYomi = () => window.eternalogYomiEntry || (window.eternalogIsYomiMode && window.eternalogIsYomiMode());
+    if (inYomi()) return;
     let latest = null;
     try {
       const res = await fetch(EARTH_SIGNAL_URL + 'rururu?limit=1', { cache: 'no-store' });
       if (res.ok) { const d = await res.json(); latest = d && Array.isArray(d.items) ? d.items[d.items.length - 1] : null; }
     } catch (e) {}
     if (!latest || !Array.isArray(latest.conversation)) return;
+    if (inYomi()) return; // 取りに行っている間にヨミの部屋に入った場合
     try { if (localStorage.getItem('eternalog_radio_tried')) return; } catch (e) {}
     if (!rururuDataCache.some((c) => c.id === latest.id)) rururuDataCache.push(latest);
     const box = document.createElement('div');
