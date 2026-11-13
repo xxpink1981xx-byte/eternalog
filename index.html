@@ -5333,6 +5333,8 @@
   // 一時停止中は、声を止め、BGM・曲・CM用BGMなどの音の土台（AudioContext）もまとめて止める。
   // 演出の待ち時間（rururuWait）も、止めている間は進まない。
   let rururuPaused = false;
+  // 音の出口の切り替えで、こちらから一瞬だけ止めている間（他のアプリに止められたと誤判定しないため）
+  let rururuRerouteUntil = 0;
   let rururuResumeWaiters = [];
   let rururuUiTimer = null;
   function rururuWhenResumed(){
@@ -5461,6 +5463,7 @@
     const el = rururuVoiceEl;
     if (!el || el.paused || el.ended) return;
     const t = el.currentTime;
+    rururuRerouteUntil = Date.now() + 1500;
     el.pause();
     setTimeout(() => { try { el.currentTime = t; } catch (e) {} el.play().catch(() => {}); }, 150);
   }
@@ -6186,6 +6189,24 @@
   //  ・失敗の理由を覚えておき、画面に出す（上限・台本の食い違い・一時的な失敗を区別する）
   //  ・一時的な失敗（生成の失敗・通信）は、間を空けて2回まで取り直す。上限と台本の食い違いは、取り直しても同じなので取り直さない
   let rururuTtsLastFail = '';
+  // 声の目録（区切り）を取りに行く。つながりが正しい時だけ使う（台本の行数と合わない古い目録は使わない）
+  async function rururuFetchVoicePlan(id, lineCount){
+    if (!id) return null;
+    try {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 2500);
+      const res = await fetch(EARTH_SIGNAL_URL + 'rururu/voice-plan?id=' + encodeURIComponent(id), { cache: 'no-store', signal: ac.signal });
+      clearTimeout(timer);
+      if (!res.ok) return null;
+      const j = await res.json();
+      const p = j && Array.isArray(j.chunks) ? j.chunks : null;
+      if (!p || !p.length || p[0][0] !== 0 || p[p.length - 1][1] !== lineCount) return null;
+      for (let i = 0; i < p.length; i++) {
+        if (!(p[i][1] > p[i][0]) || (i > 0 && p[i][0] !== p[i - 1][1])) return null;
+      }
+      return p;
+    } catch (e) { return null; }
+  }
   async function rururuFetchDialogueAudio(lines){
     const waits = [0, 2000, 5000];
     for (let i = 0; i < waits.length; i++) {
@@ -6193,7 +6214,8 @@
       const r = await rururuFetchDialogueAudioOnce(lines);
       if (r.url) { rururuTtsLastFail = ''; return r.url; }
       rururuTtsLastFail = r.fail;
-      if (r.fail === 'daily_limit' || r.fail === 'not_in_script') break;
+      // quota：Googleの上限（2026年11月13日）。頼み直しても断られ、残りの枠を減らすだけなので、すぐ諦める
+      if (r.fail === 'daily_limit' || r.fail === 'not_in_script' || r.fail === 'quota') break;
     }
     if (typeof rururuDiagNote === 'function') rururuDiagNote('tts:' + rururuTtsLastFail, 0);
     return null;
@@ -6220,6 +6242,7 @@
   }
   function rururuTtsFailMessage(kind){
     if (kind === 'daily_limit') return '📻 今日の声の上限に達したため、ここから先は文字だけでお届けします';
+    if (kind === 'quota') return '📻 ただいま声の受信が混み合っています。ここから先は文字だけでお届けします（時間をおいて聴き直すと、声で聴けることがあります）';
     if (kind === 'not_in_script') return '📻 この回の台本が新しくなっています。ページを読み込み直すと、声で聴けます';
     return '📻 声を受信できなかった部分を、文字だけで流しています';
   }
@@ -6476,6 +6499,7 @@
     // 小ネタ・CMは、サーバーが先頭の行に付けた cornerTitle を使う。印のない古い回のCMは、corner:'cm' から「CM」にする。
     const RURURU_CORNER_TITLES = {
       letter: 'お便りコーナー',
+      play: 'ルルルの暇つぶし', // 水曜の回の、お便りコーナーの代わり（2026年11月）
       letter2: 'スピード裁定',
       song_intro: '今日の一曲',
       fortune: 'ヨミの運勢ランキング',
@@ -6698,7 +6722,7 @@
         const ctx = rururuBgm.ctx;
         RURURU_DIAG.chunk = chunk.ci != null ? chunk.ci : RURURU_DIAG.chunk + 1;
         rururuDiagShow();
-        let done = false, next = 0, lastMeter = 0, startAt = 0, src = null;
+        let done = false, next = 0, lastMeter = 0, startAt = 0, src = null, sysPauseAt = 0;
         let starts = [], lens = [];
         const finish = () => {
           if (done) return;
@@ -6716,6 +6740,16 @@
           if (done) return;
           if (token !== rururuPlayToken) { finish(); return; }
           if (!rururuPaused && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+          // 2026年11月12日：他のアプリに音を取られて処理系が戻らない時は、一時停止に切り替える（▶ で再開）
+          if (!rururuPaused && ctx.state !== 'running' && ctx.state !== 'closed') {
+            if (!sysPauseAt) sysPauseAt = performance.now();
+            else if (performance.now() - sysPauseAt > 800) {
+              sysPauseAt = 0;
+              if (typeof rururuDiagNote === 'function') rururuDiagNote('sys-pause', 0);
+              try { rrPause(); } catch (err) {}
+              setVoiceStatus('⏸ 他のアプリが音を使ったため、一時停止しました。▶ で続きから再開します');
+            }
+          } else sysPauseAt = 0;
           const t = ctx.currentTime - startAt; // 処理系が止まれば、この時計も止まる＝文字も一緒に止まる
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
@@ -6778,7 +6812,7 @@
         rururuVoiceEl = el;
         RURURU_DIAG.chunk = chunk.ci != null ? chunk.ci : RURURU_DIAG.chunk + 1;
         rururuDiagShow();
-        let lastMeter = 0;
+        let lastMeter = 0, sysPauseAt = 0;
         const ac = new AbortController(); // この塊で付けたイベントを、終わったら一括で外す
         let done = false;
         let starts = [], lens = [], next = 0;
@@ -6805,6 +6839,18 @@
           // 毎フレームの保険：処理系が再生の途中で一時停止していたら、すぐ立て直す
           // （statechangeイベントが確実に発火しない環境向けの二重の備え）
           if (!rururuPaused && rururuBgm.ctx && rururuBgm.ctx.state !== 'running' && rururuBgm.ctx.state !== 'closed') rururuBgm.ctx.resume().catch(() => {});
+          // 2026年11月12日：YouTubeなど他のアプリが音を使うと、端末が声を止める。以前は画面が「再生中」のまま
+          // 無音になり、停止→再生を押さないと戻らなかった。止められたことを検知したら一時停止に切り替え、
+          // ▶ で同じ所から続きを鳴らせるようにする
+          if (!rururuPaused && el.paused && !el.ended && Date.now() > rururuRerouteUntil) {
+            if (!sysPauseAt) sysPauseAt = performance.now();
+            else if (performance.now() - sysPauseAt > 800) {
+              sysPauseAt = 0;
+              if (typeof rururuDiagNote === 'function') rururuDiagNote('sys-pause', el.currentTime);
+              try { rrPause(); } catch (err) {}
+              setVoiceStatus('⏸ 他のアプリが音を使ったため、一時停止しました。▶ で続きから再開します');
+            }
+          } else sysPauseAt = 0;
           const t = el.currentTime;
           while (next < chunk.lines.length && t >= starts[next]) {
             if (currentBubble) finishBubble(currentBubble.b, currentBubble.text);
@@ -6894,7 +6940,7 @@
       // 目印がない古い回は、「お便り」という言葉から1か所だけ推定する
       // お便り・占い・今日の一曲、各コーナーの区切り目。目印がない古い回は、
       // 「お便り」という言葉から1か所だけ推定する（推定した区切りにも、通常通り演出を入れる）。
-      const markerCorners = ['letter', 'letter2', 'fortune', 'song_intro', 'song_end', 'cm', 'daily']; // daily：日替わりコーナー（2026年10月）
+      const markerCorners = ['letter', 'play', 'letter2', 'fortune', 'song_intro', 'song_end', 'cm', 'daily']; // daily：日替わりコーナー（2026年10月）、play：ルルルの暇つぶし（2026年11月）
       let corners = lines.map((l, i) => ({ i, type: l.corner })).filter((c) => markerCorners.includes(c.type));
       if (!corners.length) {
         const guess = lines.findIndex((l, i) => i >= 2 && l.speaker === 'nyamo' && /お便り/.test(l.text));
@@ -6919,7 +6965,20 @@
       // 塊の区切りに、CMの本体の始まりと終わりも加える（その切れ目で演出を入れるため）
       const splitIdxs = cornerIdxs.concat(cmBodyStart > 0 ? [cmBodyStart, cmEnd] : []).sort((a, b) => a - b);
       const chunks = [];
-      let s = idx;
+      // 2026年11月13日：サーバーが放送前に作っておいた声の目録があれば、その区切りどおりに頼む（保存済みの声がそのまま返り、
+      // 聴く時にGoogleへ声を頼まずに済む）。途中から聴く時は、その位置を含む塊の頭から流す。目録がなければ、従来の区切り方
+      const plan = await rururuFetchVoicePlan(col.id, lines.length);
+      if (token !== rururuPlayToken) return;
+      if (plan) {
+        let k0 = plan.findIndex((c) => idx >= c[0] && idx < c[1]);
+        if (k0 < 0) k0 = 0;
+        // 塊の途中から聴く時だけ、最初の塊はその位置から（その1塊だけはその場で声を作る。続きの位置は塊の頭で保存されるので、まれ）
+        for (let k = k0; k < plan.length; k++) {
+          const st = (k === k0 && idx > plan[k][0]) ? idx : plan[k][0];
+          chunks.push({ start: st, lines: lines.slice(st, plan[k][1]), ci: chunks.length });
+        }
+      }
+      let s = plan ? lines.length : idx;
       const firstSize = Math.max(2, Math.floor(RURURU_VOICE_CHUNK / 2));
       while (s < lines.length) {
         let size = chunks.length === 0 ? firstSize : RURURU_VOICE_CHUNK;
@@ -6941,7 +7000,7 @@
 
       // コーナーごとのBGM：その位置がどの場面かを、直前のコーナーの目印から決める
       const dailyGuest = (String(col.dailyCornerId || '').match(/skill-(tomori|nyamo|yomi|shat)/) || [])[1];
-      const SLOT_OF_CORNER = { letter: 'letter', daily: dailyGuest ? 'daily_' + dailyGuest : 'main', letter2: 'speed', fortune: 'fortune', recap: 'ending', lineup: 'main', song_intro: 'main', song_end: 'main', cm: 'main' };
+      const SLOT_OF_CORNER = { letter: 'letter', play: 'main', daily: dailyGuest ? 'daily_' + dailyGuest : 'main', letter2: 'speed', fortune: 'fortune', recap: 'ending', lineup: 'main', song_intro: 'main', song_end: 'main', cm: 'main' };
       const bgmSlotAt = (i) => {
         for (let j = i; j >= 0; j--) {
           const l = lines[j];
