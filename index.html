@@ -1065,6 +1065,7 @@
     overflow-y:auto;
     font-size:14px;line-height:1.9;color:var(--ink);
     background:linear-gradient(180deg, var(--accent-glow) 0%, rgba(0,90,200,.02) 35%, transparent 65%), #fff;
+    background:linear-gradient(180deg, var(--accent-glow) 0%, color-mix(in srgb, var(--accent) 2%, transparent) 35%, transparent 65%), #fff;
   }
   .reader-placeholder{
     padding:20px;font-size:11px;color:#b0b8c4;text-align:center;
@@ -2867,7 +2868,7 @@
       bgImage: 'bg-tomori.png', bgPosition: 'center 42%',
       role: 'エッセイ担当', menuTarget: 'ESSAY', contentLabel: '燈の週刊エッセイを読む',
       race: '女神', age: '不詳', birthday: '7月17日',
-      mbti: 'INFJ（提唱者）',
+      mbti: 'INFJ',
       mbtiQuote: '観測者としての視点は、燈にとっては生まれつきのものなのかもしれない。',
       like: '植物を育てて眺めること・フルーツジュース（冬はあたたかい飲み物）・人間の営みを眺めること',
       dislike: '争いごと・誰かが泣くこと',
@@ -2878,7 +2879,7 @@
       bgImage: 'bg-nyamo.png', bgPosition: 'center 30%',
       role: 'ツッコミ担当', menuTarget: 'RURURU', contentLabel: 'ETERNARADIOを聴く',
       race: '禁術キメラ', age: '不詳', birthday: '2月23日',
-      mbti: 'ISTP（巨匠）',
+      mbti: 'ISTP',
       mbtiQuote: 'オレは言葉より、行動で示す方が信じられるニャ。',
       like: '昼寝・燈を見守ること・魚（特にまぐろ）',
       dislike: '燈が無茶をすること',
@@ -2889,7 +2890,7 @@
       bgImage: 'bg-yomi.png', bgPosition: 'center 25%',
       role: '占い担当', menuTarget: 'YOMI', contentLabel: '今週の運勢ランキングを見る',
       race: '人間', age: '秘密', birthday: '9月30日',
-      mbti: 'INTJ（建築家）',
+      mbti: 'INTJ',
       mbtiQuote: '運命だろうが人だろうが、見えたもんを曲げずに言う。それだけさ。',
       like: '月夜・月光浴・静かな夜更け',
       dislike: 'その場しのぎの慰め・騒がしい場所',
@@ -2900,7 +2901,7 @@
       bgImage: 'bg-rururu.png', bgPosition: 'center 20%',
       role: '毒舌担当', menuTarget: 'RURURU', contentLabel: 'ETERNARADIOを聴く',
       race: '魔族', age: '不詳', birthday: '6月6日',
-      mbti: 'ENTJ（指揮官）',
+      mbti: 'ENTJ',
       mbtiQuote: '人間界のことなど、一目見ればわらわには分かるのじゃ。',
       like: '紅茶・読書・退屈しのぎ・見下ろすこと・ニャモ',
       dislike: '暇・へりくだること・平凡なトレンド',
@@ -2911,7 +2912,7 @@
       bgImage: 'bg-shat.png', bgPosition: 'center 20%',
       role: '開発担当', menuTarget: 'SHATLAB', contentLabel: 'シャトの開発室を見る',
       race: '女神', age: '不詳', birthday: '12月25日',
-      mbti: 'ENTP（討論者）',
+      mbti: 'ENTP',
       mbtiQuote: '関係ないもの同士をくっつけると、案外面白いことが起きるんだな。',
       like: '新しい発明・星空・ネットサーフィン',
       dislike: '何も作らない退屈な日・Wifiが切れること',
@@ -2921,6 +2922,7 @@
 
   // ===== CHARACTERS一覧表示 =====
   function showCharactersList(){
+    setReaderTheme(null);
     document.getElementById('readerTag').textContent = '// CHARACTERS';
     document.getElementById('readerSub').textContent = '5人のAIキャラクター';
 
@@ -2952,6 +2954,7 @@
   function showCharacterDetail(charId){
     const c = charactersData.find(x => x.id === charId);
     if (!c) return;
+    setReaderTheme(c.id);
 
     document.getElementById('readerTag').textContent = '// CHARACTERS';
     document.getElementById('readerSub').textContent = c.name + ' ・ ' + c.nameEn;
@@ -3933,8 +3936,9 @@
           '<button id="essaySoundToggle" class="mono" style="margin-left:auto;font-size:9px;padding:4px 9px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;">🔈 音を添える</button>' +
         '</div>' +
         '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:16px;">' + escapeHtml(data.weekKey || '') + '週</div>' +
-        '<div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:14px;line-height:1.4;">' + escapeHtml(data.title) + '</div>' +
-        '<div class="essay-fx-box" style="position:relative;min-height:120px;padding:6px 0;overflow:hidden;"></div>';
+        '<div style="font-family:\'Noto Serif JP\',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:14px;line-height:1.5;">' + escapeHtml(data.title) + '</div>' +
+        // 2026年11月16日：燈のエッセイだけ明朝体にする（書き手ごとの文字の雰囲気。Gemini試作からの採用）
+        '<div class="essay-fx-box" style="position:relative;min-height:120px;padding:6px 0;overflow:hidden;font-family:\'Noto Serif JP\',serif;"></div>';
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
@@ -5001,7 +5005,28 @@
     }, 1550);
   }
 
+  // 2026年11月16日：読み物パネルの差し色を、そのコンテンツのキャラの色に切り替える（Gemini試作からの採用）。
+  // 複数キャラのもの（雑談ログ・お知らせ等）は、これまでどおりサイト共通の青。
+  const READER_THEME_BY_PANEL = { ESSAY: 'tomori', YOMI: 'yomi', RURURU: 'rururu', SHATLAB: 'shat' };
+  function setReaderTheme(charKey){
+    const r = document.getElementById('reader');
+    if (!r) return;
+    if (!charKey) {
+      r.style.removeProperty('--accent');
+      r.style.removeProperty('--accent-bright');
+      r.style.removeProperty('--accent-glow');
+      return;
+    }
+    const v = 'var(--c-' + charKey + ')';
+    // 文字にも使う色なので、明るい色（燈の水色・シャトの橙）でも白地で読めるよう、少し黒を混ぜて沈める
+    const ink = 'color-mix(in srgb, ' + v + ' 78%, #000)';
+    r.style.setProperty('--accent', ink);
+    r.style.setProperty('--accent-bright', ink);
+    r.style.setProperty('--accent-glow', 'color-mix(in srgb, ' + v + ' 14%, transparent)');
+  }
+
   function openReaderPanel(name){
+    setReaderTheme(READER_THEME_BY_PANEL[name] || null);
     document.getElementById('readerBack').classList.add('show');
     const reader = document.getElementById('reader');
     reader.classList.add('show');
@@ -7329,6 +7354,8 @@
   function closeReader(skipTomoriRestore){
     document.getElementById('readerBack').classList.remove('show');
     document.getElementById('reader').classList.remove('show');
+    // 閉じる動き（0.4秒）が終わってから、差し色を共通の青に戻す
+    setTimeout(() => { const r = document.getElementById('reader'); if (r && !r.classList.contains('show')) setReaderTheme(null); }, 450);
     clearTimeout(contentTypeTimer);
     clearTimeout(logBubbleTimer);
     clearTimeout(rururuBubbleTimer);
