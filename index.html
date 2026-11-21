@@ -6446,7 +6446,7 @@
       const aph = document.createElement('div');
       aph.style.cssText = 'margin-bottom:20px;padding:16px 14px;border-left:3px solid var(--c-rururu);background:rgba(225,29,72,.04);border-radius:0 8px 8px 0;';
       aph.innerHTML =
-        '<div class="mono" style="font-size:8px;letter-spacing:1.5px;color:var(--c-rururu);margin-bottom:7px;">本日の裁定</div>' +
+        '<div class="mono" style="font-size:8px;letter-spacing:1.5px;color:var(--c-rururu);margin-bottom:7px;">今夜のひとこと</div>' +
         '<div style="font-size:15px;font-weight:700;line-height:1.65;color:var(--ink);">' + escapeHtml(col.aphorism) + '</div>';
       bodyEl.appendChild(aph);
     }
@@ -6525,7 +6525,7 @@
     const RURURU_CORNER_TITLES = {
       letter: 'お便りコーナー',
       play: 'ルルルの暇つぶし', // 水曜の回の、お便りコーナーの代わり（2026年11月）
-      letter2: 'スピード裁定',
+      letter2: 'スピード裁定', // ジャッジメントの週は、サーバーが行に付けた cornerTitle（ルルル⚖︎ジャッジメント）が優先される
       song_intro: '今日の一曲',
       fortune: 'ヨミの運勢ランキング',
       cm: 'CM',
