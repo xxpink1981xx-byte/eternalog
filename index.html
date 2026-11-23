@@ -4624,23 +4624,53 @@
     // （近い惑星が固まっていても読めるように。位置がずれた名前には、点から細い引き出し線を引く）
     const COLORS = { Sun: '#0284c7', Moon: '#6366f1', Mercury: '#0284c7', Venus: '#a855f7', Mars: '#9333ea', Jupiter: '#6366f1', Saturn: '#64748b', Uranus: '#0891b2', Neptune: '#4f46e5' };
     const items = chart.planets.slice().sort((p, q) => p.lon - q.lon).map((p) => ({ ...p, labelLon: p.lon }));
-    const MIN_GAP = 15; // 名前どうしの最小の間隔（度）
-    const gapOf = (x, y) => ((y - x) % 360 + 360) % 360;
-    for (let iter = 0; iter < 60 && items.length > 1; iter++) {
-      let moved = false;
+    // 2026年11月23日：名前の重なりの直し。名前の長さ（字数）から必要な幅を1つずつ計算し、
+    // 重なる名前どうしを「かたまり」にまとめて、かたまりの中心のまわりに必要な幅で並べ直す。
+    // 並べ直したかたまりが隣とぶつかれば、さらにまとめて並べ直す（ぶつからなくなるまで）。
+    // 以前は一律15度の押し合いで、固まった惑星や3字の名前（天王星など）が重なっていた
+    const LABEL_R = 98, FONT = 8.5;
+    const widthDeg = (p) => ((Array.from(String(p.jp || '')).length * FONT + 6) / LABEL_R) * 180 / Math.PI;
+    items.forEach((p) => { p.w = widthDeg(p); p.labelR = LABEL_R; });
+    if (items.length > 1) {
+      // 一番大きな空きの直後から並べ始めて、円を一本の線として扱う
+      let cut = 0, best = -1;
       for (let i = 0; i < items.length; i++) {
-        const cur = items[i], nxt = items[(i + 1) % items.length];
-        const d = gapOf(cur.labelLon, nxt.labelLon);
-        if (d < MIN_GAP) { const push = (MIN_GAP - d) / 2; cur.labelLon -= push; nxt.labelLon += push; moved = true; }
+        const gap = ((items[(i + 1) % items.length].lon - items[i].lon) % 360 + 360) % 360;
+        if (gap > best) { best = gap; cut = (i + 1) % items.length; }
       }
-      if (!moved) break;
+      const seq = items.slice(cut).concat(items.slice(0, cut));
+      const base = seq[0].lon;
+      seq.forEach((p) => { p.u = ((p.lon - base) % 360 + 360) % 360; });
+      let groups = seq.map((p) => ({ members: [p] }));
+      const layout = (g) => {
+        const total = g.members.reduce((a, p) => a + p.w, 0);
+        const center = g.members.reduce((a, p) => a + p.u, 0) / g.members.length;
+        let x = center - total / 2;
+        g.members.forEach((p) => { p.pos = x + p.w / 2; x += p.w; });
+        g.start = center - total / 2; g.end = center + total / 2;
+      };
+      groups.forEach(layout);
+      for (let iter = 0; iter < 50; iter++) {
+        let merged = false;
+        for (let i = 0; i < groups.length - 1; i++) {
+          if (groups[i].end > groups[i + 1].start) {
+            groups.splice(i, 2, { members: groups[i].members.concat(groups[i + 1].members) });
+            layout(groups[i]); merged = true; break;
+          }
+        }
+        if (!merged) break;
+      }
+      seq.forEach((p) => { p.labelLon = base + p.pos; });
+      // 全部の名前が一周に入りきらない時（ほぼ起きない）は、交互に内側の段へ下げる
+      const totalW = seq.reduce((a, p) => a + p.w, 0);
+      if (totalW > 350) seq.forEach((p, i) => { if (i % 2) p.labelR = LABEL_R - 12; });
     }
     items.forEach((p) => {
       const col = COLORS[p.key] || '#475569';
       const [x, y] = pt(p.lon, 118);
-      const [lx, ly] = pt(p.labelLon, 98);
-      if (Math.abs(((p.labelLon - p.lon + 540) % 360) - 180) > 2) {
-        const [sx, sy] = pt(p.lon, 112), [ex, ey] = pt(p.labelLon, 105);
+      const [lx, ly] = pt(p.labelLon, p.labelR || 98);
+      if (Math.abs(((p.labelLon - p.lon + 540) % 360) - 180) > 2 || (p.labelR || 98) !== 98) {
+        const [sx, sy] = pt(p.lon, 112), [ex, ey] = pt(p.labelLon, (p.labelR || 98) + 7);
         g += '<line x1="' + f(sx) + '" y1="' + f(sy) + '" x2="' + f(ex) + '" y2="' + f(ey) + '" stroke="' + col + '" stroke-opacity="0.45" stroke-width="0.8"></line>';
       }
       g += '<circle cx="' + f(x) + '" cy="' + f(y) + '" r="5" fill="#ffffff" stroke="' + col + '" stroke-width="2"></circle>';
@@ -6364,6 +6394,9 @@
       return;
     }
 
+    // 2026年11月23日：お便り受付（放送の一覧の上。受付が閉じている間は何も出さない）
+    bodyEl.appendChild(buildRururuLetterBox());
+
     const listWrap = document.createElement('div');
     [...rururuDataCache].reverse().forEach((col, idx) => {
       const card = document.createElement('div');
@@ -6383,6 +6416,97 @@
       setTimeout(() => { card.style.opacity = '1'; }, idx * 80);
     });
     bodyEl.appendChild(listWrap);
+  }
+
+  // ===== お便り受付（2026年11月23日） =====
+  // ボタンだけを見せてたたんでおき、押すと開く。吹き出し（ニャモの台詞）は、最初の数回だけ出す。
+  // 形式の誤り（文字数・ラジオネームの文字の種類）だけをその場で知らせる。中身の判定はサーバーで行い、返事はいつも同じ。
+  let rururuLetterCfg = null;
+  function buildRururuLetterBox(){
+    const box = document.createElement('div');
+    box.style.cssText = 'margin-bottom:16px;display:none;';
+    (async () => {
+      try {
+        if (!rururuLetterCfg) {
+          const r = await fetch(EARTH_SIGNAL_URL + 'letter/config', { cache: 'no-store' });
+          rururuLetterCfg = r.ok ? await r.json() : { enabled: false };
+        }
+      } catch (e) { rururuLetterCfg = { enabled: false }; }
+      if (!rururuLetterCfg || !rururuLetterCfg.enabled) { box.remove(); return; }
+      renderRururuLetterBox(box, rururuLetterCfg);
+      box.style.display = 'block';
+    })();
+    return box;
+  }
+  function renderRururuLetterBox(box, cfg){
+    let seen = 0;
+    try { seen = parseInt(localStorage.getItem('el_letter_bubble') || '0', 10) || 0; localStorage.setItem('el_letter_bubble', String(seen + 1)); } catch (e) {}
+    const showBubble = seen < 3;
+    box.innerHTML =
+      (showBubble ? '<div style="position:relative;display:inline-block;margin:0 0 8px 4px;padding:7px 12px;border:1px solid var(--c-nyamo);border-radius:14px;font-size:11.5px;background:#fff;">お便りはここで受け付けてるニャ🐾' +
+        '<span style="position:absolute;left:18px;bottom:-6px;width:10px;height:10px;background:#fff;border-right:1px solid var(--c-nyamo);border-bottom:1px solid var(--c-nyamo);transform:rotate(45deg);"></span></div>' : '') +
+      '<button type="button" class="el-letter-toggle" style="display:block;width:100%;padding:11px 14px;border:1px solid var(--c-rururu);border-radius:12px;background:#fff;color:var(--c-rururu);font-size:13px;font-weight:700;cursor:pointer;text-align:left;">✉ ここからお便りを送れます</button>' +
+      '<div class="el-letter-form" style="display:none;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:12px;">' +
+        '<div style="font-size:11px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px;">' +
+          '届いたお便りはニャモが仕分けて、読むものを選びます。読まれないこともあります。<br>' +
+          '・名前・住所・連絡先・学校や勤め先など、個人を特定できることは書かないでください<br>' +
+          '・番組の中で、言い回しを整えて読むことがあります（送った時点で、番組で使うことに同意したものとします）<br>' +
+          '・採用・不採用のお知らせや、お返事はしません。送ったお便りの取り消しはできません<br>' +
+          '・読まれなかったお便りと、読み終えたお便りは、保存せずに破棄します' +
+        '</div>' +
+        '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:4px;">ラジオネーム（なくても大丈夫。ひらがな・カタカナ・漢字で' + cfg.nameMax + '字まで）</label>' +
+        '<input type="text" class="el-letter-name" maxlength="' + cfg.nameMax + '" placeholder="人間界の名無し" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:10px;">' +
+        '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:4px;">お便り（' + cfg.min + '〜' + cfg.max + '字）</label>' +
+        '<textarea class="el-letter-body" rows="5" maxlength="' + cfg.max + '" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;line-height:1.6;resize:vertical;"></textarea>' +
+        '<div class="el-letter-count mono" style="text-align:right;font-size:10px;color:var(--ink-soft);margin:2px 0 10px;">0 / ' + cfg.max + '</div>' +
+        '<div class="el-letter-ts" style="margin-bottom:10px;min-height:65px;"></div>' +
+        '<div class="el-letter-msg" style="font-size:12px;margin-bottom:8px;display:none;"></div>' +
+        '<button type="button" class="el-letter-send" style="padding:10px 22px;border:none;border-radius:10px;background:var(--c-rururu);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">送る</button>' +
+      '</div>';
+    const q = (c) => box.querySelector(c);
+    const form = q('.el-letter-form'), nameEl = q('.el-letter-name'), bodyEl = q('.el-letter-body'), countEl = q('.el-letter-count'), msgEl = q('.el-letter-msg'), sendEl = q('.el-letter-send'), tsEl = q('.el-letter-ts');
+    let tsToken = '', tsWidget = null;
+    const len = (s) => Array.from(String(s || '')).length;
+    const say = (t, ok) => { msgEl.textContent = t; msgEl.style.display = t ? 'block' : 'none'; msgEl.style.color = ok ? 'var(--c-nyamo)' : '#c0392b'; };
+    bodyEl.addEventListener('input', () => { countEl.textContent = len(bodyEl.value) + ' / ' + cfg.max; });
+    const loadTurnstile = () => new Promise((res, rej) => {
+      if (window.turnstile) return res();
+      const sc = document.createElement('script');
+      sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      sc.async = true; sc.onload = () => res(); sc.onerror = rej;
+      document.head.appendChild(sc);
+    });
+    q('.el-letter-toggle').onclick = async () => {
+      const open = form.style.display === 'none';
+      form.style.display = open ? 'block' : 'none';
+      if (open && tsWidget === null) {
+        try {
+          await loadTurnstile();
+          tsWidget = window.turnstile.render(tsEl, { sitekey: cfg.siteKey, callback: (t) => { tsToken = t; }, 'expired-callback': () => { tsToken = ''; } });
+        } catch (e) { say('確認の部品を読み込めませんでした。時間をおいてお試しください'); }
+      }
+    };
+    sendEl.onclick = async () => {
+      const name = nameEl.value.trim(), body = bodyEl.value.trim();
+      if (name && (len(name) > cfg.nameMax || !/^[ぁ-ゖァ-ヺー々一-鿿]+$/.test(name))) return say('ラジオネームは、ひらがな・カタカナ・漢字で' + cfg.nameMax + '字までにしてください');
+      if (len(body) < cfg.min) return say('お便りは' + cfg.min + '字以上で書いてください');
+      if (len(body) > cfg.max) return say('お便りは' + cfg.max + '字までにしてください');
+      if (!tsToken) return say('「ロボットではありません」の確認が終わるまで、少し待ってください');
+      sendEl.disabled = true; say('');
+      try {
+        const r = await fetch(EARTH_SIGNAL_URL + 'letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, body, token: tsToken }) });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok) {
+          nameEl.value = ''; bodyEl.value = ''; countEl.textContent = '0 / ' + cfg.max;
+          say('受け付けたニャ🐾 読むかどうかは、オレが決めるニャ。', true);
+        } else {
+          say(j.error || '送れませんでした。時間をおいてお試しください');
+        }
+      } catch (e) { say('送れませんでした。時間をおいてお試しください'); }
+      sendEl.disabled = false;
+      tsToken = '';
+      try { if (window.turnstile && tsWidget !== null) window.turnstile.reset(tsWidget); } catch (e) {}
+    };
   }
 
   function showRururuDetail(colId){
