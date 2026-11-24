@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI占い師ヨミの本格鑑定｜西洋占星術・四柱推命・九星気学を実際の天体計算で | EternaLog</title>
-<meta name="description" content="EternaLog（エテルナログ）のAI占い。AI占い師・観月ヨミが、実際に計算したあなたのホロスコープ・四柱推命の命式・九星気学の本命星をもとに、あなた一人のための鑑定文を書きます。1回100円、生年月日だけで受けられます。週間12星座ランキングは無料。">
+<meta name="description" content="EternaLog（エテルナログ）のAI占い。AI占い師・観月ヨミが、実際に計算したあなたのホロスコープ・四柱推命の命式・九星気学の本命星をもとに、あなた一人のための鑑定文を書きます。1回100円、生年月日だけで受けられます。二人の相性を三つの占術で読む相性鑑定（100円）もあります。週間12星座ランキングは無料。">
 <link rel="canonical" href="https://eternalog.net/yomi">
 <link rel="icon" type="image/png" href="center-tomori.png">
 
@@ -49,6 +49,24 @@
       }
     },
     {
+      "@type": "Service",
+      "@id": "https://eternalog.net/yomi#compat",
+      "name": "ヨミの相性鑑定",
+      "serviceType": "AI占い・相性占い（西洋占星術・四柱推命・九星気学）",
+      "description": "二人の生年月日（任意で出生時刻・出生地）から、西洋占星術で二人の天体どうしの角度、四柱推命で日主どうしの関係、九星気学で本命星どうしの関係を決まった表で計算し、その結果だけを根拠に、AI占い師・観月ヨミが二人の相性を読み解くオンラインのAI占いサービス。",
+      "url": "https://eternalog.net/yomi#compat",
+      "inLanguage": "ja",
+      "areaServed": { "@type": "Country", "name": "日本" },
+      "provider": { "@type": "Organization", "name": "EternaLog（エテルナログ）", "url": "https://eternalog.net/" },
+      "offers": {
+        "@type": "Offer",
+        "price": "100",
+        "priceCurrency": "JPY",
+        "availability": "https://schema.org/InStock",
+        "url": "https://eternalog.net/yomi#compat"
+      }
+    },
+    {
       "@type": "FAQPage",
       "mainEntity": [
         {
@@ -75,6 +93,11 @@
           "@type": "Question",
           "name": "入力した生年月日はどう扱われますか？",
           "acceptedAnswer": { "@type": "Answer", "text": "鑑定のためだけに使います。鑑定結果は7日間だけ見られ、その後は自動で消えます。保存しておきたい場合は、スクリーンショットをおすすめしています。会員登録の仕組みはなく、顧客情報を溜めない作りにしています。" }
+        },
+        {
+          "@type": "Question",
+          "name": "相性鑑定とは何ですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "二人の生年月日から、西洋占星術・四柱推命・九星気学のそれぞれで二人の関係を計算し、占術ごとに「追い風」「向かい風」「どちらとも」の見立てを出します。三つが一致したか割れたかを示したうえで、ヨミが総評、ぶつかりやすい所と付き合い方を書きます。1回100円です。相手の方の生年月日を入れる場合は、了承を得てからにしてください。" }
         },
         {
           "@type": "Question",
@@ -116,6 +139,9 @@
   .btn{ display:inline-block; border:1px solid var(--yomi); color:var(--yomi); border-radius:22px; padding:8px 22px; text-decoration:none; font-weight:700; margin:4px; }
   .btn.primary{ background:var(--yomi); color:#fff; }
   .note{ font-size:12px; color:var(--soft); }
+  /* 2026年11月6日：申し込みボタンのすぐ下に、安心できる点を一行で出す */
+  .trust{ margin:8px auto 0; font-size:12.5px; color:var(--soft); line-height:1.7; }
+  .trust span{ display:inline-block; margin:0 6px; white-space:nowrap; }
   table{ border-collapse:collapse; width:100%; font-size:14px; margin:6px 0; }
   th, td{ border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
   th{ background:var(--panel); width:32%; font-weight:700; }
@@ -145,7 +171,9 @@
 
 <div class="cta">
   <a class="btn primary" href="/?yomi=start">本格鑑定を受ける（100円）</a>
+  <a class="btn primary" href="/?yomi=compat">二人の相性鑑定（100円）</a>
   <a class="btn" href="/?yomi=ranking">無料の週間12星座ランキングを見る</a>
+  <p class="trust"><span>✓ 会員登録なし</span><span>✓ カード情報はお預かりしません（Stripeが処理）</span><span>✓ 鑑定結果は7日で自動的に消えます</span></p>
 </div>
 
 <h2>ヨミの本格鑑定の特徴</h2>
@@ -172,15 +200,40 @@
 </ul>
 <p class="note">出生時刻がわからない場合は、時刻が必要な要素（アセンダント・ハウス・四柱推命の時柱）を使わずに鑑定します。</p>
 
+<h2 id="compat">二人の相性鑑定</h2>
+<div class="voice"><span class="who">ヨミ</span><p>二人分の星を並べて、噛み合う所とぶつかる所を視てやろうか。</p></div>
+<p>二人の生年月日をもとに、三つの占術でそれぞれ二人の関係を計算し、ヨミが読み解きます。恋人や夫婦だけでなく、友人・家族・仕事の相手との相性も見られます。</p>
+<h3>どう計算するか</h3>
+<ul class="points">
+  <li><strong>西洋占星術</strong>：二人の太陽・月・水星・金星・火星・木星・土星の位置を計算し、天体どうしの角度（重なり・三分・六分・矩・衝）を調べます</li>
+  <li><strong>四柱推命</strong>：二人の日主（生まれた日の干）の五行の関係（相生・相剋・比和）と、干合・支合・冲を調べます</li>
+  <li><strong>九星気学</strong>：二人の本命星の五行の関係を調べます</li>
+</ul>
+<p>この比較は、すべて決まった表で行います。AIは、計算結果だけを根拠に文章を書きます。</p>
+<h3>受け取れる内容</h3>
+<ul class="points">
+  <li><strong>三つの占術の見立て</strong>：占術ごとに「追い風」「向かい風」「どちらとも」と、三つが一致したか割れたか</li>
+  <li><strong>総評</strong>と、<strong>三つが一致したところ</strong></li>
+  <li><strong>占術ごとの見立て</strong>：西洋占星術・四柱推命・九星気学から見た二人</li>
+  <li><strong>ぶつかりやすい所と、付き合い方</strong></li>
+  <li><strong>計算の根拠</strong>：二人の天体どうしの角度、日主の関係、本命星の関係</li>
+  <li><strong>ヨミからのひとこと</strong></li>
+</ul>
+<p class="note">相手の方の生年月日を入れる場合は、了承を得てからにしてください。呼び名はニックネームで十分です（本名は入れないでください）。</p>
+<div class="cta">
+  <a class="btn primary" href="/?yomi=compat">二人の相性鑑定を受ける（100円）</a>
+  <p class="trust"><span>✓ 会員登録なし</span><span>✓ 入力は二人分の生年月日だけでOK</span><span>✓ 結果は7日で自動的に消えます</span></p>
+</div>
+
 <h2>料金と受け方</h2>
 <table>
-  <tr><th>料金</th><td>1回 100円（表示価格以外の費用はかかりません）</td></tr>
+  <tr><th>料金</th><td>本格鑑定：1回 100円<br>相性鑑定：1回 100円<br>（表示価格以外の費用はかかりません）</td></tr>
   <tr><th>お支払い</th><td>クレジットカード（Stripe）</td></tr>
-  <tr><th>入力するもの</th><td>生年月日（必須）／出生時刻（任意）／出生地の都道府県（任意・時刻を入れた場合）／呼び名（任意・ニックネーム推奨）</td></tr>
+  <tr><th>入力するもの</th><td>生年月日（必須）／出生時刻（任意）／出生地の都道府県（任意・時刻を入れた場合）／呼び名（任意・ニックネーム推奨）<br>相性鑑定では、これを二人分入力します</td></tr>
   <tr><th>会員登録</th><td>不要。本名・メールアドレスの入力もありません</td></tr>
   <tr><th>結果が見られる期間</th><td>7日間（その後は自動で消えます。保存はスクリーンショットがおすすめです）</td></tr>
 </table>
-<p>受け方は、トップページの燈のモニタがヨミの部屋に切り替わり、ヨミと話しながら入力していく形です。</p>
+<p>受け方は、トップページの燈のモニタがヨミの部屋に切り替わり、ヨミと話しながら入力していく形です。最初の画面で「本格鑑定」か「相性鑑定」かを選べます。</p>
 
 <h2>無料で見られるもの：週間12星座ランキング</h2>
 <p>ヨミは毎週、その週の実際の星の動きをもとにした12星座の運勢ランキングを無料で出しています。まずはこちらで、ヨミの読み方を確かめてみてください。</p>
@@ -190,7 +243,7 @@
 </div>
 
 <h2>入力した情報の扱い</h2>
-<p>EternaLogは、お客様の情報を溜めない作りにしています。生年月日などは鑑定のためだけに使い、鑑定結果は7日で自動的に消えます。共有用のリンクでは、生まれた年は伏せて表示されます。詳しくは<a href="/privacy">プライバシーポリシー</a>をご覧ください。</p>
+<p>EternaLogは、お客様の情報を溜めない作りにしています。生年月日などは鑑定のためだけに使い、鑑定結果は7日で自動的に消えます。共有用のリンクでは、生まれた年は伏せて表示されます（相性鑑定では二人とも伏せます）。詳しくは<a href="/privacy">プライバシーポリシー</a>をご覧ください。</p>
 
 <h2>よくある質問</h2>
 <dl class="faq">
@@ -204,6 +257,8 @@
   <dd>西洋占星術を軸に、四柱推命と九星気学を組み合わせます。ハウスはプラシーダス方式です。</dd>
   <dt>入力した生年月日はどう扱われますか？</dt>
   <dd>鑑定のためだけに使います。鑑定結果は7日間だけ見られ、その後は自動で消えます。会員登録の仕組みはありません。</dd>
+  <dt>相性鑑定とは何ですか？</dt>
+  <dd>二人の生年月日から、三つの占術それぞれで二人の関係を計算し、「追い風」「向かい風」「どちらとも」の見立てと、三つが一致したか割れたかを示します。そのうえで、ヨミが総評、ぶつかりやすい所と付き合い方を書きます。相手の方の生年月日は、了承を得てから入れてください。</dd>
   <dt>AI占いは当たりますか？</dt>
   <dd>占いは娯楽であり、未来を断定するものではありません。ヨミの鑑定も「こういう傾向がある」「こうすると活きる」という形で書かれ、最終的な判断はご自身でしていただく立場をとっています。医療・法律・投資などの専門的な助言は行いません。</dd>
   <dt>決済したのに鑑定が表示されません。</dt>
@@ -212,6 +267,8 @@
 
 <div class="cta">
   <a class="btn primary" href="/?yomi=start">本格鑑定を受ける（100円）</a>
+  <a class="btn primary" href="/?yomi=compat">二人の相性鑑定（100円）</a>
+  <p class="trust"><span>✓ 会員登録なし</span><span>✓ カード情報はお預かりしません（Stripeが処理）</span><span>✓ 鑑定結果は7日で自動的に消えます</span></p>
 </div>
 
 <p class="note">鑑定文はAIによって自動生成されます。観月ヨミは架空のキャラクターです。販売に関する表記は<a href="/operator">運営者情報（特定商取引法に基づく表記）</a>をご覧ください。</p>
