@@ -1122,6 +1122,35 @@
     0%,100%{ transform:scaleY(.4); opacity:.4; }
     50%{ transform:scaleY(1); opacity:1; }
   }
+
+  /* ===== 燈のエッセイ（2026年11月24日：場面ごと／全文） ===== */
+  .essay-modes{ display:inline-flex; gap:2px; padding:3px; border-radius:12px; background:#f1f5f7; border:1px solid var(--line); margin-bottom:12px; }
+  .essay-mode{ font-size:11px; padding:6px 12px; border-radius:9px; border:1px solid transparent; background:transparent; color:var(--ink-soft); cursor:pointer; }
+  .essay-mode.on{ background:#fff; color:var(--accent); border-color:color-mix(in srgb, var(--c-tomori) 35%, transparent); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .essay-fx-box{ position:relative; overflow:hidden; border-radius:14px; min-height:300px; padding:14px 16px 18px; cursor:pointer;
+    background:linear-gradient(180deg,#dcf1f6 0%,#f5fbfc 45%,#ffffff 100%); font-family:'Noto Serif JP',serif; -webkit-tap-highlight-color:transparent; }
+  .essay-mist{ position:absolute; inset:-20%; pointer-events:none;
+    background:radial-gradient(circle at 18% 12%, rgba(165,230,243,.45) 0, rgba(165,230,243,0) 38%),
+               radial-gradient(circle at 85% 40%, rgba(224,242,254,.75) 0, rgba(224,242,254,0) 36%);
+    animation:essayMistBreathe 9s ease-in-out infinite; }
+  @keyframes essayMistBreathe{ 0%,100%{ opacity:.65; transform:scale(1) translate(0,0); } 50%{ opacity:1; transform:scale(1.05) translate(8px,-6px); } }
+  .essay-scene-head{ position:relative; z-index:2; display:flex; justify-content:space-between; align-items:center; font-size:12px; letter-spacing:.2em; color:var(--accent); margin-bottom:10px; }
+  .essay-counter{ font-size:9px; letter-spacing:.5px; color:var(--ink-soft); }
+  .essay-stage{ position:relative; z-index:2; transition:opacity .3s ease; }
+  .essay-scene-p{ margin:0; font-size:15px; line-height:2.1; letter-spacing:.04em; color:var(--ink); white-space:pre-wrap; }
+  .essay-ch{ display:inline-block; opacity:0; transform:translateY(8px); animation:essayChIn .7s cubic-bezier(.22,1,.36,1) forwards; }
+  @keyframes essayChIn{ to{ opacity:1; transform:translateY(0); } }
+  .essay-nav{ display:flex; justify-content:center; gap:10px; margin-top:12px; }
+  .essay-nav button{ font-size:12px; padding:8px 14px; border-radius:11px; cursor:pointer; border:1px solid var(--line); background:#fff; color:var(--ink-soft); }
+  .essay-nav .essay-next{ background:var(--accent); border-color:var(--accent); color:#fff; padding:8px 18px; }
+  .essay-nav button:disabled{ opacity:.35; pointer-events:none; }
+  .essay-dots{ display:flex; justify-content:center; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .essay-dot{ width:8px; height:8px; padding:0; border:0; border-radius:99px; background:#cbd5e1; cursor:pointer; transition:all .25s ease; }
+  .essay-dot.on{ width:22px; background:var(--accent); }
+  .essay-full-wrap{ font-family:'Noto Serif JP',serif; }
+  .essay-full-p{ margin:0 0 1.4em; font-size:15px; line-height:2.1; letter-spacing:.03em; color:var(--ink); white-space:pre-wrap; text-indent:1em; opacity:0; animation:essayFullIn .6s ease forwards; }
+  @keyframes essayFullIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ .essay-ch,.essay-full-p{ animation-duration:.01s !important; animation-delay:0s !important; } .essay-mist{ animation:none; } }
 </style>
 </head>
 <body class="scan">
@@ -3854,66 +3883,208 @@
     return { head: trimmed.slice(0, idx + 1), tail: trimmed.slice(idx + 1) };
   }
 
-  function playEssayEffects(essayEl, paragraphs, onAllDone){
+  // 2026年11月24日：エッセイの読み方を作り直し（さがみさん持参の演出案から採用）
+  // ・「場面ごと（1段落ずつ）」と「全文」を切り替えられる。全文はアニメなしですぐ読める
+  // ・前へ／次へ、しおりの点、左右スワイプ、左右キーで動かす。文字が出ている途中で「次へ」を押すと、その段落を一気に出す
+  // ・背景は淡い水色のもや（グラデーションだけで描き、ぼかしフィルタは使わない＝スマホで重くしない）
+  // ・切り替えは静かにフェード。自動送りと設定パネルは持たない。段落の見出しは漢数字の番号だけ
+  // ・シャボン玉、最後の一文のきらめき、音を添えるボタン、いいねは従来どおり
+  const ESSAY_KANJI = ['〇','一','二','三','四','五','六','七','八','九','十'];
+  function essayKanjiNum(n){
+    if (n <= 10) return ESSAY_KANJI[n];
+    if (n < 20) return '十' + ESSAY_KANJI[n - 10];
+    const t = Math.floor(n / 10), o = n % 10;
+    return ESSAY_KANJI[t] + '十' + (o ? ESSAY_KANJI[o] : '');
+  }
+
+  let essayState = null;   // { paragraphs, idx, typing, finishNow, ... }
+  let essayKeyBound = false;
+
+  function essayClearTimers(){
     essayTimers.forEach((t) => clearTimeout(t));
     essayTimers = [];
-    essayEl.innerHTML = '';
+  }
+  function essayStopAll(){
+    essayClearTimers();
+    essayStopBubbles();
+    essayState = null;
+  }
 
-    const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svgEl.setAttribute('id', 'essay-bubbles-svg');
-    svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
-    svgEl.innerHTML = '<defs><filter id="essay-sparkle-glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>';
-    essayEl.appendChild(svgEl);
+  // 1文字ずつ浮かび上がらせる。全部の文字を先に置き、遅れ時間だけをずらす（途中で一気に出せるように）
+  function essayFloatInto(container, text, startDelay, onDone){
+    const spans = [];
+    let d = startDelay || 0;
+    Array.from(text).forEach((ch) => {
+      const span = document.createElement('span');
+      span.className = 'essay-ch';
+      span.textContent = ch;
+      span.style.animationDelay = d + 'ms';
+      container.appendChild(span);
+      spans.push(span);
+      let step = 40;
+      if (ch === '、') step = 260;
+      if (ch === '。' || ch === '\n') step = 420;
+      d += step;
+    });
+    const total = d + 500;
+    const t = setTimeout(() => { onDone && onDone(); }, total);
+    essayTimers.push(t);
+    return {
+      spans,
+      finish(){
+        clearTimeout(t);
+        spans.forEach((s) => { s.style.animationDelay = '0ms'; s.style.animationDuration = '0.25s'; });
+        return 260;
+      },
+      endAt: d
+    };
+  }
 
-    const sparkleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    sparkleSvg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;';
-    essayEl.appendChild(sparkleSvg);
+  function essayRenderDots(){
+    const st = essayState; if (!st) return;
+    st.dotsEl.innerHTML = '';
+    st.paragraphs.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'essay-dot' + (i === st.idx ? ' on' : '');
+      b.setAttribute('aria-label', essayKanjiNum(i + 1) + 'の段落へ');
+      b.onclick = () => essayGoTo(i);
+      st.dotsEl.appendChild(b);
+    });
+  }
 
-    const textWrap = document.createElement('div');
-    textWrap.style.cssText = 'position:relative;font-size:13.5px;line-height:2;color:var(--ink);transition:transform 0.9s ease;';
-    essayEl.appendChild(textWrap);
+  function essayPlayScene(){
+    const st = essayState; if (!st) return;
+    essayClearTimers();
+    st.finishNow = null;
+    st.typing = true;
+    const n = st.paragraphs.length;
+    const isLast = st.idx === n - 1;
+    st.labelEl.textContent = essayKanjiNum(st.idx + 1);
+    st.counterEl.textContent = (st.idx + 1) + ' / ' + n;
+    st.prevBtn.disabled = st.idx === 0;
+    st.nextBtn.textContent = isLast ? '全文で読み返す' : '次へ →';
+    essayRenderDots();
 
-    essayStartBubbles(svgEl);
+    st.stageEl.innerHTML = '';
+    st.stageEl.style.opacity = '1';
+    const p = document.createElement('p');
+    p.className = 'essay-scene-p';
+    st.stageEl.appendChild(p);
+    essayPlayChime();
 
-    function typeParagraph(idx){
-      const isLast = idx === paragraphs.length - 1;
-      const p = document.createElement('p');
-      p.style.cssText = 'margin:0 0 1.4em; white-space:pre-wrap;';
-      textWrap.appendChild(p);
-      essayPlayChime();
-
-      if (isLast){
-        const { head, tail } = essaySplitLastSentence(paragraphs[idx]);
-        const headSpan = document.createElement('span');
-        const tailSpan = document.createElement('span');
-        p.appendChild(headSpan);
-        p.appendChild(tailSpan);
-        essayTypeInto(headSpan, head, () => {
-          essayTypeInto(tailSpan, tail, () => {
-            essayTimers.push(setTimeout(() => {
-              essayBurstSparkles(sparkleSvg, tailSpan);
-              essayTimers.push(setTimeout(() => {
-                textWrap.style.transform = 'scale(0.985)';
-                essayTimers.push(setTimeout(() => { textWrap.style.transform = 'scale(1)'; }, 500));
-                essayStopBubbles();
-                onAllDone && onAllDone();
-              }, 1400));
-            }, 300));
-          });
-        });
-        return;
-      }
-
-      essayTypeInto(p, paragraphs[idx], () => {
-        essayTimers.push(setTimeout(() => typeParagraph(idx + 1), 450));
-      });
+    if (!isLast){
+      const ctl = essayFloatInto(p, st.paragraphs[st.idx], 0, () => { st.typing = false; });
+      st.finishNow = () => { const w = ctl.finish(); essayTimers.push(setTimeout(() => { st.typing = false; }, w)); };
+      return;
     }
-    typeParagraph(0);
+
+    // 最後の段落：最後の一文が出きったら、きらめかせて読了
+    const { head, tail } = essaySplitLastSentence(st.paragraphs[st.idx]);
+    const headSpan = document.createElement('span');
+    const tailSpan = document.createElement('span');
+    p.appendChild(headSpan);
+    p.appendChild(tailSpan);
+    const c1 = essayFloatInto(headSpan, head, 0, null);
+    const sparkleAndEnd = () => {
+      st.typing = false;
+      essayTimers.push(setTimeout(() => {
+        essayBurstSparkles(st.sparkleSvg, tailSpan);
+        essayTimers.push(setTimeout(() => { essayShowEnd(); }, 1200));
+      }, 200));
+    };
+    const c2 = essayFloatInto(tailSpan, tail, c1.endAt + 300, sparkleAndEnd);
+    st.finishNow = () => {
+      c1.finish();
+      // c2 の完了予定は消えるので、ここで読了処理を呼び直す
+      essayClearTimers();
+      const w = c2.finish();
+      essayTimers.push(setTimeout(sparkleAndEnd, w));
+    };
+  }
+
+  function essayGoTo(i){
+    const st = essayState; if (!st) return;
+    const n = st.paragraphs.length;
+    if (i < 0 || i >= n || i === st.idx) return;
+    essayClearTimers();
+    st.stageEl.style.opacity = '0';
+    essayTimers.push(setTimeout(() => {
+      if (essayState !== st) return;
+      st.idx = i;
+      essayPlayScene();
+    }, 320));
+  }
+
+  function essayNext(){
+    const st = essayState; if (!st) return;
+    if (st.typing && st.finishNow){ st.finishNow(); st.finishNow = null; return; }
+    if (st.idx === st.paragraphs.length - 1){ essaySetMode('full'); return; }
+    essayGoTo(st.idx + 1);
+  }
+  function essayPrev(){
+    const st = essayState; if (!st) return;
+    essayGoTo(st.idx - 1);
+  }
+
+  // いいねと閉じるボタン（読了したか、全文に切り替えたときに一度だけ出す）
+  function essayShowEnd(){
+    const st = essayState; if (!st || st.endShown) return;
+    st.endShown = true;
+    // いいねは取得を待ってから足されるので、先に置き場所を作り、閉じるボタンより上に来るようにする
+    const likeSlot = document.createElement('div');
+    st.endEl.appendChild(likeSlot);
+    renderLikeButton('essay', st.weekKey, likeSlot);
+    appendCloseButton(st.endEl);
+  }
+
+  function essaySetMode(mode){
+    const st = essayState; if (!st) return;
+    st.mode = mode;
+    st.modeSceneBtn.classList.toggle('on', mode === 'scene');
+    st.modeFullBtn.classList.toggle('on', mode === 'full');
+    if (mode === 'full'){
+      essayClearTimers();
+      essayStopBubbles();
+      st.sceneWrap.style.display = 'none';
+      st.fullWrap.style.display = '';
+      st.fullWrap.innerHTML = '';
+      st.paragraphs.forEach((t, i) => {
+        const p = document.createElement('p');
+        p.className = 'essay-full-p';
+        p.textContent = t;
+        p.style.animationDelay = (i * 60) + 'ms';
+        st.fullWrap.appendChild(p);
+      });
+      const body = document.getElementById('readerBody');
+      if (body) body.scrollTop = 0;
+      essayShowEnd();
+    } else {
+      st.fullWrap.style.display = 'none';
+      st.sceneWrap.style.display = '';
+      essayStartBubbles(st.bubbleSvg);
+      essayPlayScene();
+    }
+  }
+
+  function essayBindKeysOnce(){
+    if (essayKeyBound) return;
+    essayKeyBound = true;
+    document.addEventListener('keydown', (e) => {
+      const st = essayState;
+      if (!st || st.mode !== 'scene') return;
+      const reader = document.getElementById('reader');
+      if (!reader || !reader.classList.contains('show')) return;
+      if (document.getElementById('readerTag').textContent !== '// ESSAY') return;
+      if (e.key === 'ArrowRight'){ e.preventDefault(); essayNext(); }
+      else if (e.key === 'ArrowLeft'){ e.preventDefault(); essayPrev(); }
+    });
   }
 
   async function showTomoriEssayPanel(){
     document.getElementById('readerTag').textContent = '// ESSAY';
     document.getElementById('readerSub').textContent = '燈の週刊エッセイ';
+    essayStopAll();
 
     const bodyEl = document.getElementById('readerBody');
     bodyEl.innerHTML = '<div class="reader-placeholder mono">// 書きあぐねています...</div>';
@@ -3928,6 +4099,7 @@
 
       bodyEl.innerHTML = '';
       const card = document.createElement('div');
+      card.className = 'essay-reader';
       card.style.cssText = 'opacity:0;transition:opacity .4s ease;';
       card.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
@@ -3935,10 +4107,27 @@
           '<span style="font-size:13px;font-weight:700;color:var(--c-tomori);">燈</span>' +
           '<button id="essaySoundToggle" class="mono" style="margin-left:auto;font-size:9px;padding:4px 9px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;">🔈 音を添える</button>' +
         '</div>' +
-        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:16px;">' + escapeHtml(data.weekKey || '') + '週</div>' +
-        '<div style="font-family:\'Noto Serif JP\',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:14px;line-height:1.5;">' + escapeHtml(data.title) + '</div>' +
+        '<div class="mono" style="font-size:9px;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:14px;">' + escapeHtml(data.weekKey || '') + '週</div>' +
         // 2026年11月16日：燈のエッセイだけ明朝体にする（書き手ごとの文字の雰囲気。Gemini試作からの採用）
-        '<div class="essay-fx-box" style="position:relative;min-height:120px;padding:6px 0;overflow:hidden;font-family:\'Noto Serif JP\',serif;"></div>';
+        '<div style="font-family:\'Noto Serif JP\',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:12px;line-height:1.5;">' + escapeHtml(data.title) + '</div>' +
+        '<div class="essay-modes">' +
+          '<button type="button" class="essay-mode on" data-mode="scene">場面ごとに読む</button>' +
+          '<button type="button" class="essay-mode" data-mode="full">全文を読む</button>' +
+        '</div>' +
+        '<div class="essay-scene-wrap">' +
+          '<div class="essay-fx-box">' +
+            '<div class="essay-mist"></div>' +
+            '<div class="essay-scene-head"><span class="essay-label"></span><span class="essay-counter mono"></span></div>' +
+            '<div class="essay-stage"></div>' +
+          '</div>' +
+          '<div class="essay-nav">' +
+            '<button type="button" class="essay-prev">← 前へ</button>' +
+            '<button type="button" class="essay-next">次へ →</button>' +
+          '</div>' +
+          '<div class="essay-dots"></div>' +
+        '</div>' +
+        '<div class="essay-full-wrap" style="display:none;"></div>' +
+        '<div class="essay-end"></div>';
       bodyEl.appendChild(card);
       requestAnimationFrame(() => { card.style.opacity = '1'; });
 
@@ -3952,11 +4141,53 @@
       });
 
       const fxBox = card.querySelector('.essay-fx-box');
-      const paragraphs = essaySplitParagraphs(data.body);
-      playEssayEffects(fxBox, paragraphs, () => {
-        renderLikeButton('essay', data.weekKey, bodyEl);
-        appendCloseButton(bodyEl);
-      });
+      const ns = 'http://www.w3.org/2000/svg';
+      const bubbleSvg = document.createElementNS(ns, 'svg');
+      bubbleSvg.setAttribute('id', 'essay-bubbles-svg');
+      bubbleSvg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+      bubbleSvg.innerHTML = '<defs><filter id="essay-sparkle-glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>';
+      fxBox.insertBefore(bubbleSvg, fxBox.querySelector('.essay-scene-head'));
+      const sparkleSvg = document.createElementNS(ns, 'svg');
+      sparkleSvg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:3;';
+      fxBox.appendChild(sparkleSvg);
+
+      essayState = {
+        paragraphs: essaySplitParagraphs(data.body),
+        weekKey: data.weekKey,
+        idx: 0, mode: 'scene', typing: false, finishNow: null, endShown: false,
+        stageEl: card.querySelector('.essay-stage'),
+        labelEl: card.querySelector('.essay-label'),
+        counterEl: card.querySelector('.essay-counter'),
+        prevBtn: card.querySelector('.essay-prev'),
+        nextBtn: card.querySelector('.essay-next'),
+        dotsEl: card.querySelector('.essay-dots'),
+        sceneWrap: card.querySelector('.essay-scene-wrap'),
+        fullWrap: card.querySelector('.essay-full-wrap'),
+        endEl: card.querySelector('.essay-end'),
+        modeSceneBtn: card.querySelector('.essay-mode[data-mode="scene"]'),
+        modeFullBtn: card.querySelector('.essay-mode[data-mode="full"]'),
+        bubbleSvg, sparkleSvg
+      };
+      const st = essayState;
+      st.prevBtn.onclick = essayPrev;
+      st.nextBtn.onclick = essayNext;
+      st.modeSceneBtn.onclick = () => { if (st.mode !== 'scene') essaySetMode('scene'); };
+      st.modeFullBtn.onclick = () => { if (st.mode !== 'full') essaySetMode('full'); };
+
+      // スワイプ（左へ＝次、右へ＝前）
+      let sx = 0, sy = 0, swipedAt = 0;
+      fxBox.addEventListener('touchstart', (e) => { sx = e.changedTouches[0].clientX; sy = e.changedTouches[0].clientY; }, { passive: true });
+      fxBox.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
+        swipedAt = Date.now();
+        if (dx < 0) essayNext(); else essayPrev();
+      }, { passive: true });
+      // 本文の箱をタップしても進む（文字の途中なら一気に出す）。スワイプ直後のクリックは無視する
+      fxBox.addEventListener('click', () => { if (Date.now() - swipedAt < 500) return; essayNext(); });
+
+      essayBindKeysOnce();
+      essaySetMode('scene');
     } catch (e) {
       console.warn('[EternaLog] tomori essay fetch failed:', e);
       bodyEl.innerHTML = '<div class="reader-placeholder mono">// 取得に失敗しました。少し時間をおいて開き直してみてください</div>';
@@ -4129,7 +4360,9 @@
     const panel = ensureYomiControlPanel();
     if (mode === 'start') {
       panel.innerHTML =
-        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment()">占いを始める（' + YOMI_PRICE_LABEL + '）</button>' +
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment()">本格鑑定を始める（' + YOMI_PRICE_LABEL + '）</button>' +
+        // 2026年11月24日：相性鑑定（二人分の三つの占術を突き合わせる）
+        '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="yomiFlowStartPayment(\'compat\')">相性鑑定を始める（' + YOMI_PRICE_LABEL + '）</button>' +
         (yomiLoadLastReading()
           ? '<button class="reader-close-bottom mono" style="border-color:var(--line);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="showYomiLastReading()">前回の鑑定結果を見る</button>'
           : '') +
@@ -4152,8 +4385,8 @@
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
-  function yomiMarkPendingPaidSession(sessionId){
-    try { localStorage.setItem(YOMI_PENDING_KEY, JSON.stringify({ sessionId, verifiedAt: Date.now() })); } catch (e) {}
+  function yomiMarkPendingPaidSession(sessionId, kind){
+    try { localStorage.setItem(YOMI_PENDING_KEY, JSON.stringify({ sessionId, kind: kind === 'compat' ? 'compat' : 'reading', verifiedAt: Date.now() })); } catch (e) {}
   }
   function yomiClearPendingPaidSession(){
     try { localStorage.removeItem(YOMI_PENDING_KEY); } catch (e) {}
@@ -4166,8 +4399,8 @@
   function yomiGetAttempt(){
     try { const raw = localStorage.getItem(YOMI_ATTEMPT_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
-  function yomiSetAttempt(sessionId){
-    try { localStorage.setItem(YOMI_ATTEMPT_KEY, JSON.stringify({ sessionId, createdAt: Date.now() })); } catch (e) {}
+  function yomiSetAttempt(sessionId, kind){
+    try { localStorage.setItem(YOMI_ATTEMPT_KEY, JSON.stringify({ sessionId, kind: kind === 'compat' ? 'compat' : 'reading', createdAt: Date.now() })); } catch (e) {}
   }
   function yomiClearAttempt(){
     try { localStorage.removeItem(YOMI_ATTEMPT_KEY); } catch (e) {}
@@ -4180,7 +4413,7 @@
       try {
         const res = await fetch(EARTH_SIGNAL_URL + 'yomi/verify-checkout?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' });
         const data = await res.json();
-        if (data && data.valid) return { valid: true };
+        if (data && data.valid) return { valid: true, kind: data.kind === 'compat' ? 'compat' : 'reading' };
         const reason = (data && data.reason) || 'unknown';
         console.warn('[EternaLog] yomi payment not verified:', reason);
         // まだ処理中の可能性があるものだけ、待って確かめ直す
@@ -4212,7 +4445,10 @@
     };
     tryEnter();
   }
-  function yomiResumeToStep2(){ yomiEnterYomiThen(() => yomiFlowStep2()); }
+  function yomiResumeToStep2(){
+    const p = yomiHasPendingPaidSession();
+    yomiEnterYomiThen(() => (p && p.kind === 'compat') ? yomiFlowStep2Compat() : yomiFlowStep2());
+  }
 
   // 支払いを確認できなかった時は、黙って消さずに、そのことと問い合わせ先を伝える
   function yomiShowPaymentUnconfirmed(){
@@ -4247,7 +4483,7 @@
 
     if (result.valid) {
       // 確認が取れたら、まず「支払い済み・鑑定未受領」を記録してからURLを掃除する
-      yomiMarkPendingPaidSession(sessionId);
+      yomiMarkPendingPaidSession(sessionId, result.kind);
       yomiClearAttempt();
       if (urlSessionId) cleanUrl();
       yomiResumeToStep2();
@@ -4266,7 +4502,7 @@
     if (urlSessionId) {
       // 決済画面から戻ってきたのに確認できない：黙って消さず、伝える。
       // 決済の記録は残すので、次に「占いを始める」を押した時にもう一度確かめられる（新たな課金はしない）
-      yomiSetAttempt(sessionId);
+      yomiSetAttempt(sessionId, attempt && attempt.sessionId === sessionId ? attempt.kind : undefined);
       cleanUrl();
       yomiShowPaymentUnconfirmed();
       return;
@@ -4276,7 +4512,8 @@
     if (attempt && Date.now() - attempt.createdAt > 60 * 60 * 1000) yomiClearAttempt();
   })();
 
-  async function yomiFlowStartPayment(){
+  async function yomiFlowStartPayment(kind){
+    kind = kind === 'compat' ? 'compat' : 'reading';
     if (!YOMI_PAID_ENABLED) {
       if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('本格鑑定は、いま準備を整えているところさ。もう少し待っておくれ。');
       return;
@@ -4300,7 +4537,7 @@
       if (panel) panel.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:8px 0;">以前のお支払いを確認しています…</div>';
       const prev = await yomiVerifySession(attempt.sessionId, 1);
       if (prev.valid) {
-        yomiMarkPendingPaidSession(attempt.sessionId);
+        yomiMarkPendingPaidSession(attempt.sessionId, prev.kind);
         yomiClearAttempt();
         if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、もう払ってもらってるみたいだね。続きからやろうか。');
         yomiResumeToStep2();
@@ -4325,12 +4562,12 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // 支払い後に、今いるページ（本番のトップ／テスト購入用のページ）へ戻ってくるため
-        body: JSON.stringify({ returnPath: window.location.pathname === '/yomi-test.html' ? '/yomi-test.html' : '/' }),
+        body: JSON.stringify({ returnPath: window.location.pathname === '/yomi-test.html' ? '/yomi-test.html' : '/', kind }),
       });
       const data = await res.json();
       if (data && data.url) {
         // 決済画面へ飛ぶ前に、この決済の番号を記録する（戻りでURLの情報が失われても確かめられるように）
-        if (data.id) yomiSetAttempt(data.id);
+        if (data.id) yomiSetAttempt(data.id, kind);
         window.location.href = data.url;
         return;
       }
@@ -4392,6 +4629,95 @@
       '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 12px;">出生地は、出生時刻を入れた場合だけ聞きます。出生時刻・出生地が分からない場合は、それに左右される部分（アセンダントなど）を使わずに鑑定します。一度鑑定すると、同じお支払いで別の生年月日に変えることはできません。</div>' +
       '<div id="yomiInputError" style="font-size:11px;color:#e25555;min-height:1em;margin-bottom:6px;"></div>' +
       '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiSubmitBirthData()">この内容で占ってもらう</button>';
+  }
+
+  // ===== 相性鑑定の入力（2026年11月24日）。二人分を同じ項目で入れる =====
+  function yomiCompatPersonFields(p, title){
+    return '<div style="margin-bottom:12px;padding:10px;border:1px solid rgba(124,58,237,.3);border-radius:8px;">' +
+      '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:8px;">' + title + '</div>' +
+      '<div style="margin-bottom:8px;"><label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">呼び名（任意・ニックネームで。本名は入れないでおくれ）</label>' +
+        '<input type="text" id="yomiC' + p + 'Nickname" maxlength="12" autocomplete="off" placeholder="例：' + (p === 'A' ? 'そら' : 'うみ') + '" style="' + YOMI_INPUT_STYLE + '"></div>' +
+      '<div style="margin-bottom:8px;"><label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">生年月日</label>' +
+        '<input type="date" id="yomiC' + p + 'Date" min="1900-01-01" style="' + YOMI_INPUT_STYLE + '"></div>' +
+      '<div style="margin-bottom:8px;"><label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生時刻（分からない場合は空欄でよい）</label>' +
+        '<input type="time" id="yomiC' + p + 'Time" oninput="yomiCompatTogglePlace(\'' + p + '\')" onchange="yomiCompatTogglePlace(\'' + p + '\')" style="' + YOMI_INPUT_STYLE + '"></div>' +
+      '<div id="yomiC' + p + 'PlaceWrap" style="display:none;"><label class="mono" style="display:block;font-size:9px;color:var(--ink-soft);margin-bottom:4px;">出生地</label>' +
+        '<select id="yomiC' + p + 'Place" style="' + YOMI_INPUT_STYLE + '">' + YOMI_PLACES.map(([k, n]) => '<option value="' + k + '"' + (k === 'tokyo' ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></div>' +
+    '</div>';
+  }
+  function yomiCompatTogglePlace(p){
+    const t = (document.getElementById('yomiC' + p + 'Time') || {}).value || '';
+    const wrap = document.getElementById('yomiC' + p + 'PlaceWrap');
+    if (wrap) wrap.style.display = t ? '' : 'none';
+  }
+  function yomiFlowStep2Compat(message){
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi(message || '相性かい。二人分、生まれた刻を教えてもらおうか。');
+    const panel = ensureYomiControlPanel();
+    panel.innerHTML =
+      '<div class="mono" style="font-size:9px;color:var(--c-yomi);letter-spacing:1px;margin-bottom:10px;">// COMPATIBILITY INPUT</div>' +
+      yomiCompatPersonFields('A', 'ひとりめ') + yomiCompatPersonFields('B', 'ふたりめ') +
+      '<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin:0 0 12px;">相手の生年月日は、相手の了承を得てから入力してください。名前（本名）は入れないでください。鑑定結果の保存は7日間です。出生時刻・出生地が分からない場合は、それに左右される部分を参考扱いにして鑑定します。一度鑑定すると、同じお支払いで別の生年月日に変えることはできません。</div>' +
+      '<div id="yomiInputError" style="font-size:11px;color:#e25555;min-height:1em;margin-bottom:6px;"></div>' +
+      '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0;width:100%;" onclick="yomiSubmitCompatData()">この二人で占ってもらう</button>';
+  }
+  function yomiCompatRead(p){
+    const date = (document.getElementById('yomiC' + p + 'Date') || {}).value || '';
+    const time = (document.getElementById('yomiC' + p + 'Time') || {}).value || '';
+    const place = time ? ((document.getElementById('yomiC' + p + 'Place') || {}).value || 'unknown') : 'unknown';
+    const nickname = ((document.getElementById('yomiC' + p + 'Nickname') || {}).value || '').trim().slice(0, 12);
+    return { date, time, place, nickname };
+  }
+  function yomiSubmitCompatData(){
+    const a = yomiCompatRead('A'), b = yomiCompatRead('B');
+    const errEl = document.getElementById('yomiInputError');
+    if (!a.date) { if (errEl) errEl.textContent = 'ひとりめの生年月日を入れておくれ。'; return; }
+    if (!b.date) { if (errEl) errEl.textContent = 'ふたりめの生年月日を入れておくれ。'; return; }
+    yomiFlowStep3Compat({ a, b });
+  }
+  async function yomiRequestCompat(input){
+    const pending = yomiHasPendingPaidSession();
+    if (!pending || !pending.sessionId) return { error: 'no_session' };
+    try {
+      const res = await fetch(EARTH_SIGNAL_URL + 'yomi/compat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: pending.sessionId, a: input.a, b: input.b }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.reading) return { reading: data.reading };
+      return { error: data.error || ('status_' + res.status), message: data.message };
+    } catch (e) { return { error: 'network' }; }
+  }
+  function yomiFlowStep3Compat(input){
+    removeYomiControlPanel();
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('水晶玉に、二人の生まれた刻を並べて映してる……');
+    const p = yomiRequestCompat(input);
+    window.eternalogPlayYomiVideo('yomi_casting.mp4' + YOMI_VIDEO_VER, false, () => {
+      yomiStartCalcOverlay();
+      if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('……二つの盤面が、重なってきた。');
+      const panel = ensureYomiControlPanel();
+      panel.innerHTML = '<div class="mono" style="font-size:10px;color:var(--c-yomi);text-align:center;padding:10px 0;">// 二人の命盤を突き合わせています…</div>';
+      p.then((result) => {
+        yomiFinishCalcOverlay(() => {
+          if (result.reading) yomiFlowStep4(result.reading);
+          else yomiShowCompatError(result, input);
+        });
+      });
+    });
+  }
+  function yomiShowCompatError(result, input){
+    window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
+    if (result.error === 'invalid_input') { yomiFlowStep2Compat(result.message ? result.message + '。もう一度教えておくれ。' : null); return; }
+    const panel = ensureYomiControlPanel();
+    const contact = '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);">何度試しても鑑定が届かない場合は、お手数ですが <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。お支払いの確認のうえ対応します。</div>';
+    if (result.error === 'not_paid' || result.error === 'no_session' || result.error === 'wrong_kind') {
+      if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、相性鑑定のお支払いの記録が見つからないね。');
+      panel.innerHTML = '<div style="font-size:11.5px;line-height:1.7;color:var(--ink);margin-bottom:10px;">お支払いを確認できませんでした。</div>' + contact;
+      return;
+    }
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('すまないね、星の声がうまく届かなかった。もう一度だけ視てみようか。');
+    panel.innerHTML = '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 10px;width:100%;" id="yomiRetryBtn">もう一度占ってもらう</button>' + contact;
+    const btn = document.getElementById('yomiRetryBtn');
+    if (btn) btn.onclick = () => yomiFlowStep3Compat(input);
   }
 
   // 出生時刻が入っている時だけ、出生地の欄を出す
@@ -4534,7 +4860,7 @@
     const panel = ensureYomiControlPanel();
     const retry = '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 10px;width:100%;" id="yomiRetryBtn">もう一度占ってもらう</button>';
     const contact = '<div style="font-size:10.5px;line-height:1.7;color:var(--ink-soft);">何度試しても鑑定が届かない場合は、お手数ですが <a href="/contact" style="color:var(--c-yomi);">お問い合わせ</a> からご連絡ください。お支払いの確認のうえ対応します。</div>';
-    if (result.error === 'not_paid' || result.error === 'no_session') {
+    if (result.error === 'not_paid' || result.error === 'no_session' || result.error === 'wrong_kind') {
       if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('おや、お支払いの記録が見つからないね。');
       panel.innerHTML = '<div style="font-size:11.5px;line-height:1.7;color:var(--ink);margin-bottom:10px;">お支払いを確認できませんでした。</div>' + contact;
       return;
@@ -4681,6 +5007,7 @@
 
   // 鑑定結果の画面を組み立てる。opts.link が true なら、あとで見返すための専用リンク欄を付ける
   function yomiRenderReading(reading, opts){
+    if (reading && reading.type === 'compat') return yomiRenderCompat(reading, opts);
     const esc = escapeHtml;
     const o = opts || {};
     const profile = reading.profile || {};
@@ -4768,6 +5095,71 @@
     '</div>';
   }
 
+  // ===== 相性鑑定の結果画面（2026年11月24日）。本格鑑定と同じ見た目の部品（.yr）を使う =====
+  function yomiRenderCompat(reading, opts){
+    const esc = escapeHtml;
+    const o = opts || {};
+    const pp = reading.people || [];
+    const sec = reading.sections || {};
+    const v = reading.verdicts || {};
+    const b = reading.basis || {};
+    const toneJp = (t) => t === 1 ? '追い風' : t === -1 ? '向かい風' : t === 0 ? 'どちらとも' : '使えず';
+    const paras = (t) => String(t || '').split(/\n+/).filter((x) => x.trim()).map((x) => '<p>' + esc(x) + '</p>').join('');
+    const card = (icon, title, body, open) => body ? '<details class="yr-card yr-theme"' + (open ? ' open' : '') + '><summary><span class="yr-theme-name">' + yrIcon(icon, 16) + '<b>' + esc(title) + '</b></span><span class="yr-chev">' + yrIcon('chevron', 18) + '</span></summary><div class="yr-theme-body">' + paras(body) + '</div></details>' : '';
+    const link = o.link ? yomiReadingLink(reading) : null;
+    const person = (x, i) => '<div class="yr-spec-row"><span class="yr-dim">' + yrIcon('calendar', 13) + esc((x && x.name) || (i ? 'ふたりめ' : 'ひとりめ')) + '</span><b>' + esc((x && x.birthLabel) || '') + (x && x.placeLabel && x.placeLabel !== '出生地不明' ? '・' + esc(x.placeLabel) : '') + '</b></div>';
+    const aspects = (b.aspects || []).map((a) => '<div>' + esc((pp[0] && pp[0].name) || 'ひとりめ') + 'の' + esc(a.aJp) + ' × ' + esc((pp[1] && pp[1].name) || 'ふたりめ') + 'の' + esc(a.bJp) + '　' + esc(a.jp) + '（誤差' + esc(String(a.orb)) + '度）' + (a.uncertain ? '※参考' : '') + '</div>').join('');
+    const sh = b.shichu, ky = b.kyusei;
+    return '<div class="yr">' +
+      '<section class="yr-hero">' +
+        '<div class="yr-badge"><div class="yr-badge-in"><span class="yr-badge-ic">' + yrIcon('orb', 18) + '<img src="char-yomi.png" alt="観月ヨミ" onerror="this.style.display=\'none\'"></span>' +
+          '<span><span class="yr-mono yr-badge-role">ASTROLOGER</span><span class="yr-badge-name">観月ヨミ</span></span></div></div>' +
+        '<h1 class="yr-title">二人の相性鑑定</h1>' +
+        '<p class="yr-sub">三つの占術を突き合わせた、二人だけの相性リーディング</p>' +
+      '</section>' +
+      '<section class="yr-card yr-hud yr-spec">' +
+        '<div class="yr-spec-head"><span class="yr-mono yr-dim"><i class="yr-dot"></i>TARGET_SPECIFICATION</span><span class="yr-tag">CALCULATED</span></div>' +
+        person(pp[0], 0) + person(pp[1], 1) +
+      '</section>' +
+      '<section class="yr-card yr-hud yr-spec">' +
+        '<div class="yr-spec-head"><span class="yr-mono yr-dim"><i class="yr-dot"></i>THREE_SYSTEMS</span><span class="yr-tag">' + (v.agree === 1 || v.agree === -1 || v.agree === 0 ? '一致：' + toneJp(v.agree) : '見立てが割れた') + '</span></div>' +
+        '<div class="yr-spec-row"><span class="yr-dim">' + yrIcon('planet', 13) + '西洋占星術</span><b>' + toneJp(v.seiyo) + '</b></div>' +
+        '<div class="yr-spec-row"><span class="yr-dim">' + yrIcon('sparkle', 13) + '四柱推命</span><b>' + toneJp(v.shichu) + '</b></div>' +
+        '<div class="yr-spec-row"><span class="yr-dim">' + yrIcon('moon', 13) + '九星気学</span><b>' + toneJp(v.kyusei) + '</b></div>' +
+      '</section>' +
+      '<section class="yr-card yr-glow">' +
+        '<div class="yr-sec-head"><span class="yr-mono yr-indigo">' + yrIcon('galaxy', 15) + 'OVERALL_READING // 総評</span><span class="yr-mono yr-faint">LOG_01</span></div>' +
+        '<p class="yr-overview">' + esc(sec.overview || '') + '</p>' +
+      '</section>' +
+      '<section class="yr-themes">' +
+        '<div class="yr-sec-head yr-pad"><span class="yr-mono yr-dim">' + yrIcon('diamond', 14) + 'COMPATIBILITY_ANALYSIS</span><span class="yr-indigo-text">占術ごとの見立て</span></div>' +
+        card('people', '三つが一致したところ', sec.agree, true) +
+        card('planet', '西洋占星術から見た二人', sec.seiyo) +
+        card('sparkle', '四柱推命から見た二人', sec.shichu) +
+        card('moon', '九星気学から見た二人', sec.kyusei) +
+        card('heart', 'ぶつかりやすい所と、付き合い方', sec.friction) +
+      '</section>' +
+      '<section class="yr-card yr-basis">' +
+        '<div class="yr-basis-head"><span>' + yrIcon('chart', 14) + '実際の計算根拠（天文暦データ）</span><span class="yr-tag">LogiGrain</span></div>' +
+        (aspects ? '<div class="yr-sub-head"><span>二人の天体どうしの角度</span></div><div class="yr-data yr-list">' + aspects + '</div>' : '') +
+        '<div class="yr-grid2">' +
+          (sh ? '<div><div class="yr-sub-head"><span>四柱推命</span></div><div class="yr-data yr-list"><div>日主　' + esc(sh.stemA) + '（' + esc(sh.elementA) + '）と ' + esc(sh.stemB) + '（' + esc(sh.elementB) + '）</div><div>' + esc(sh.relation) + '</div>' + (sh.gou ? '<div>干合（強く引き合う）</div>' : '') + (sh.branchGou ? '<div>日柱の支が六合</div>' : '') + (sh.branchChu ? '<div>日柱の支が冲</div>' : '') + '</div></div>' : '') +
+          (ky ? '<div><div class="yr-sub-head"><span>九星気学</span></div><div class="yr-data yr-list"><div>本命星　' + esc(ky.starA) + 'と' + esc(ky.starB) + '</div><div>' + esc(ky.relation) + '</div></div></div>' : '') +
+        '</div>' +
+      '</section>' +
+      (sec.closing ? '<section class="yr-card yr-closing"><span class="yr-closing-ic">' + yrIcon('moon', 18) + '</span><p>「' + esc(sec.closing) + '」</p><div class="yr-sign">── 観月ヨミ</div></section>' : '') +
+      (link ?
+        '<section class="yr-card yr-link">' +
+          '<p class="yr-link-lead">' + yrIcon('lock', 14) + 'この鑑定は、専用リンクから見返せます（7日間）</p>' +
+          '<p class="yr-link-lead" style="font-size:11px;opacity:.85;">7日を過ぎると見られなくなります。手元に残したい場合は、スクリーンショットで保存しておくのがおすすめです。</p>' +
+          '<button class="yr-copy" type="button" onclick="yomiCopyReadingLink(this, \'' + link + '\')">' + yrIcon('copy', 15) + '<span>リンクをコピー</span></button>' +
+          '<p class="yr-note">このリンクを知っている人は鑑定結果を見られます。他の人には教えないでください。</p>' +
+        '</section>' : '') +
+      '<p class="yr-foot">実際の天体・暦の計算結果をもとにAIが作成した、娯楽としての占いです。最終的な判断はご自身でなさってください。</p>' +
+      '<p class="yr-mono yr-copyright">© ETERNALOG / MIZUKI YOMI</p>' +
+    '</div>';
+  }
+
   // 鑑定結果を全画面のリーダーで開く。keepYomi が true なら、閉じてもヨミの部屋のまま（燈に戻さない）
   function yomiOpenReadingPanel(reading, opts){
     const o = opts || {};
@@ -4798,15 +5190,17 @@
     // あとから見返せるよう、この端末に鑑定結果を残しておく
     try { localStorage.setItem(YOMI_LAST_READING_KEY, JSON.stringify(reading)); } catch (e) {}
     window.eternalogPlayYomiVideo('yomi_idle.mp4' + YOMI_VIDEO_VER, true, null, 1800);
-    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi('出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから開きな。');
+    const isCompat = reading && reading.type === 'compat';
+    if (window.heroTextboxShowYomi) window.heroTextboxShowYomi(isCompat ? '出たよ。二人の盤面、突き合わせて見せてやるのさ。' : '出たよ。あんたの盤面、五つに分けて見せてやるのさ。気になるとこから開きな。');
     // ヨミの部屋の操作欄には、結果を開き直す入口と、燈に戻る入口だけを置く
     const panel = ensureYomiControlPanel();
     panel.innerHTML =
       '<button class="reader-close-bottom mono" style="border-color:var(--c-yomi);color:var(--c-yomi);margin:0 0 8px;width:100%;" onclick="showYomiLastReading()">鑑定結果を開く</button>' +
       '<div class="mono" style="font-size:9px;color:var(--ink-soft);text-align:center;cursor:pointer;" onclick="yomiExitToTomori(); removeYomiControlPanel();">// 燈のところへ戻る</div>';
     // 結果は全画面で見せる（縦に長いデザインのため）
-    yomiOpenReadingPanel(reading, { sub: '本格鑑定の結果', link: true, keepYomi: true });
+    yomiOpenReadingPanel(reading, { sub: yomiReadingSub(reading), link: true, keepYomi: true });
   }
+  function yomiReadingSub(reading){ return reading && reading.type === 'compat' ? '相性鑑定の結果' : '本格鑑定の結果'; }
 
   // あとで見返すための専用リンク（ブラウザを閉じても、別の端末からでも見られる）
   function yomiReadingLink(reading){
@@ -4827,18 +5221,18 @@
     const reading = yomiLoadLastReading();
     if (!reading) return;
     const inYomi = !!(window.eternalogIsYomiMode && window.eternalogIsYomiMode());
-    yomiOpenReadingPanel(reading, { sub: '本格鑑定の結果', link: true, keepYomi: inYomi });
+    yomiOpenReadingPanel(reading, { sub: yomiReadingSub(reading), link: true, keepYomi: inYomi });
   }
 
   // 紹介ページ（/yomi）からの入口：?yomi=start で本格鑑定、?yomi=ranking で週間ランキングを開く
   (function openYomiFromLandingLink(){
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('yomi');
-    if (mode !== 'start' && mode !== 'ranking') return;
+    if (mode !== 'start' && mode !== 'ranking' && mode !== 'compat') return;
     if (params.get('yomi_session_id') || params.get('yomi_reading')) return;
     history.replaceState({}, '', window.location.origin + window.location.pathname);
     const go = () => setTimeout(() => {
-      if (mode === 'start' && YOMI_PAID_ENABLED) startYomiFullDivination();
+      if ((mode === 'start' || mode === 'compat') && YOMI_PAID_ENABLED) startYomiFullDivination();
       else openReaderPanel('YOMI');
     }, 800);
     if (document.readyState === 'complete') go();
@@ -4857,7 +5251,7 @@
         if (data && data.reading) {
           // この端末でも「前回の鑑定」として見られるように残しておく
           try { localStorage.setItem(YOMI_LAST_READING_KEY, JSON.stringify(data.reading)); } catch (e) {}
-          yomiOpenReadingPanel(data.reading, { sub: '本格鑑定の結果', link: false, keepYomi: false });
+          yomiOpenReadingPanel(data.reading, { sub: yomiReadingSub(data.reading), link: false, keepYomi: false });
         } else {
           document.getElementById('readerBack').classList.add('show');
           document.getElementById('reader').classList.add('show');
@@ -7485,6 +7879,7 @@
     clearTimeout(rururuBubbleTimer);
     rururuResetAudioQueue();
     yomiStopCalcOverlay();
+    essayStopAll();   // エッセイのシャボン玉と文字送りを止める（閉じたあとも動き続けていた）
     // ヨミモードへ移行する場合は、燈の待機動画やGUIDE文言に戻す必要がない。
     // むしろ戻す処理が走ると、直後に差し込むヨミの動画と競合してしまう。
     if (!skipTomoriRestore) {
