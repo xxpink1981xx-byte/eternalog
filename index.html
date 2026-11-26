@@ -1757,6 +1757,7 @@
         if (defaultShown) return;
         if (bootDone && videoDone) {
           defaultShown = true;
+          window.__guideShownAt = Date.now();   // ニュースのひと言は、この案内が出てから流す
           // すでにヨミの部屋に切り替わっていたら、燈の案内文で上書きしない
           if (window.eternalogIsYomiMode && window.eternalogIsYomiMode()) return;
           // 2026年11月4日：まだラジオを聴いたことのない人には、燈が「最初の一つ」を案内する
@@ -1805,6 +1806,7 @@
 
     // ===== ピルボタンが押された時に反応（stub()から呼ばれる） =====
     window.heroTextboxReact = function(name){
+      window.__heroTextboxLastAt = Date.now();
       const r = reactions[name] || { cmd: 'tomori@eternalog:~$ open ' + name.toLowerCase(), say: name + '、オープンします。' };
       typeTwoLine(r.cmd, r.say, 'REACT');
     };
@@ -1824,6 +1826,11 @@
     };
 
     // ===== ヨミモード中、ヨミの語りかけをGUIDE欄と同じ場所に表示する =====
+    // 2026年11月27日：燈のニュースのひと言（コマンド行に媒体と見出し、発話行に燈のひと言）
+    window.heroTextboxShowNews = function(head, line){
+      typeTwoLine(head, line, 'EARTH');
+      window.__heroTextboxLastAt = Date.now();
+    };
     window.heroTextboxShowYomi = function(text){
       typeText(text, 'ヨミ', true);
     };
@@ -2506,6 +2513,14 @@
     }
     window.tomoriAvatarSay = say;
     window.tomoriAvatarStopSay = () => { try { el.avatar && el.avatar.stopLipSync(); } catch (e) {} };
+    // ニュースのひと言などで、しばらく表情を付ける
+    let emoTimer = null;
+    window.tomoriAvatarEmotion = (emo, ms) => {
+      if (!window.__tomoriAvatarOn || !el.avatar) return;
+      try { el.avatar.setEmotion(emo || null, { playMotion: true }); } catch (e) {}
+      clearTimeout(emoTimer);
+      emoTimer = setTimeout(() => { try { el.avatar.setEmotion(null); } catch (e) {} }, ms || 6000);
+    };
 
     // ----- 視線：カーソル（スマホはタップ）を目と顔が少し追い、しばらくで正面に戻る -----
     let gazeTimer = null;
@@ -2552,6 +2567,75 @@
       if (mini) mini.classList.remove('has-avatar');
       stage.appendChild(el);
     };
+  })();
+
+  // ===== 燈のニュースのひと言（2026年11月27日） =====
+  // ・起動の案内のあと一度と、しばらく操作がない時に、文字欄へ流す（1回の訪問で最大3本、同じ日は続きから）
+  // ・燈が見えている時だけ出す（スマホで読む窓を開いている間、ヨミの部屋、別タブでは出さない）
+  // ・記事を並べる画面は作らない。コマンド行に媒体と見出し、発話行に燈のひと言。アバターは表情付きで口を動かす
+  (function initTomoriNews(){
+    let items = [], date = '', shownThisVisit = 0, lastInput = Date.now(), timer = null;
+    const MAX_PER_VISIT = 3, IDLE_MS = 45000, FIRST_DELAY_MS = 15000, HOLD_MS = 14000;
+    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true }));
+    function nextIndex(){
+      let i = 0;
+      try { const v = JSON.parse(localStorage.getItem('eternalog_news_seen') || 'null'); if (v && v.date === date) i = v.i; } catch (e) {}
+      return i;
+    }
+    function markSeen(i){ try { localStorage.setItem('eternalog_news_seen', JSON.stringify({ date, i })); } catch (e) {} }
+    function tomoriVisible(){
+      if (document.hidden) return false;
+      if (window.eternalogIsYomiMode && window.eternalogIsYomiMode()) return false;
+      const reader = document.getElementById('reader');
+      if (reader && reader.classList.contains('show')) {
+        const fr = document.querySelector('.hero-video-frame');
+        if (!fr) return false;
+        const readerLeft = window.innerWidth - Math.min(window.innerWidth, 430);
+        if (fr.getBoundingClientRect().right > readerLeft + 20) return false;   // スマホ：窓でモニタが隠れている
+      }
+      const box = document.getElementById('heroTextboxBody');
+      if (!box) return false;
+      const r = box.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    }
+    function showOne(){
+      if (shownThisVisit >= MAX_PER_VISIT || !items.length || !window.heroTextboxShowNews) return false;
+      if (!tomoriVisible()) return false;
+      if (!window.__guideShownAt || Date.now() - window.__guideShownAt < 12000) return false;   // 起動の案内がまだ／出たばかり
+      if (document.getElementById('firstGuide')) return false;   // 初めての人へのラジオの案内を出している間は待つ
+      if (Date.now() - (window.__heroTextboxLastAt || 0) < 10000) return false;   // 直前に別の案内を出したばかり
+      const i = nextIndex();
+      if (i >= items.length) return false;
+      const it = items[i];
+      const head = 'tomori@eternalog:~$ watch earth  // ' + (it.source ? it.source + '｜' : '') + (it.title.length > 34 ? it.title.slice(0, 33) + '…' : it.title);
+      window.heroTextboxShowNews(head, it.line);
+      if (window.tomoriAvatarEmotion) window.tomoriAvatarEmotion(it.emotion, 6500);
+      markSeen(i + 1);
+      shownThisVisit++;
+      // しばらくしたら、いつもの案内に戻す（その間に別の案内が出ていたら触らない）
+      const at = window.__heroTextboxLastAt;
+      setTimeout(() => { if (window.__heroTextboxLastAt === at && window.heroTextboxReset && tomoriVisible()) window.heroTextboxReset(); }, HOLD_MS);
+      return true;
+    }
+    let firstPending = false;
+    function loop(){
+      clearTimeout(timer);
+      if (shownThisVisit >= MAX_PER_VISIT) return;
+      if (firstPending) { if (showOne()) firstPending = false; }
+      else if (Date.now() - lastInput >= IDLE_MS) { if (showOne()) lastInput = Date.now(); }
+      timer = setTimeout(loop, 5000);
+    }
+    function start(){
+      fetch(EARTH_SIGNAL_URL + 'tomori-news', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((d) => {
+        if (!d || !Array.isArray(d.items) || !d.items.length) return;
+        items = d.items.filter((x) => x && x.title && x.line); date = d.date || '';
+        // 最初の1本は、起動の案内が出てから少しあと（loop が5秒ごとに条件を見て、出せる時に出す）
+        firstPending = true;
+        setTimeout(loop, FIRST_DELAY_MS);
+      }).catch(() => {});
+    }
+    if (window.eternalogBootWasSkipped) setTimeout(start, 1500);
+    else window.addEventListener('eternalog:bootcomplete', () => setTimeout(start, 1500), { once: true });
   })();
 
   // ===== 待機動画の自動ローテーション（クロスフェード＋切替グリッチ） =====
