@@ -3234,6 +3234,32 @@
     bodyEl.appendChild(listWrap);
   }
 
+  // ===== プロフィールの立ち絵のショート動画 =====
+  // prof-<id>.mp4 があれば、開くたびに最初から1回だけ再生し、最後のコマで止める。
+  // 再生が始まるまでは静止画。動画が無い・失敗・「動きを減らす」設定の時は静止画のまま。
+  const PROF_VIDEO_VER = '?v=20261128a';
+  function attachProfileVideo(panel, c){
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const still = panel.querySelector('img.prof-still');
+      if (!still) return;
+      const v = document.createElement('video');
+      v.muted = true; v.defaultMuted = true; v.playsInline = true;
+      v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+      v.preload = 'auto'; v.loop = false; v.disablePictureInPicture = true;
+      v.setAttribute('aria-hidden', 'true');
+      v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:' + c.bgPosition + ';filter:contrast(1.05) saturate(1.1);opacity:0;transition:opacity .25s ease;pointer-events:none;';
+      const drop = () => { try { v.removeAttribute('src'); v.load(); } catch(e){} v.remove(); };
+      v.addEventListener('error', drop, { once: true });
+      v.addEventListener('playing', () => { v.style.opacity = '1'; }, { once: true });
+      v.addEventListener('ended', () => { try { v.pause(); } catch(e){} });
+      v.src = 'prof-' + c.id + '.mp4' + PROF_VIDEO_VER;
+      still.insertAdjacentElement('afterend', v);
+      const p = v.play();
+      if (p && p.catch) p.catch(drop);
+    } catch(e) {}
+  }
+
   // ===== CHARACTERS詳細（プロフィールカード） =====
   function showCharacterDetail(charId){
     const c = charactersData.find(x => x.id === charId);
@@ -3257,7 +3283,7 @@
     panel.innerHTML =
       // --- キャラクター立ち絵：独立した固定アスペクト比の窓（テキストとは重ならない） ---
       '<div style="position:relative;aspect-ratio:4/3;background:#eef3fb;overflow:hidden;">' +
-        '<img src="' + c.bgImage + '" alt="' + c.name + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:' + c.bgPosition + ';filter:contrast(1.05) saturate(1.1);" onerror="this.style.display=\'none\'">' +
+        '<img class="prof-still" src="' + c.bgImage + '" alt="' + c.name + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:' + c.bgPosition + ';filter:contrast(1.05) saturate(1.1);" onerror="this.style.display=\'none\'">' +
         '<div class="mon-hud">' +
           '<div class="mon-corner tl" style="border-color:' + c.color + ';"></div>' +
           '<div class="mon-corner tr" style="border-color:' + c.color + ';"></div>' +
@@ -3317,6 +3343,7 @@
       '</div>';
     bodyEl.appendChild(panel);
     requestAnimationFrame(() => { panel.style.opacity = '1'; });
+    attachProfileVideo(panel, c);
 
     renderLikeButton('character', charId, bodyEl);
     appendCloseButton(bodyEl, showCharactersList);
